@@ -15,6 +15,15 @@ export interface Project {
   pendencias: Pendencia[] | null;
   /** `docs-dev/painel.json` (plano e fases); null = o projeto não tem o arquivo. */
   painel: Painel | null;
+  /** Resumo do `PROGRESS.md` (as entregas vêm por `api.progress`); null = o projeto não tem o arquivo. */
+  progress: { entries: number; lastDate: string } | null;
+}
+
+export interface ProgressEntry {
+  date: string;
+  title: string;
+  /** Markdown da entrega, sem o título. */
+  body: string;
 }
 
 export type PhaseState = 'feito' | 'andamento' | 'a fazer';
@@ -169,6 +178,7 @@ export const api = {
   openVsCode: (project: string, file?: string) => request('POST', '/api/open-vscode', { project, file }),
   newSession: (project: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project }),
   killSession: (id: string) => request('DELETE', `/api/sessions/${id}`),
+  progress: (project: string) => request<ProgressEntry[]>('GET', `/api/progress?project=${encodeURIComponent(project)}`),
 };
 
 export function wsUrl(path: string): string {

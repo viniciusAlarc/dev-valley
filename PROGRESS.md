@@ -3,6 +3,23 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-25 — Diário do progresso no atril da casa
+
+**O que mudou:** passo 4 (último) do plano de representações visuais. Dentro da casa, entre a estante e o quadro de
+pendências, um atril com o livro aberto quando o projeto tem `PROGRESS.md`. O tooltip diz quantas entregas há e a data
+da última; o clique abre o diário, uma entrega por página (a mais recente primeiro), com botões para folhear e um
+sumário na lateral com todas as entregas agrupadas por data, para pular direto para qualquer página (pedido do usuário,
+25/10/2026: projeto longo não dá para folhear uma a uma; mesmo layout e classes da biblioteca). O mundo
+leva só o resumo (contagem e última data); as páginas vêm sob demanda por `GET /api/progress`, para o `PROGRESS.md`
+inteiro não ir à vila a cada atualização. Markdown sanitizado como na biblioteca.
+**Arquivos:** `server/src/progress.ts` (novo), `server/src/world.ts` (`Project.progress`), `server/src/index.ts`
+(`/api/progress`), `web/src/api.ts`, `web/src/game/interiorTextures.ts` (`lectern`), `web/src/game/InteriorScene.ts`,
+`web/src/ui/diario.ts` (novo), `web/src/ui/actions.ts`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` do front (diretório temporário), auditor sem achado;
+leitor testado contra o `PROGRESS.md` deste repo (15 entregas, todas com data); atril conferido num render fora do
+navegador; conferido na vila pelo usuário. Com isso o plano fechou: saiu de `docs-dev/a-codar/` para
+`docs-dev/context/representacoes-visuais.md`, a PD-10 foi fechada e a fase "Representações visuais" virou `feito`.
+
 ## 2026-10-25 — Pendências PD-1, PD-2 e PD-3 fechadas
 
 **O que mudou:** só acompanhamento, sem código. PD-2: o usuário conferiu numa sessão nova que `guardrails ✓` continua
@@ -38,7 +55,7 @@ Falta conferir na vila (reinício do usuário).
 
 ## 2026-10-25 — Quadro de pendências na casa e sinal na fachada
 
-**O que mudou:** passo 1 do plano de representações visuais (`docs-dev/a-codar/01-representacoes-visuais.md`,
+**O que mudou:** passo 1 do plano de representações visuais (`docs-dev/context/representacoes-visuais.md`,
 decisões do usuário em 25/10/2026). O servidor lê o `PENDENCIAS.md` de cada projeto (só leitura; sem o arquivo,
 sem quadro). Dentro da casa, um quadro de cortiça na parede ganha um bilhete por pendência (até 15), com a cor da
 prioridade (P1 vermelho, P2 laranja, P3 amarelo, P4 papel); clicar abre o painel com a lista agrupada por prioridade e o

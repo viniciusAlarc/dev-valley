@@ -19,6 +19,8 @@ const BOARD_X = 86;
 const BOARD_Y = WALL_H - 4;
 const NOTE_COLS = 5;
 const MAX_NOTES = 15;
+/** Atril do diário (PROGRESS.md), no chão entre a estante e o quadro. */
+const DIARY_X = 53;
 
 interface Placement {
   desks: (Session | null)[];
@@ -169,6 +171,18 @@ export class InteriorScene extends Phaser.Scene {
           return `Quadro de pendências — ${list.length} aberta(s)${urgent ? `, ${urgent} P1/P2` : ''}${mine ? ` · ${mine} esperam decisão sua` : ''}`;
         },
         () => ui.openPendencias(this.project(getWorld()) ?? project),
+      );
+    }
+
+    if (project.progress) {
+      const lectern = this.prop('lectern', DIARY_X, WALL_H + 18);
+      makeInteractive(
+        lectern,
+        () => {
+          const p = this.project(getWorld())?.progress;
+          return p?.entries ? `Diário — ${p.entries} entrega(s)${p.lastDate ? `, a última em ${p.lastDate}` : ''}` : 'Diário — nenhuma entrega ainda';
+        },
+        () => ui.openDiary(this.project(getWorld()) ?? project),
       );
     }
 

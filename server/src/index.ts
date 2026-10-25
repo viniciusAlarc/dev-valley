@@ -10,6 +10,7 @@ import * as gitOps from './git.js';
 import { HookStore } from './hooks.js';
 import { Library } from './library.js';
 import { askLibrarian } from './librarian.js';
+import { readProgress } from './progress.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
 import { buildWorld, type Project, type World } from './world.js';
@@ -84,6 +85,13 @@ app.post('/api/librarian/ask', (req, res) => {
   res.on('close', () => {
     if (!res.writableEnded) cancel();
   });
+});
+
+// Diário da casa: as entregas do PROGRESS.md, só leitura.
+app.get('/api/progress', async (req, res) => {
+  const project = findProject(req.query.project);
+  if (!project) return res.status(400).json({ error: 'projeto inválido' });
+  res.json((await readProgress(project.path)) ?? []);
 });
 
 app.get('/api/diff', async (req, res) => {

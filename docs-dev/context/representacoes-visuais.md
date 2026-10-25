@@ -1,7 +1,8 @@
 # Representações visuais dos arquivos de acompanhamento
 
-> Plano decidido em 25/10/2026 (G7). Ao implementar cada passo: marcar aqui, registrar no `PROGRESS.md`
-> e, quando todos estiverem feitos, tirar este arquivo do índice.
+> Plano decidido e implementado em 25/10/2026; saiu de `docs-dev/a-codar/` ao fechar (G7). Fica aqui como registro
+> das decisões. Todas as peças são só leitura: os arquivos são lidos a cada atualização do mundo
+> (`server/src/pendencias.ts`, `painel.ts`, `progress.ts`), e o texto do diário vem sob demanda por `GET /api/progress`.
 
 A vila passa a mostrar os arquivos de acompanhamento que todo projeto tem (formatos fixos dos guardrails):
 `PENDENCIAS.md`, `PROGRESS.md` e `docs-dev/painel.json`.
@@ -29,6 +30,9 @@ A vila passa a mostrar os arquivos de acompanhamento que todo projeto tem (forma
 | 1 | Quadro de pendências na casa + sinal na fachada | feito |
 | 2 | Quadro da praça com as pendências 👤 de todos os projetos | feito |
 | 3 | Horta das fases (`painel.json`) | feito |
-| 4 | Diário do progresso (`PROGRESS.md`) | a fazer |
+| 4 | Diário do progresso (`PROGRESS.md`), com sumário lateral por data | feito |
 
 O passo 3 cobre a primeira metade da PD-7 (casa mostrar o `painel.json`).
+
+**Próximos refinamentos possíveis (não decididos):** busca no sumário do diário; criar ou fechar pendência pela vila
+(decisão 3 acima).

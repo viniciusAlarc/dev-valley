@@ -242,6 +242,25 @@ function note(scene: Phaser.Scene, priority: number) {
   add(scene, `note${priority}`, c);
 }
 
+/** Atril com o diário aberto (o `PROGRESS.md` do projeto). */
+function lectern(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(18, 24);
+  // pé e base
+  rect(ctx, 8, 10, 3, 12, '#6b4220');
+  rect(ctx, 3, 21, 13, 2, '#5e3a1c');
+  // tampo inclinado
+  rect(ctx, 1, 6, 16, 5, '#8f5f30');
+  rect(ctx, 1, 6, 16, 1, '#b9854a');
+  // livro aberto, com fita marcadora
+  rect(ctx, 2, 2, 7, 6, '#f4ead2');
+  rect(ctx, 10, 2, 7, 6, '#fbf3df');
+  rect(ctx, 9, 2, 1, 6, '#b9a985');
+  for (const y of [3, 5]) rect(ctx, 3, y, 5, 1, '#b9a985'), rect(ctx, 11, y, 5, 1, '#c9b991');
+  rect(ctx, 13, 8, 1, 3, '#c0392b');
+  outline(ctx, 18, 24);
+  add(scene, 'lectern', c);
+}
+
 export function generateInteriorTextures(scene: Phaser.Scene) {
   if (scene.textures.exists('floor')) return;
   floor(scene);
@@ -260,6 +279,7 @@ export function generateInteriorTextures(scene: Phaser.Scene) {
   rug(scene);
   doormat(scene);
   corkBoard(scene);
+  lectern(scene);
   for (let p = 1; p <= 4; p++) note(scene, p);
 }
 
