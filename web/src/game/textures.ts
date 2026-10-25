@@ -25,26 +25,26 @@ export function hash(s: string): number {
   return h >>> 0;
 }
 
-function makeCanvas(w: number, h: number) {
+export function makeCanvas(w: number, h: number) {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
   return { c, ctx: c.getContext('2d', { willReadFrequently: true })! };
 }
 
-function rect(ctx: Ctx, x: number, y: number, w: number, h: number, color: string) {
+export function rect(ctx: Ctx, x: number, y: number, w: number, h: number, color: string) {
   ctx.fillStyle = color;
   ctx.fillRect(x, y, w, h);
 }
 
-function disc(ctx: Ctx, cx: number, cy: number, r: number, color: string) {
+export function disc(ctx: Ctx, cx: number, cy: number, r: number, color: string) {
   ctx.fillStyle = color;
   for (let y = -r; y <= r; y++)
     for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + r * 0.6) ctx.fillRect(cx + x, cy + y, 1, 1);
 }
 
 /** Contorno escuro de 1px ao redor dos pixels opacos — o "look" Stardew. */
-function outline(ctx: Ctx, w: number, h: number) {
+export function outline(ctx: Ctx, w: number, h: number) {
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
   const opaque = (x: number, y: number) => x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3] > 128;
@@ -57,7 +57,7 @@ function outline(ctx: Ctx, w: number, h: number) {
   for (let i = 0; i < marks.length; i += 2) ctx.fillRect(marks[i], marks[i + 1], 1, 1);
 }
 
-function add(scene: Phaser.Scene, key: string, c: HTMLCanvasElement) {
+export function add(scene: Phaser.Scene, key: string, c: HTMLCanvasElement) {
   if (scene.textures.exists(key)) scene.textures.remove(key);
   scene.textures.addCanvas(key, c);
 }
@@ -160,7 +160,7 @@ function roof(ctx: Ctx, x0: number, w: number, top: number, bottom: number, pal:
   rect(ctx, x0, bottom - 2, w, 2, pal[1]);
 }
 
-function window_(ctx: Ctx, x: number, y: number) {
+export function window_(ctx: Ctx, x: number, y: number) {
   rect(ctx, x, y, 12, 10, '#4a2a12');
   rect(ctx, x + 1, y + 1, 10, 8, '#8fc8de');
   rect(ctx, x + 1, y + 1, 4, 3, '#c6e8f2');
@@ -169,7 +169,7 @@ function window_(ctx: Ctx, x: number, y: number) {
   rect(ctx, x - 1, y + 10, 14, 2, '#7a4b20');
 }
 
-function planks(ctx: Ctx, x: number, y: number, w: number, h: number) {
+export function planks(ctx: Ctx, x: number, y: number, w: number, h: number) {
   rect(ctx, x, y, w, h, '#b9854a');
   for (let yy = y + 4; yy < y + h; yy += 5) rect(ctx, x, yy, w, 1, '#8d5f30');
   rect(ctx, x, y, 3, h, '#6b4220');
@@ -306,6 +306,22 @@ function bubble(scene: Phaser.Scene) {
   add(scene, 'bubble', c);
 }
 
+/** Balão amarelo com "!" — a sessão precisa de você. */
+function alert(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(12, 16);
+  rect(ctx, 1, 0, 10, 12, '#f7d046');
+  rect(ctx, 0, 1, 12, 10, '#f7d046');
+  rect(ctx, 1, 1, 3, 2, '#fff1a8');
+  rect(ctx, 9, 2, 2, 9, '#d9a520');
+  rect(ctx, 1, 10, 10, 1, '#d9a520');
+  rect(ctx, 4, 12, 3, 2, '#f7d046');
+  rect(ctx, 5, 14, 1, 1, '#f7d046');
+  rect(ctx, 5, 2, 2, 5, '#b8241c');
+  rect(ctx, 5, 8, 2, 2, '#b8241c');
+  outline(ctx, 12, 16);
+  add(scene, 'alert', c);
+}
+
 function shadow(scene: Phaser.Scene) {
   const { c, ctx } = makeCanvas(14, 5);
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
@@ -313,59 +329,6 @@ function shadow(scene: Phaser.Scene) {
   ctx.ellipse(7, 2.5, 7, 2.5, 0, 0, Math.PI * 2);
   ctx.fill();
   add(scene, 'shadow', c);
-}
-
-// ---------------- moradores ----------------
-
-const SKINS = ['#f2c9a0', '#e0ac7e', '#b97c50', '#8a5634'];
-const HAIRS = ['#3b2414', '#d9a441', '#8b3a1e', '#1c1c1c', '#e6dccb', '#6a3d9a', '#c0562e'];
-const SHIRTS = ['#c0392b', '#2e86c1', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#d4ac0d', '#e84393'];
-const PANTS = ['#3b3f6b', '#4a3a2a', '#2f4f4f', '#5a4a7a'];
-
-/** Gera (uma vez por combinação) uma folha de 3 quadros 16x24: parado, passo esq., passo dir. */
-export function villagerTexture(scene: Phaser.Scene, id: string): string {
-  const h = hash(id);
-  const skin = SKINS[h % SKINS.length];
-  const hair = HAIRS[(h >>> 3) % HAIRS.length];
-  const shirt = SHIRTS[(h >>> 6) % SHIRTS.length];
-  const pants = PANTS[(h >>> 9) % PANTS.length];
-  const longHair = ((h >>> 12) & 1) === 1;
-  const key = `npc-${skin}-${hair}-${shirt}-${pants}-${longHair}`;
-  if (scene.textures.exists(key)) return key;
-
-  const { c, ctx } = makeCanvas(48, 24);
-  for (let f = 0; f < 3; f++) {
-    const ox = f * 16;
-    const bob = f === 0 ? 0 : 1;
-    const y0 = 1 + bob;
-    // cabeça
-    rect(ctx, ox + 4, y0 + 3, 8, 8, skin);
-    rect(ctx, ox + 4, y0 + 1, 8, 3, hair);
-    rect(ctx, ox + 3, y0 + 2, 10, 2, hair);
-    rect(ctx, ox + 3, y0 + 3, 1, longHair ? 9 : 4, hair);
-    rect(ctx, ox + 12, y0 + 3, 1, longHair ? 9 : 4, hair);
-    rect(ctx, ox + 6, y0 + 7, 1, 2, '#2b1d14');
-    rect(ctx, ox + 9, y0 + 7, 1, 2, '#2b1d14');
-    rect(ctx, ox + 5, y0 + 9, 1, 1, '#e88c7a');
-    rect(ctx, ox + 10, y0 + 9, 1, 1, '#e88c7a');
-    // corpo
-    rect(ctx, ox + 4, y0 + 11, 8, 6, shirt);
-    rect(ctx, ox + 3, y0 + 12, 1, 4, skin);
-    rect(ctx, ox + 12, y0 + 12, 1, 4, skin);
-    rect(ctx, ox + 4, y0 + 17, 8, 2, pants);
-    // pernas
-    const legL = f === 1 ? -1 : 0;
-    const legR = f === 2 ? -1 : 0;
-    rect(ctx, ox + 5, y0 + 19 + legL, 2, 3, pants);
-    rect(ctx, ox + 9, y0 + 19 + legR, 2, 3, pants);
-    rect(ctx, ox + 5, y0 + 21 + legL, 2, 1, '#3a2414');
-    rect(ctx, ox + 9, y0 + 21 + legR, 2, 1, '#3a2414');
-  }
-  outline(ctx, 48, 24);
-  const tex = scene.textures.addCanvas(key, c)!;
-  for (let f = 0; f < 3; f++) tex.add(f, 0, f * 16, 0, 16, 24);
-  scene.anims.create({ key: `${key}-walk`, frames: [1, 0, 2, 0].map((frame) => ({ key, frame })), frameRate: 8, repeat: -1 });
-  return key;
 }
 
 export function generateTextures(scene: Phaser.Scene) {
@@ -388,5 +351,6 @@ export function generateTextures(scene: Phaser.Scene) {
   signBoard(scene);
   glow(scene);
   bubble(scene);
+  alert(scene);
   shadow(scene);
 }

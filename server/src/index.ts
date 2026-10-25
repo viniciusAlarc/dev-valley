@@ -7,6 +7,7 @@ import express from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { loadConfig, ROOT_DIR } from './config.js';
 import * as gitOps from './git.js';
+import { HookStore } from './hooks.js';
 import { TerminalManager } from './terminals.js';
 import { buildWorld, type Project, type World } from './world.js';
 
@@ -14,15 +15,16 @@ const config = loadConfig();
 const HOST = '127.0.0.1';
 const POLL_MS = 3000;
 
-let world: World = { projects: [], sessions: [] };
+let world: World = { projects: [], sessions: [], settings: { sessionsPerProject: config.sessionsPerProject } };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 
 const terminals = new TerminalManager(() => void refreshWorld());
+const hooks = new HookStore();
 
 async function refreshWorld() {
   try {
-    world = await buildWorld(config, terminals.live());
+    world = await buildWorld(config, terminals.live(), hooks.all());
     const json = JSON.stringify(world);
     if (json === worldJson) return;
     worldJson = json;
@@ -44,10 +46,16 @@ function safeRelative(project: Project, file: unknown): string | null {
 }
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 app.get('/api/world', (_req, res) => {
   res.json(world);
+});
+
+// Chamado pelos hooks do Claude Code (curl local) a cada evento de sessão.
+app.post('/api/hooks', (req, res) => {
+  if (hooks.handle(req.body ?? {})) void refreshWorld();
+  res.json({});
 });
 
 app.get('/api/diff', async (req, res) => {

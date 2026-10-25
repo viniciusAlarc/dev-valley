@@ -1,26 +1,15 @@
 import Phaser from 'phaser';
-import type { Project, Session, World } from '../api';
+import { yardResidents, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
+import { label, makeInteractive, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
-import { villagerName } from './names';
-import { generateTextures, hash, mulberry32, ROOFS, villagerTexture } from './textures';
-
-const TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
-  fontFamily: '"Pixelify Sans", monospace',
-  fontSize: '8px',
-  color: '#3b2312',
-  resolution: 4,
-};
+import { generateTextures, hash, mulberry32, ROOFS } from './textures';
 
 const ROOF_NAMES = Object.keys(ROOFS).filter((r) => r !== 'grey');
 
-interface Villager {
-  session: Session;
-  sprite: Phaser.GameObjects.Sprite;
-  shadow: Phaser.GameObjects.Image;
-  bubble: Phaser.GameObjects.Container;
+interface Resident {
+  view: VillagerView;
   area: Rect;
-  walkAnim: string;
   timer?: Phaser.Time.TimerEvent;
 }
 
@@ -31,17 +20,13 @@ interface HouseView {
   badgeText?: Phaser.GameObjects.Text;
 }
 
-/** Diferencia clique de arraste (o arraste move a câmera). */
-function isClick(pointer: Phaser.Input.Pointer) {
-  return pointer.getDistance() < 6 && pointer.getDuration() < 500;
-}
-
 export class TownScene extends Phaser.Scene {
   private layout!: Layout;
+  private plazaWalkArea!: Rect;
   private projectKey = '';
   private houses = new Map<string, HouseView>();
-  private villagers = new Map<string, Villager>();
-  private world: World = { projects: [], sessions: [] };
+  private residents = new Map<string, Resident>();
+  private world: World = { projects: [], sessions: [], settings: { sessionsPerProject: 4 } };
   private ready = false;
   private pendingWorld: World | null = null;
   private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT', Phaser.Input.Keyboard.Key>;
@@ -65,7 +50,8 @@ export class TownScene extends Phaser.Scene {
       const cam = this.cameras.main;
       cam.setZoom(Phaser.Math.Clamp(cam.zoom * (dy > 0 ? 0.9 : 1.1), 1.5, 6));
     });
-    this.scale.on('resize', () => this.clampCamera());
+    // Voltando de dentro de uma casa.
+    this.events.on(Phaser.Scenes.Events.WAKE, () => this.cameras.main.fadeIn(250));
 
     this.ready = true;
     if (this.pendingWorld) this.applyWorld(this.pendingWorld);
@@ -91,25 +77,49 @@ export class TownScene extends Phaser.Scene {
     this.world = world;
     const projectKey = world.projects.map((p) => `${p.id}:${p.isGit}`).join('|');
     if (projectKey !== this.projectKey) {
+      const firstBuild = !this.projectKey;
       this.projectKey = projectKey;
       this.buildTown(world.projects);
+      // Link direto para dentro de uma casa: http://localhost:4777/?casa=<nome> (ou #casa=<nome>)
+      const target = new URLSearchParams(location.search).get('casa') ?? new URLSearchParams(location.hash.slice(1)).get('casa');
+      const project = firstBuild && world.projects.find((p) => p.name === target);
+      if (project) this.enterHouse(project, true);
     }
     for (const view of this.houses.values()) {
       const project = world.projects.find((p) => p.id === view.plot.project.id);
       if (project) this.updateHouse(view, project);
     }
-    this.syncVillagers(world.sessions);
+    this.syncResidents();
+  }
+
+  private enterHouse(project: Project, instant = false) {
+    ui.hideTooltip();
+    const go = () => {
+      this.scene.sleep();
+      this.scene.launch('interior', { projectId: project.id, instant });
+    };
+    if (instant) return go();
+    this.cameras.main.fadeOut(250);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, go);
   }
 
   // ---------------- construção do mapa ----------------
 
   private buildTown(projects: Project[]) {
-    for (const v of this.villagers.values()) v.timer?.remove();
-    this.villagers.clear();
+    for (const r of this.residents.values()) r.timer?.remove();
+    this.residents.clear();
     this.houses.clear();
     this.children.removeAll(true);
 
     const layout = (this.layout = computeLayout(projects));
+    // Faixa da praça na frente do poço, para ninguém andar por cima dele.
+    const plazaTop = layout.well.y + 30;
+    this.plazaWalkArea = {
+      x: layout.plaza.x + 8,
+      y: plazaTop,
+      w: layout.plaza.w - 16,
+      h: layout.plaza.y + layout.plaza.h - plazaTop - 4,
+    };
     const rnd = mulberry32(42);
     const wT = layout.width / TILE;
     const hT = layout.height / TILE;
@@ -153,39 +163,14 @@ export class TownScene extends Phaser.Scene {
       .setDepth(depth ?? y);
   }
 
-  private label(x: number, y: number, text: string, depth: number) {
-    const t = this.add.text(0, 0, text, TEXT_STYLE).setOrigin(0.5);
-    const w = Math.ceil(t.width) + 8;
-    const board = this.add.graphics();
-    board.fillStyle(0x2b1a0e).fillRect(-w / 2 - 1, -7, w + 2, 14);
-    board.fillStyle(0xe9c88f).fillRect(-w / 2, -6, w, 12);
-    board.fillStyle(0xc99a5b).fillRect(-w / 2, 4, w, 2);
-    return this.add.container(Math.round(x), Math.round(y), [board, t]).setDepth(depth);
-  }
-
-  private makeInteractive(obj: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite, tooltip: () => string, onClick: () => void) {
-    obj.setInteractive({ useHandCursor: true });
-    obj.on('pointerover', () => {
-      obj.setTint(0xfff2c4);
-      ui.showTooltip(tooltip());
-    });
-    obj.on('pointerout', () => {
-      obj.clearTint();
-      ui.hideTooltip();
-    });
-    obj.on('pointerup', (p: Phaser.Input.Pointer) => {
-      if (isClick(p)) onClick();
-    });
-  }
-
   private buildCivic(layout: Layout) {
     const lib = this.addSprite('library', layout.library.x, layout.library.y);
-    this.makeInteractive(lib, () => 'Biblioteca — base de conhecimento', () => ui.openLibrary());
-    this.label(layout.library.x, layout.library.y + 10, 'Biblioteca', layout.library.y + 10);
+    makeInteractive(lib, () => 'Biblioteca — base de conhecimento', () => ui.openLibrary());
+    label(this, layout.library.x, layout.library.y + 10, 'Biblioteca', layout.library.y + 10);
 
     const fac = this.addSprite('factory', layout.factory.x, layout.factory.y);
-    this.makeInteractive(fac, () => 'Fábrica — criação de agentes', () => ui.openFactory());
-    this.label(layout.factory.x, layout.factory.y + 10, 'Fábrica de Agentes', layout.factory.y + 10);
+    makeInteractive(fac, () => 'Fábrica — criação de agentes', () => ui.openFactory());
+    label(this, layout.factory.x, layout.factory.y + 10, 'Fábrica de Agentes', layout.factory.y + 10);
     this.time.addEvent({
       delay: 900,
       loop: true,
@@ -204,20 +189,21 @@ export class TownScene extends Phaser.Scene {
     });
 
     this.addSprite('well', layout.well.x, layout.well.y + 18);
-    this.label(layout.well.x, layout.plaza.y + layout.plaza.h - 4, 'Praça', layout.plaza.y + layout.plaza.h);
+    label(this, layout.well.x, layout.plaza.y + layout.plaza.h - 4, 'Praça', layout.plaza.y + layout.plaza.h);
   }
 
   private buildHouse(plot: Plot, rnd: () => number) {
     const p = plot.project;
     const roof = p.isGit ? ROOF_NAMES[hash(p.name) % ROOF_NAMES.length] : 'grey';
     const house = this.addSprite(`house-${roof}`, plot.house.x, plot.house.y);
-    this.makeInteractive(
+    makeInteractive(
       house,
       () => {
         const cur = this.currentProject(p.id);
-        return `${cur.name}${cur.branch ? ` — ${cur.branch}` : ''}${cur.isGit ? '' : ' (sem git)'}`;
+        const n = this.world.sessions.filter((s) => s.projectId === p.id).length;
+        return `${cur.name}${cur.branch ? ` — ${cur.branch}` : ''}${cur.isGit ? '' : ' (sem git)'} · ${n} morador(es) — clique para entrar`;
       },
-      () => ui.openProject(this.currentProject(p.id)),
+      () => this.enterHouse(this.currentProject(p.id)),
     );
     const glows = [-21, 11].map((dx) =>
       this.add
@@ -230,12 +216,12 @@ export class TownScene extends Phaser.Scene {
 
     this.addSprite('bush', plot.house.x - 40, plot.house.y + 2);
     if (rnd() < 0.6) this.addSprite('bush', plot.house.x + 40, plot.house.y + 2);
-    this.label(plot.house.x, plot.house.y + 26, p.name, plot.house.y + 26);
+    label(this, plot.house.x, plot.house.y + 26, p.name, plot.house.y + 26);
 
     const view: HouseView = { plot, glows };
     if (p.isGit) {
       const bin = this.addSprite('bin', plot.bin.x, plot.bin.y);
-      this.makeInteractive(
+      makeInteractive(
         bin,
         () => {
           const n = this.currentProject(p.id).changes.length;
@@ -273,93 +259,86 @@ export class TownScene extends Phaser.Scene {
 
   // ---------------- moradores ----------------
 
-  private syncVillagers(sessions: Session[]) {
-    const ids = new Set(sessions.map((s) => s.id));
-    for (const [id, v] of this.villagers) {
-      if (!ids.has(id) || this.areaFor(v.session) !== this.areaFor(sessions.find((s) => s.id === id)!)) {
-        v.timer?.remove();
-        v.sprite.destroy();
-        v.shadow.destroy();
-        v.bubble.destroy();
-        this.villagers.delete(id);
+  /** Do lado de fora só ficam os moradores mais relevantes; o resto está dentro de casa. */
+  private visibleSessions(): Session[] {
+    const owners = [null, ...this.world.projects.map((p) => p.id)];
+    return owners.flatMap((id) => yardResidents(this.world, id));
+  }
+
+  private syncResidents() {
+    const visible = this.visibleSessions();
+    const byId = new Map(visible.map((s) => [s.id, s]));
+    for (const [id, r] of this.residents) {
+      const s = byId.get(id);
+      if (!s || this.areaFor(s) !== r.area) {
+        r.timer?.remove();
+        r.view.destroy();
+        this.residents.delete(id);
       }
     }
-    for (const s of sessions) {
-      const existing = this.villagers.get(s.id);
-      if (existing) {
-        existing.session = s;
-        existing.bubble.setVisible(s.live);
-      } else {
-        this.spawnVillager(s);
-      }
+    for (const s of visible) {
+      const existing = this.residents.get(s.id);
+      if (existing) existing.view.update(s);
+      else this.spawnResident(s);
     }
   }
 
   private areaFor(s: Session): Rect | undefined {
     if (!this.layout) return undefined;
-    if (!s.projectId) return this.layout.plaza;
+    if (!s.projectId) return this.plazaWalkArea;
     return this.layout.plots.find((p) => p.project.id === s.projectId)?.yard;
   }
 
-  private spawnVillager(session: Session) {
+  private spawnResident(session: Session) {
     const area = this.areaFor(session);
     if (!area) return;
-    const tex = villagerTexture(this, session.id);
     const rnd = mulberry32(hash(session.id));
-    const x = area.x + rnd() * area.w;
-    const y = area.y + rnd() * area.h;
-    const shadow = this.add.image(x, y, 'shadow').setOrigin(0.5);
-    const sprite = this.add.sprite(x, y, tex, 0).setOrigin(0.5, 1);
-
-    const dots = [0, 1, 2].map((i) => this.add.rectangle(-4 + i * 4, -8, 2, 2, 0x3b2312));
-    const bubble = this.add.container(x + 4, y - 24, [this.add.image(0, -6, 'bubble'), ...dots]).setVisible(session.live);
-    dots.forEach((d, i) =>
-      this.tweens.add({ targets: d, y: d.y - 2, yoyo: true, repeat: -1, duration: 300, delay: i * 150 }),
-    );
-
-    const v: Villager = { session, sprite, shadow, bubble, area, walkAnim: `${tex}-walk` };
-    this.makeInteractive(
-      sprite,
-      () => `${villagerName(v.session.id)}: ${v.session.title}${v.session.live ? ' (trabalhando)' : ''}`,
-      () => ui.openSession(v.session),
-    );
-    this.villagers.set(session.id, v);
-    this.placeVillager(v);
-    this.scheduleWander(v, 500 + rnd() * 3000);
+    const view = new VillagerView(this, session, area.x + rnd() * area.w, area.y + rnd() * area.h);
+    const r: Resident = { view, area };
+    this.residents.set(session.id, r);
+    this.scheduleWander(r, 500 + rnd() * 3000);
   }
 
-  private placeVillager(v: Villager) {
-    v.sprite.setDepth(v.sprite.y);
-    v.shadow.setPosition(v.sprite.x, v.sprite.y).setDepth(v.sprite.y - 1);
-    v.bubble.setPosition(v.sprite.x + 4, v.sprite.y - 24).setDepth(100000);
-  }
-
-  private scheduleWander(v: Villager, delay: number) {
-    v.timer = this.time.delayedCall(delay, () => {
-      if (!v.sprite.active) return;
-      const tx = v.area.x + Math.random() * v.area.w;
-      const ty = v.area.y + Math.random() * v.area.h;
-      const dist = Phaser.Math.Distance.Between(v.sprite.x, v.sprite.y, tx, ty);
-      v.sprite.setFlipX(tx < v.sprite.x);
-      v.sprite.play(v.walkAnim);
-      this.tweens.add({
-        targets: v.sprite,
-        x: tx,
-        y: ty,
-        duration: dist * 45,
-        onUpdate: () => this.placeVillager(v),
-        onComplete: () => {
-          v.sprite.stop();
-          v.sprite.setFrame(0);
-          // Sessões trabalhando ficam mais agitadas.
-          this.scheduleWander(v, (v.session.live ? 1500 : 4000) + Math.random() * 4000);
-        },
-      });
+  /** Anda em linha reta numa só direção, como no Stardew (nada de diagonal). */
+  private walkStraight(r: Resident, axis: 'x' | 'y', target: number, done: () => void) {
+    const sprite = r.view.sprite;
+    const from = sprite[axis];
+    const dist = Math.abs(target - from);
+    if (dist < 2) return done();
+    if (axis === 'x') r.view.walk('side', target < from);
+    else r.view.walk(target > from ? 'down' : 'up');
+    this.tweens.add({
+      targets: sprite,
+      [axis]: target,
+      duration: dist * 45,
+      onUpdate: () => r.view.place(),
+      onComplete: done,
     });
   }
 
-  private clampCamera() {
-    const cam = this.cameras.main;
-    cam.setScroll(cam.scrollX, cam.scrollY);
+  private scheduleWander(r: Resident, delay: number) {
+    r.timer = this.time.delayedCall(delay, () => {
+      if (!r.view.sprite.active) return;
+      // Quem precisa de você fica parado olhando para a tela, com o "!" na cabeça.
+      if (r.view.session.status === 'permission') {
+        r.view.stand();
+        r.view.face('down');
+        return this.scheduleWander(r, 1500);
+      }
+      const tx = Math.round(r.area.x + Math.random() * r.area.w);
+      const ty = Math.round(r.area.y + Math.random() * r.area.h);
+      const xFirst = Math.random() < 0.5;
+      const [a1, t1, a2, t2] = xFirst ? (['x', tx, 'y', ty] as const) : (['y', ty, 'x', tx] as const);
+      this.walkStraight(r, a1, t1, () =>
+        this.walkStraight(r, a2, t2, () => {
+          if (!r.view.sprite.active) return;
+          r.view.stand();
+          // Ao parar, quase sempre se vira para a frente, como quem olha para o jogador.
+          if (Math.random() < 0.7) r.view.face('down');
+          // Sessões ativas ficam mais agitadas.
+          this.scheduleWander(r, (r.view.session.live ? 1500 : 4000) + Math.random() * 4000);
+        }),
+      );
+    });
   }
 }

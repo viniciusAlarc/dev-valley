@@ -20,12 +20,35 @@ export interface Session {
   gitBranch: string | null;
   lastActivity: number;
   projectId: string | null;
+  /** Terminal aberto pela própria vila. */
+  inTown: boolean;
+  /** Processo do Claude rodando (na vila ou fora, visto pelos hooks). */
   live: boolean;
+  /** Estado vindo dos hooks; null quando não há hooks para a sessão. */
+  status: SessionStatus | null;
+}
+
+export type SessionStatus = 'working' | 'permission' | 'idle';
+
+/** Estado efetivo para desenhar: sem hooks, sessão viva conta como trabalhando. */
+export function activityOf(s: Session): SessionStatus | 'offline' {
+  if (s.status) return s.status;
+  return s.live ? 'working' : 'offline';
 }
 
 export interface World {
   projects: Project[];
   sessions: Session[];
+  settings: { sessionsPerProject: number };
+}
+
+/** Quem aparece no quintal: quem precisa de você, quem trabalha, depois os mais recentes. */
+export function yardResidents(world: World, projectId: string | null): Session[] {
+  const rank = { permission: 0, working: 1, idle: 2, offline: 3 };
+  return world.sessions
+    .filter((s) => s.projectId === projectId)
+    .sort((a, b) => rank[activityOf(a)] - rank[activityOf(b)] || b.lastActivity - a.lastActivity)
+    .slice(0, Math.max(world.settings.sessionsPerProject, world.sessions.filter((s) => s.projectId === projectId && s.live).length));
 }
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -58,7 +81,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [] };
+let world: World = { projects: [], sessions: [], settings: { sessionsPerProject: 4 } };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

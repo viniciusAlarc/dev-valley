@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "hooks:install": "tsx src/install-hooks.ts",
+    "hooks:uninstall": "tsx src/install-hooks.ts --uninstall"
   },
   "dependencies": {
     "express": "^4.21.2",

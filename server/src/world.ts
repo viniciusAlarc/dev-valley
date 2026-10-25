@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { Config } from './config.js';
 import * as gitOps from './git.js';
+import type { HookState, SessionStatus } from './hooks.js';
 import { listSessions, type SessionInfo } from './sessions.js';
 
 export interface Project {
@@ -17,12 +18,18 @@ export interface Project {
 export interface WorldSession extends SessionInfo {
   /** Id do projeto onde o NPC mora; null = mora na praça. */
   projectId: string | null;
+  /** Terminal aberto pela própria vila. */
+  inTown: boolean;
+  /** Processo do Claude rodando (na vila ou fora dela, visto pelos hooks). */
   live: boolean;
+  /** Estado informado pelos hooks; null = sem hooks para esta sessão. */
+  status: SessionStatus | null;
 }
 
 export interface World {
   projects: Project[];
   sessions: WorldSession[];
+  settings: { sessionsPerProject: number };
 }
 
 async function discoverProjectDirs(config: Config): Promise<string[]> {
@@ -79,30 +86,31 @@ export interface LiveSession {
   startedAt: number;
 }
 
-export async function buildWorld(config: Config, live: LiveSession[]): Promise<World> {
+export async function buildWorld(config: Config, terminals: LiveSession[], hooks: HookState[]): Promise<World> {
   const dirs = await discoverProjectDirs(config);
   const projects = await Promise.all(dirs.map(loadProject));
   const all = await listSessions(config.sessionMaxAgeDays);
-  const liveIds = new Set(live.map((l) => l.id));
+  const known = new Set(all.map((s) => s.id));
+  const inTown = new Set(terminals.map((t) => t.id));
+  const hookById = new Map(hooks.map((h) => [h.id, h]));
 
-  // Sessões abertas pela cidade que ainda não gravaram o .jsonl.
-  for (const l of live) {
-    if (!all.some((s) => s.id === l.id)) {
-      all.unshift({ id: l.id, cwd: l.cwd, title: 'Nova sessão', gitBranch: null, lastActivity: l.startedAt });
-    }
+  // Sessões recém-abertas que ainda não gravaram o .jsonl.
+  for (const s of [...terminals.map((t) => ({ id: t.id, cwd: t.cwd, at: t.startedAt })), ...hooks.map((h) => ({ id: h.id, cwd: h.cwd, at: h.updatedAt }))]) {
+    if (known.has(s.id) || !s.cwd) continue;
+    known.add(s.id);
+    all.unshift({ id: s.id, cwd: s.cwd, title: 'Nova sessão', gitBranch: null, lastActivity: s.at });
   }
 
-  const perOwner = new Map<string, number>();
-  const sessions: WorldSession[] = [];
-  for (const s of all) {
-    const owner = ownerOf(s, projects);
-    const key = owner?.id ?? '__praca__';
-    const isLive = liveIds.has(s.id);
-    const count = perOwner.get(key) ?? 0;
-    // Sessões vivas sempre aparecem; as demais respeitam o limite por casa.
-    if (!isLive && count >= config.sessionsPerProject) continue;
-    perOwner.set(key, count + 1);
-    sessions.push({ ...s, projectId: owner?.id ?? null, live: isLive });
-  }
-  return { projects, sessions };
+  const sessions: WorldSession[] = all.map((s) => {
+    const hook = hookById.get(s.id);
+    return {
+      ...s,
+      lastActivity: Math.max(s.lastActivity, hook?.updatedAt ?? 0),
+      projectId: ownerOf(s, projects)?.id ?? null,
+      inTown: inTown.has(s.id),
+      live: inTown.has(s.id) || !!hook,
+      status: hook?.status ?? null,
+    };
+  });
+  return { projects, sessions, settings: { sessionsPerProject: config.sessionsPerProject } };
 }

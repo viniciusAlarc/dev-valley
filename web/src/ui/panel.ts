@@ -75,5 +75,9 @@ export function timeAgo(ts: number) {
 
 document.addEventListener('keydown', (e) => {
   // O Esc também é usado pelo Claude Code, então dentro do terminal ele não fecha o painel.
-  if (e.key === 'Escape' && current && !(e.target as HTMLElement).closest('.xterm')) closePanel();
+  if (e.key === 'Escape' && current && !(e.target as HTMLElement).closest('.xterm')) {
+    // Não deixa o mesmo Esc chegar ao Phaser (que escuta no window) e sair da casa.
+    e.stopPropagation();
+    closePanel();
+  }
 });
