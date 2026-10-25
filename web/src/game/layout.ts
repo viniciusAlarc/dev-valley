@@ -33,7 +33,7 @@ export interface Layout {
   plots: Plot[];
   library: { x: number; y: number };
   factory: { x: number; y: number };
-  well: { x: number; y: number };
+  fountain: { x: number; y: number };
   plaza: Rect;
   /** Regiões onde não plantamos árvores nem flores (em tiles). */
   reserved: Rect[];
@@ -113,7 +113,7 @@ export function computeLayout(projects: Project[]): Layout {
     plots,
     library: { x: (libraryTile.x + 3.5) * TILE, y: (libraryTile.y + 6) * TILE },
     factory: { x: (factoryTile.x + 3.5) * TILE, y: (factoryTile.y + 7) * TILE },
-    well: { x: (plaza.x + plaza.w / 2) * TILE, y: (plaza.y + 3) * TILE },
+    fountain: { x: (plaza.x + plaza.w / 2) * TILE, y: (plaza.y + 3) * TILE },
     plaza: { x: plaza.x * TILE, y: plaza.y * TILE, w: plaza.w * TILE, h: plaza.h * TILE },
     reserved,
   };

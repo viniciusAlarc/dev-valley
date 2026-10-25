@@ -3,6 +3,19 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-25 — Praça mais completa
+
+**O que mudou:** o poço virou um chafariz (com gotas animadas) e a praça ganhou árvores nos cantos de cima, quadro de
+avisos (só decorativo), um banco comprido à esquerda e dois arbustos juntos à direita (pedido do usuário: nada
+espelhado), canteiro, calçamento circular em volta do chafariz, postes nos cantos de
+baixo e meio-fio (aberto onde a estrada central entra). A faixa onde os moradores avulsos andam continua livre e ficou
+mais estreita para não passar pelos postes. Pixel art nova no mesmo estilo (contorno de 1px, paletas existentes).
+O campo `well` do layout passou a se chamar `fountain`; a textura do poço saiu.
+**Arquivos:** `web/src/game/textures.ts` (`fountain`, `noticeBoard`, `bench`, `lamppost`, `planter`, `plazaRing`),
+`web/src/game/TownScene.ts` (`buildPlaza`, faixa de passeio), `web/src/game/layout.ts`.
+**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado; composição da praça conferida num render
+fora do navegador (mesmas funções de desenho). Falta conferir na vila.
+
 ## 2026-10-25 — Avulsas encerradas voltam à praça
 
 **O que mudou:** com o quintal só de vivas, as sessões avulsas encerradas ficaram sem lugar (a praça não tem

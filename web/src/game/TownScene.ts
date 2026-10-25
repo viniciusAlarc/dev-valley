@@ -118,12 +118,12 @@ export class TownScene extends Phaser.Scene {
     this.children.removeAll(true);
 
     const layout = (this.layout = computeLayout(projects));
-    // Faixa da praça na frente do poço, para ninguém andar por cima dele.
-    const plazaTop = layout.well.y + 30;
+    // Faixa da praça na frente do chafariz, entre os postes dos cantos, para ninguém andar por cima deles.
+    const plazaTop = layout.fountain.y + 30;
     this.plazaWalkArea = {
-      x: layout.plaza.x + 8,
+      x: layout.plaza.x + 22,
       y: plazaTop,
-      w: layout.plaza.w - 16,
+      w: layout.plaza.w - 44,
       h: layout.plaza.y + layout.plaza.h - plazaTop - 4,
     };
     const rnd = mulberry32(42);
@@ -194,8 +194,55 @@ export class TownScene extends Phaser.Scene {
       },
     });
 
-    this.addSprite('well', layout.well.x, layout.well.y + 18);
-    label(this, layout.well.x, layout.plaza.y + layout.plaza.h - 4, 'Praça', layout.plaza.y + layout.plaza.h);
+    this.buildPlaza(layout);
+    label(this, layout.fountain.x, layout.plaza.y + layout.plaza.h - 4, 'Praça', layout.plaza.y + layout.plaza.h);
+  }
+
+  /**
+   * Chafariz no centro; árvores, quadro de avisos, banco, canteiro e arbustos nas duas fileiras de cima,
+   * postes nos cantos de baixo. A faixa de baixo fica livre para os moradores andarem.
+   */
+  private buildPlaza(layout: Layout) {
+    const { fountain, plaza } = layout;
+    // Meio-fio, aberto embaixo onde a estrada central encontra a praça.
+    const curb = this.add.graphics().setDepth(-9).fillStyle(0x958c7c);
+    const bottom = plaza.y + plaza.h - 2;
+    const roadL = fountain.x - TILE;
+    curb.fillRect(plaza.x, plaza.y, plaza.w, 2).fillRect(plaza.x, plaza.y, 2, plaza.h).fillRect(plaza.x + plaza.w - 2, plaza.y, 2, plaza.h);
+    curb.fillRect(plaza.x, bottom, roadL - plaza.x, 2).fillRect(roadL + TILE * 2, bottom, plaza.x + plaza.w - roadL - TILE * 2, 2);
+    this.add.image(fountain.x, fountain.y + 12, 'plaza-ring').setDepth(-9);
+
+    this.addSprite('fountain', fountain.x, fountain.y + 20);
+    this.addSprite('noticeboard', fountain.x - 40, plaza.y + 30);
+    this.addSprite('planter', fountain.x + 40, plaza.y + 28);
+    // Um banco só, à esquerda, e os arbustos juntos à direita: a praça não fica espelhada.
+    this.addSprite('bench', fountain.x - 64, fountain.y + 16);
+    this.addSprite('bush', fountain.x + 72, fountain.y + 12);
+    this.addSprite('bush', fountain.x + 58, fountain.y + 17);
+    for (const side of [-1, 1]) {
+      this.addSprite(side < 0 ? 'tree0' : 'tree1', fountain.x + side * 78, plaza.y + 30);
+      this.addSprite('lamppost', fountain.x + side * 86, plaza.y + plaza.h - 6);
+    }
+
+    // Gotas saindo do jato do chafariz.
+    const jetY = fountain.y - 18;
+    this.time.addEvent({
+      delay: 220,
+      loop: true,
+      callback: () => {
+        const dir = Math.random() < 0.5 ? -1 : 1;
+        const drop = this.add.rectangle(fountain.x + dir, jetY, 1, 1, 0xc6e8f2).setDepth(fountain.y + 21);
+        this.tweens.add({
+          targets: drop,
+          x: drop.x + dir * (4 + Math.random() * 6),
+          y: jetY + 8,
+          alpha: 0,
+          duration: 500,
+          ease: 'Quad.in',
+          onComplete: () => drop.destroy(),
+        });
+      },
+    });
   }
 
   private buildHouse(plot: Plot, rnd: () => number) {

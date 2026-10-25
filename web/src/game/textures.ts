@@ -263,19 +263,130 @@ function bin(scene: Phaser.Scene) {
   add(scene, 'bin', c);
 }
 
-function well(scene: Phaser.Scene) {
-  const { c, ctx } = makeCanvas(32, 36);
-  rect(ctx, 4, 2, 2, 20, '#6b4423');
-  rect(ctx, 26, 2, 2, 20, '#6b4423');
-  rect(ctx, 2, 0, 28, 5, '#b8402f');
-  rect(ctx, 2, 4, 28, 1, '#8c2c20');
-  rect(ctx, 2, 18, 28, 16, '#9a9284');
-  for (let y = 22; y < 34; y += 4) rect(ctx, 2, y, 28, 1, '#7a7366');
-  rect(ctx, 4, 18, 24, 4, '#3a6ea8');
-  rect(ctx, 6, 19, 6, 1, '#7fb0e0');
-  rect(ctx, 14, 6, 4, 8, '#7a4b20');
-  outline(ctx, 32, 36);
-  add(scene, 'well', c);
+function fountain(scene: Phaser.Scene) {
+  const W = 56;
+  const H = 40;
+  const { c, ctx } = makeCanvas(W, H);
+  // bacia de baixo
+  rect(ctx, 2, 22, W - 4, 16, '#9a9284');
+  for (let y = 30; y < 38; y += 4) rect(ctx, 2, y, W - 4, 1, '#7a7366');
+  for (const x of [14, 28, 42]) rect(ctx, x, 27, 1, 11, '#7a7366');
+  rect(ctx, 0, 20, W, 4, '#bdb4a2');
+  rect(ctx, 0, 23, W, 1, '#958c7c');
+  rect(ctx, 3, 24, W - 6, 4, '#3a6ea8');
+  rect(ctx, 6, 25, 8, 1, '#7fb0e0');
+  rect(ctx, 38, 26, 6, 1, '#7fb0e0');
+  // coluna e taça de cima
+  rect(ctx, 25, 11, 6, 13, '#bdb4a2');
+  rect(ctx, 29, 11, 2, 13, '#958c7c');
+  rect(ctx, 17, 8, 22, 3, '#bdb4a2');
+  rect(ctx, 19, 11, 18, 1, '#958c7c');
+  rect(ctx, 19, 8, 18, 1, '#7fb0e0');
+  // água transbordando da taça e o jato do topo
+  for (const x of [17, 21, 34, 38]) rect(ctx, x, 11, 1, 2, '#7fb0e0');
+  rect(ctx, 27, 1, 2, 7, '#9fd0f0');
+  rect(ctx, 26, 0, 4, 2, '#c6e8f2');
+  outline(ctx, W, H);
+  add(scene, 'fountain', c);
+}
+
+function noticeBoard(scene: Phaser.Scene) {
+  const W = 28;
+  const H = 30;
+  const { c, ctx } = makeCanvas(W, H);
+  for (const x of [4, 22]) rect(ctx, x, 6, 2, 24, '#6b4423');
+  // telhadinho
+  rect(ctx, 0, 2, W, 3, '#b8402f');
+  rect(ctx, 2, 0, W - 4, 2, '#d45a44');
+  rect(ctx, 0, 4, W, 1, '#8c2c20');
+  // moldura e cortiça
+  rect(ctx, 2, 6, W - 4, 16, '#7a4b20');
+  rect(ctx, 3, 7, W - 6, 14, '#c79a5e');
+  // recados
+  rect(ctx, 5, 8, 6, 7, '#f2e6c4');
+  rect(ctx, 6, 10, 4, 1, '#958c7c');
+  rect(ctx, 6, 12, 3, 1, '#958c7c');
+  rect(ctx, 13, 9, 5, 5, '#f5d142');
+  rect(ctx, 19, 8, 4, 8, '#f2e6c4');
+  rect(ctx, 20, 10, 2, 1, '#958c7c');
+  rect(ctx, 8, 16, 7, 4, '#8fc8de');
+  rect(ctx, 7, 8, 1, 1, '#d64545');
+  rect(ctx, 15, 9, 1, 1, '#d64545');
+  outline(ctx, W, H);
+  add(scene, 'noticeboard', c);
+}
+
+// ---------------- praça ----------------
+
+function bench(scene: Phaser.Scene) {
+  const W = 38;
+  const { c, ctx } = makeCanvas(W, 15);
+  // encosto
+  rect(ctx, 1, 0, W - 2, 3, '#b9854a');
+  rect(ctx, 1, 2, W - 2, 1, '#8d5f30');
+  rect(ctx, 1, 4, W - 2, 3, '#b9854a');
+  rect(ctx, 1, 6, W - 2, 1, '#8d5f30');
+  rect(ctx, 2, 0, 8, 1, '#d09a5c');
+  // assento
+  rect(ctx, 0, 8, W, 3, '#a0703a');
+  rect(ctx, 0, 10, W, 1, '#6b4220');
+  // pés de ferro
+  for (const x of [2, W / 2 - 1, W - 4]) {
+    rect(ctx, x, 0, 2, 15, '#3f464c');
+    rect(ctx, x, 0, 1, 15, '#5a636b');
+  }
+  outline(ctx, W, 15);
+  add(scene, 'bench', c);
+}
+
+function lamppost(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(10, 34);
+  // base e poste
+  rect(ctx, 2, 30, 6, 4, '#3f464c');
+  rect(ctx, 4, 11, 2, 20, '#3f464c');
+  rect(ctx, 4, 11, 1, 20, '#5a636b');
+  // lanterna
+  rect(ctx, 1, 2, 8, 2, '#3f464c');
+  rect(ctx, 2, 4, 6, 6, '#ffd76a');
+  rect(ctx, 2, 4, 2, 3, '#fff1b8');
+  rect(ctx, 4, 4, 2, 6, '#e8b84a');
+  rect(ctx, 2, 10, 6, 1, '#3f464c');
+  rect(ctx, 4, 0, 2, 2, '#3f464c');
+  outline(ctx, 10, 34);
+  add(scene, 'lamppost', c);
+}
+
+function planter(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(18, 16);
+  disc(ctx, 6, 6, 4, '#2f6e30');
+  disc(ctx, 12, 6, 4, '#2f6e30');
+  disc(ctx, 9, 4, 4, '#3f8a3a');
+  for (const [x, y, color] of [[5, 4, '#e05a6a'], [10, 2, '#f5d142'], [13, 6, '#7aa8f0'], [8, 7, '#e05a6a']] as const) {
+    rect(ctx, x, y, 2, 2, color);
+  }
+  // vaso de pedra
+  rect(ctx, 1, 8, 16, 8, '#9a9284');
+  rect(ctx, 1, 8, 16, 2, '#bdb4a2');
+  rect(ctx, 1, 12, 16, 1, '#7a7366');
+  rect(ctx, 14, 10, 3, 6, '#7a7366');
+  outline(ctx, 18, 16);
+  add(scene, 'planter', c);
+}
+
+/** Calçamento circular em volta do chafariz; fica no chão, sem contorno. */
+function plazaRing(scene: Phaser.Scene) {
+  const W = 88;
+  const H = 36;
+  const { c, ctx } = makeCanvas(W, H);
+  const inside = (x: number, y: number, rx: number, ry: number) => ((x - W / 2 + 0.5) / rx) ** 2 + ((y - H / 2 + 0.5) / ry) ** 2 <= 1;
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      if (!inside(x, y, W / 2, H / 2)) continue;
+      const border = !inside(x, y, W / 2 - 3, H / 2 - 2);
+      const ring = inside(x, y, W / 2 - 10, H / 2 - 5) && !inside(x, y, W / 2 - 12, H / 2 - 6);
+      rect(ctx, x, y, 1, 1, border ? '#958c7c' : ring ? '#a89f8e' : (x + y) % 6 === 0 ? '#c4bca9' : '#d6cebd');
+    }
+  add(scene, 'plaza-ring', c);
 }
 
 function signBoard(scene: Phaser.Scene) {
@@ -347,7 +458,12 @@ export function generateTextures(scene: Phaser.Scene) {
   library(scene);
   factory(scene);
   bin(scene);
-  well(scene);
+  fountain(scene);
+  noticeBoard(scene);
+  bench(scene);
+  lamppost(scene);
+  planter(scene);
+  plazaRing(scene);
   signBoard(scene);
   glow(scene);
   bubble(scene);
