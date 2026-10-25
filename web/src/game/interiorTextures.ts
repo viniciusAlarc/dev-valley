@@ -218,6 +218,30 @@ function doormat(scene: Phaser.Scene) {
   add(scene, 'doormat', c);
 }
 
+/** Cor do bilhete por prioridade (P1..P4) — as mesmas do painel de pendências (`.pend-prio` no style.css). */
+export const NOTE_COLORS = ['#d6402f', '#e8892b', '#e8c252', '#f2e6c4'];
+
+/** Quadro de cortiça da parede: os bilhetes (pendências) são pregados por cima, um sprite cada. */
+function corkBoard(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(46, 30);
+  rect(ctx, 0, 0, 46, 30, '#7a4b20');
+  rect(ctx, 0, 0, 46, 1, '#a8743c');
+  rect(ctx, 2, 2, 42, 26, '#c79a5e');
+  const rnd = mulberry32(17);
+  for (let i = 0; i < 24; i++) rect(ctx, 2 + Math.floor(rnd() * 42), 2 + Math.floor(rnd() * 26), 1, 1, rnd() > 0.5 ? '#b5864a' : '#d6ab70');
+  outline(ctx, 46, 30);
+  add(scene, 'corkBoard', c);
+}
+
+function note(scene: Phaser.Scene, priority: number) {
+  const { c, ctx } = makeCanvas(7, 8);
+  rect(ctx, 0, 1, 7, 7, NOTE_COLORS[priority - 1]);
+  rect(ctx, 1, 4, 5, 1, '#00000033');
+  rect(ctx, 1, 6, 3, 1, '#00000033');
+  rect(ctx, 3, 0, 1, 2, '#3a3f47');
+  add(scene, `note${priority}`, c);
+}
+
 export function generateInteriorTextures(scene: Phaser.Scene) {
   if (scene.textures.exists('floor')) return;
   floor(scene);
@@ -235,6 +259,8 @@ export function generateInteriorTextures(scene: Phaser.Scene) {
   plant(scene);
   rug(scene);
   doormat(scene);
+  corkBoard(scene);
+  for (let p = 1; p <= 4; p++) note(scene, p);
 }
 
 // ---------------- biblioteca ----------------

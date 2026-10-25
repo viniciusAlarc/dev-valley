@@ -3,6 +3,32 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-25 — Quadro de avisos da praça e sinal só para P1
+
+**O que mudou:** passo 2 do plano de representações visuais. O quadro de avisos da praça (antes só enfeite) agora
+abre um painel com as pendências 👤 (decisão do usuário) de todos os projetos, agrupadas por projeto e com a
+prioridade de cada uma; o tooltip diz quantas são. Decisão do usuário (25/10/2026): o "!" da fachada aparece **só com P1**
+aberta (P2 não acende mais, para não alertar o tempo todo).
+**Arquivos:** `web/src/ui/pendencias.ts` (`openUserPendencias`), `web/src/ui/actions.ts`, `web/src/game/TownScene.ts`
+(quadro clicável, sinal só P1), `web/src/api.ts` (`urgentPendencias`).
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` do front (diretório temporário), auditor sem achado.
+Falta conferir na vila (reinício do usuário).
+
+## 2026-10-25 — Quadro de pendências na casa e sinal na fachada
+
+**O que mudou:** passo 1 do plano de representações visuais (`docs-dev/a-codar/01-representacoes-visuais.md`,
+decisões do usuário em 25/10/2026). O servidor lê o `PENDENCIAS.md` de cada projeto (só leitura; sem o arquivo,
+sem quadro). Dentro da casa, um quadro de cortiça na parede ganha um bilhete por pendência (até 15), com a cor da
+prioridade (P1 vermelho, P2 laranja, P3 amarelo, P4 papel); clicar abre o painel com a lista agrupada por prioridade e o
+dono (👤💻🖥️). Na vila, a casa com P1/P2 aberta mostra um "!" sobre o telhado (vermelho com P1, laranja só com P2), e o
+tooltip da casa diz quantas são.
+**Arquivos:** `server/src/pendencias.ts` (novo), `server/src/world.ts` (`Project.pendencias`), `web/src/api.ts`,
+`web/src/ui/pendencias.ts` (novo), `web/src/ui/actions.ts`, `web/src/game/interiorTextures.ts` (`corkBoard`, `note1..4`),
+`web/src/game/InteriorScene.ts` (`pinNotes`), `web/src/game/TownScene.ts` (sinal), `web/src/style.css`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` do front (num diretório temporário, para não trocar o
+front servido enquanto há sessões na vila), auditor sem achado; leitor testado contra o `PENDENCIAS.md` deste repo.
+Falta conferir na vila (reinício do usuário).
+
 ## 2026-10-25 — Praça mais completa
 
 **O que mudou:** o poço virou um chafariz (com gotas animadas) e a praça ganhou árvores nos cantos de cima, quadro de

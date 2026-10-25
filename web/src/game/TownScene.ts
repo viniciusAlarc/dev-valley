@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { yardResidents, type Project, type Session, type World } from '../api';
+import { urgentPendencias, yardResidents, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { label, makeInteractive, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
@@ -18,6 +18,8 @@ interface HouseView {
   glows: Phaser.GameObjects.Image[];
   badge?: Phaser.GameObjects.Container;
   badgeText?: Phaser.GameObjects.Text;
+  /** "!" sobre o telhado quando há pendência P1 aberta. */
+  alert: Phaser.GameObjects.Container;
 }
 
 export class TownScene extends Phaser.Scene {
@@ -213,7 +215,15 @@ export class TownScene extends Phaser.Scene {
     this.add.image(fountain.x, fountain.y + 12, 'plaza-ring').setDepth(-9);
 
     this.addSprite('fountain', fountain.x, fountain.y + 20);
-    this.addSprite('noticeboard', fountain.x - 40, plaza.y + 30);
+    const board = this.addSprite('noticeboard', fountain.x - 40, plaza.y + 30);
+    makeInteractive(
+      board,
+      () => {
+        const n = this.world.projects.flatMap((p) => p.pendencias ?? []).filter((p) => p.owner === 'user').length;
+        return n ? `Quadro de avisos — ${n} decisão(ões) esperando você` : 'Quadro de avisos — nada esperando decisão sua';
+      },
+      () => ui.openUserPendencias(this.world.projects),
+    );
     this.addSprite('planter', fountain.x + 40, plaza.y + 28);
     // Um banco só, à esquerda, e os arbustos juntos à direita: a praça não fica espelhada.
     this.addSprite('bench', fountain.x - 64, fountain.y + 16);
@@ -254,7 +264,8 @@ export class TownScene extends Phaser.Scene {
       () => {
         const cur = this.currentProject(p.id);
         const n = this.world.sessions.filter((s) => s.projectId === p.id).length;
-        return `${cur.name}${cur.branch ? ` — ${cur.branch}` : ''}${cur.isGit ? '' : ' (sem git)'} · ${n} morador(es) — clique para entrar`;
+        const urgent = urgentPendencias(cur).length;
+        return `${cur.name}${cur.branch ? ` — ${cur.branch}` : ''}${cur.isGit ? '' : ' (sem git)'} · ${n} morador(es)${urgent ? ` · ❗ ${urgent} pendência(s) crítica(s)` : ''} — clique para entrar`;
       },
       () => this.enterHouse(this.currentProject(p.id)),
     );
@@ -271,7 +282,17 @@ export class TownScene extends Phaser.Scene {
     if (rnd() < 0.6) this.addSprite('bush', plot.house.x + 40, plot.house.y + 2);
     label(this, plot.house.x, plot.house.y + 26, p.name, plot.house.y + 26);
 
-    const view: HouseView = { plot, glows };
+    const alertBg = this.add.graphics();
+    alertBg.fillStyle(0x2b1a0e).fillRoundedRect(-5, -8, 10, 15, 3);
+    alertBg.fillStyle(0xd6402f).fillRoundedRect(-4, -7, 8, 13, 2);
+    const alertText = this.add.text(0, 0, '!', { ...TEXT_STYLE, color: '#ffffff', fontSize: '9px' }).setOrigin(0.5, 0.55);
+    const alert = this.add
+      .container(plot.house.x - 14, plot.house.y - 80, [alertBg, alertText])
+      .setDepth(plot.house.y + 2)
+      .setVisible(false);
+    this.tweens.add({ targets: alert, y: alert.y - 3, yoyo: true, repeat: -1, duration: 700, ease: 'Sine.inOut' });
+
+    const view: HouseView = { plot, glows, alert };
     if (p.isGit) {
       const bin = this.addSprite('bin', plot.bin.x, plot.bin.y);
       makeInteractive(
@@ -303,6 +324,7 @@ export class TownScene extends Phaser.Scene {
       view.badge.setVisible(n > 0);
       view.badgeText.setText(n > 99 ? '99+' : String(n));
     }
+    view.alert.setVisible(urgentPendencias(project).length > 0);
     const lit = this.world.sessions.some((s) => s.projectId === project.id && s.live);
     for (const g of view.glows) {
       this.tweens.killTweensOf(g);

@@ -24,6 +24,7 @@
 | PD-1 | 👤 | Decidir se hooks e status line saem do `~/.claude/settings.json` e viram um mod do Claude Code (mesmo caminho do mod guardrails) | 2026-10-25 |
 | PD-4 | 💻 | Fábrica: criar e editar agentes em `.claude/agents` | 2026-10-24 |
 | PD-5 | 💻 | Chat próprio via Claude Agent SDK, com pedidos de permissão em caixas de diálogo | 2026-10-24 |
+| PD-10 | 💻 | Representações visuais, passos 3 e 4: horta das fases, diário do progresso (`docs-dev/a-codar/01-representacoes-visuais.md`) | 2026-10-25 |
 
 ## P4 — Baixo / melhoria
 

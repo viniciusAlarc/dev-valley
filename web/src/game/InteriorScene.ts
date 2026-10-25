@@ -14,6 +14,11 @@ const MIN_DESKS = 3;
 const MAX_DESKS = 9;
 const SOFA_SEATS = 3;
 const MAX_WANDERERS = 6;
+/** Quadro de pendências na parede: posição e grade dos bilhetes (5 colunas x 3 linhas). */
+const BOARD_X = 86;
+const BOARD_Y = WALL_H - 4;
+const NOTE_COLS = 5;
+const MAX_NOTES = 15;
 
 interface Placement {
   desks: (Session | null)[];
@@ -31,6 +36,8 @@ export class InteriorScene extends Phaser.Scene {
   private signature = '';
   private villagers = new Map<string, VillagerView>();
   private monitors = new Map<string, Phaser.GameObjects.Image>();
+  private notes: Phaser.GameObjects.Image[] = [];
+  private notesKey = '';
   private unsubscribe?: () => void;
 
   constructor() {
@@ -106,6 +113,7 @@ export class InteriorScene extends Phaser.Scene {
       this.signature = signature;
       this.buildRoom(project, placement);
     }
+    this.pinNotes(project);
     for (const s of sessions) this.villagers.get(s.id)?.update(s);
     for (const [id, monitor] of this.monitors) {
       const s = sessions.find((x) => x.id === id);
@@ -121,6 +129,8 @@ export class InteriorScene extends Phaser.Scene {
     for (const v of this.villagers.values()) v.destroy();
     this.villagers.clear();
     this.monitors.clear();
+    this.notes = [];
+    this.notesKey = '';
     this.children.removeAll(true);
     this.time.removeAllEvents();
 
@@ -146,6 +156,21 @@ export class InteriorScene extends Phaser.Scene {
       () => `Escrivaninha — ${project.name}${placement.hidden ? ` (+${placement.hidden} moradores antigos)` : ''}`,
       () => ui.openProject(this.project(getWorld()) ?? project),
     );
+
+    if (project.pendencias) {
+      const board = this.prop('corkBoard', BOARD_X, BOARD_Y);
+      makeInteractive(
+        board,
+        () => {
+          const list = this.project(getWorld())?.pendencias ?? [];
+          if (!list.length) return 'Quadro de pendências — nenhuma aberta';
+          const urgent = list.filter((p) => p.priority <= 2).length;
+          const mine = list.filter((p) => p.owner === 'user').length;
+          return `Quadro de pendências — ${list.length} aberta(s)${urgent ? `, ${urgent} P1/P2` : ''}${mine ? ` · ${mine} esperam decisão sua` : ''}`;
+        },
+        () => ui.openPendencias(this.project(getWorld()) ?? project),
+      );
+    }
 
     const mat = this.prop('doormat', W / 2, H + 2);
     makeInteractive(mat, () => 'Sair (Esc)', () => this.leave());
@@ -198,6 +223,25 @@ export class InteriorScene extends Phaser.Scene {
   }
 
   private roomHeight = 0;
+
+  /** Um bilhete por pendência, as mais graves primeiro; só redesenha quando a lista muda. */
+  private pinNotes(project: Project) {
+    const list = [...(project.pendencias ?? [])].sort((a, b) => a.priority - b.priority).slice(0, MAX_NOTES);
+    const key = list.map((p) => p.priority).join('');
+    if (key === this.notesKey) return;
+    this.notesKey = key;
+    for (const n of this.notes) n.destroy();
+    const left = BOARD_X - 23 + 3;
+    const top = BOARD_Y - 30 + 3;
+    // leve desalinho fixo por posição, para parecer pregado à mão
+    const jitter = [0, 1, 0, -1, 1, -1, 0, 1, 0, 0, 1, -1, 0, 1, -1];
+    this.notes = list.map((p, i) =>
+      this.add
+        .image(left + (i % NOTE_COLS) * 8, top + Math.floor(i / NOTE_COLS) * 8 + jitter[i], `note${p.priority}`)
+        .setOrigin(0)
+        .setDepth(BOARD_Y + 0.5),
+    );
+  }
 
   /** Enquadra a sala inteira, centralizada, no tamanho atual da janela. */
   private frameCamera() {

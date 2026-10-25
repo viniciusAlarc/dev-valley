@@ -11,6 +11,22 @@ export interface Project {
   branch: string | null;
   remote: string | null;
   changes: FileChange[];
+  /** Linhas abertas do `PENDENCIAS.md`; null = o projeto não tem o arquivo. */
+  pendencias: Pendencia[] | null;
+}
+
+export interface Pendencia {
+  id: string;
+  /** 1 (crítico) a 4 (baixo). */
+  priority: number;
+  owner: 'user' | 'code' | 'infra' | null;
+  item: string;
+  openedAt: string;
+}
+
+/** Pendências P1 (crítico) abertas: só elas acendem o sinal na fachada da casa (decisão de 25/10/2026). */
+export function urgentPendencias(project: Project): Pendencia[] {
+  return (project.pendencias ?? []).filter((p) => p.priority === 1);
 }
 
 export interface Session {

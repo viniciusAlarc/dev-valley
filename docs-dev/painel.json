@@ -6,12 +6,15 @@
       { "nome": "Vila e casas", "estado": "feito" },
       { "nome": "Interior e status ao vivo", "estado": "feito" },
       { "nome": "Biblioteca e bibliotecária", "estado": "feito" },
+      { "nome": "Representações visuais", "estado": "andamento" },
       { "nome": "Fábrica de agentes", "estado": "a fazer" },
       { "nome": "Chat via Agent SDK", "estado": "a fazer" },
       { "nome": "Tileset", "estado": "a fazer" }
     ]
   },
   "entregas": [
+    { "data": "2026-10-25", "o_que": "Quadro de avisos da praça com as decisões pendentes de todos os projetos", "como": "noticeboard clicável, pendências 👤 lidas do PENDENCIAS.md" },
+    { "data": "2026-10-25", "o_que": "Quadro de pendências na casa e sinal na fachada", "como": "server/src/pendencias.ts lê o PENDENCIAS.md; bilhetes no InteriorScene" },
     { "data": "2026-10-25", "o_que": "Bibliotecária no balcão da biblioteca", "como": "agente com catálogo em disco, claude -p sem sessão persistida" },
     { "data": "2026-10-25", "o_que": "Biblioteca com leitor, edição e busca", "como": "server/src/library.ts, LibraryScene" },
     { "data": "2026-10-24", "o_que": "Interior das casas e balões de status ao vivo", "como": "hooks do Claude Code em POST /api/hooks" },

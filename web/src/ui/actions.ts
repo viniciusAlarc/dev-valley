@@ -4,6 +4,7 @@ import { openCommit } from './commit';
 import { openLibrary } from './library';
 import { openLibrarian } from './librarian';
 import { escapeHtml, isPanelOpen, openPanel } from './panel';
+import { openPendencias, openUserPendencias } from './pendencias';
 import { openProject } from './project';
 import { openSessionTerminal } from './terminal';
 
@@ -33,7 +34,7 @@ export const ui = {
       help.textContent =
         helpText ??
         (placeName
-          ? 'Clique num morador para abrir o chat · escrivaninha = painel do projeto · Esc ou tapete para sair'
+          ? 'Clique num morador para abrir o chat · escrivaninha = painel do projeto · quadro = pendências · Esc ou tapete para sair'
           : 'Arraste ou WASD para andar · roda do mouse para zoom · clique em pessoas, casas e caixas');
   },
   showTooltip(text: string) {
@@ -59,6 +60,14 @@ export const ui = {
   openProject(project: Project) {
     this.hideTooltip();
     openProject(project);
+  },
+  openPendencias(project: Project) {
+    this.hideTooltip();
+    openPendencias(project);
+  },
+  openUserPendencias(projects: Project[]) {
+    this.hideTooltip();
+    openUserPendencias(projects);
   },
   openCommit(project: Project) {
     this.hideTooltip();

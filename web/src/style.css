@@ -358,6 +358,42 @@ h3 {
   box-shadow: 0 0 8px #f7a400;
 }
 
+/* ---------- pendências (quadro de bilhetes) ---------- */
+
+/* Mesmas cores dos bilhetes no quadro da casa (interiorTextures.ts, NOTE_COLORS). */
+.pend-prio {
+  --prio: #b9a27a;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pend-prio::before {
+  content: '';
+  width: 10px;
+  height: 12px;
+  background: var(--prio);
+  outline: 1px solid var(--ink);
+}
+
+.pend-prio.p1 { --prio: #d6402f; }
+.pend-prio.p2 { --prio: #e8892b; }
+.pend-prio.p3 { --prio: #e8c252; }
+
+.pend-list li {
+  align-items: baseline;
+  cursor: default;
+}
+
+.pend-id {
+  flex-shrink: 0;
+}
+
+.pend-item {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ---------- terminal ---------- */
 
 .terminal-host {
