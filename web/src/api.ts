@@ -26,6 +26,31 @@ export interface Session {
   live: boolean;
   /** Estado vindo dos hooks; null quando não há hooks para a sessão. */
   status: SessionStatus | null;
+  /** Janela de contexto usada; `estimated` quando calculada sem o status line. */
+  context: { percent: number; tokens: number; window: number; estimated: boolean } | null;
+  model: string | null;
+}
+
+/** A partir daqui vale começar uma sessão nova (o Claude compacta perto do fim da janela). */
+export const CONTEXT_WARN = 70;
+export const CONTEXT_CRITICAL = 85;
+
+export function contextText(s: Session): string | null {
+  if (!s.context) return null;
+  const pct = `${s.context.estimated ? '~' : ''}${s.context.percent}%`;
+  const filled = Math.round(Math.min(100, s.context.percent) / 10);
+  const bar = '▰'.repeat(filled) + '▱'.repeat(10 - filled);
+  const hint = s.context.percent >= CONTEXT_CRITICAL ? ' — hora de uma sessão nova!' : s.context.percent >= CONTEXT_WARN ? ' — ficando cheio' : '';
+  return `contexto ${bar} ${pct}${hint}`;
+}
+
+export interface UsageRow {
+  kind: string;
+  group: string;
+  label: string;
+  percent: number;
+  resetsAt: string | null;
+  severity: string;
 }
 
 export type SessionStatus = 'working' | 'permission' | 'idle';
@@ -40,6 +65,8 @@ export interface World {
   projects: Project[];
   sessions: Session[];
   settings: { sessionsPerProject: number };
+  /** Limites do plano, vindos do status line; null até a primeira sessão reportar. */
+  usage: { rows: UsageRow[]; updatedAt: number } | null;
 }
 
 /** Quem aparece no quintal: quem precisa de você, quem trabalha, depois os mais recentes. */
@@ -117,7 +144,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], settings: { sessionsPerProject: 4 } };
+let world: World = { projects: [], sessions: [], settings: { sessionsPerProject: 4 }, usage: null };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

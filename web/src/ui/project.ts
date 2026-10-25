@@ -1,4 +1,6 @@
-import { activityOf, api, getWorld, type Project } from '../api';
+import { activityOf, api, CONTEXT_CRITICAL, CONTEXT_WARN, getWorld, type Project } from '../api';
+
+const contextLevel = (pct: number) => (pct >= CONTEXT_CRITICAL ? 'critical' : pct >= CONTEXT_WARN ? 'warning' : 'normal');
 import { villagerName } from '../game/names';
 import { ui } from './actions';
 import { openCommit } from './commit';
@@ -29,6 +31,7 @@ export function openProject(project: Project) {
       <span class="dot ${activity}"></span>
       <b>${escapeHtml(villagerName(s.id))}</b>
       <span class="session-title">${escapeHtml(s.title)}</span>
+      ${s.context ? `<span class="ctx-pill ${contextLevel(s.context.percent)}" title="Janela de contexto usada">${s.context.estimated ? '~' : ''}${s.context.percent}%</span>` : ''}
       <span class="muted">${activity === 'offline' ? timeAgo(s.lastActivity) : STATUS_TEXT[activity]}</span>`;
     li.addEventListener('click', () => ui.openSession(s));
     list.append(li);

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { activityOf, type Session } from '../api';
+import { activityOf, contextText, type Session } from '../api';
 import { ui } from '../ui/actions';
 import { villagerName } from './names';
 import { StatusBubble } from './statusBubble';
@@ -78,7 +78,8 @@ export class VillagerView {
       this.sprite,
       () => {
         const status = ACTIVITY_LABEL[activityOf(this.session)];
-        return `${villagerName(this.session.id)}: ${this.session.title}${status ? ` (${status})` : ''}`;
+        const context = contextText(this.session);
+        return `${villagerName(this.session.id)}: ${this.session.title}${status ? ` (${status})` : ''}${context ? `\n${context}` : ''}`;
       },
       () => ui.openSession(this.session),
     );

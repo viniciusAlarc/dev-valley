@@ -8,6 +8,9 @@ export interface SessionInfo {
   title: string;
   gitBranch: string | null;
   lastActivity: number;
+  /** Tokens de entrada da última resposta = quanto da janela de contexto está ocupado. */
+  contextTokens: number | null;
+  model: string | null;
 }
 
 interface CacheEntry {
@@ -23,6 +26,8 @@ function parseSession(id: string, raw: string, mtimeMs: number): SessionInfo | n
   let lastPrompt: string | null = null;
   let firstPrompt: string | null = null;
   let gitBranch: string | null = null;
+  let contextTokens: number | null = null;
+  let model: string | null = null;
 
   for (const line of raw.split('\n')) {
     if (!line) continue;
@@ -39,10 +44,16 @@ function parseSession(id: string, raw: string, mtimeMs: number): SessionInfo | n
     if (!firstPrompt && entry.type === 'user' && typeof entry.message?.content === 'string') {
       firstPrompt = entry.message.content;
     }
+    // Subagentes têm contexto próprio; só a conversa principal conta.
+    const usage = entry.type === 'assistant' && !entry.isSidechain ? entry.message?.usage : null;
+    if (usage && entry.message.model !== '<synthetic>') {
+      contextTokens = (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0);
+      model = entry.message.model ?? model;
+    }
   }
   if (!cwd) return null;
   const title = aiTitle ?? (lastPrompt ?? firstPrompt ?? 'Sessão sem título').slice(0, 80);
-  return { id, cwd, title, gitBranch, lastActivity: mtimeMs };
+  return { id, cwd, title, gitBranch, lastActivity: mtimeMs, contextTokens, model };
 }
 
 /** Lê as sessões salvas pelo Claude Code em ~/.claude/projects/<projeto>/<id>.jsonl. */

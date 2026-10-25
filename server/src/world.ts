@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { Config } from './config.js';
 import * as gitOps from './git.js';
 import type { HookState, SessionStatus } from './hooks.js';
+import type { StatusLineStore, Usage } from './statusline.js';
 import { listSessions, type SessionInfo } from './sessions.js';
 
 export interface Project {
@@ -24,12 +25,44 @@ export interface WorldSession extends SessionInfo {
   live: boolean;
   /** Estado informado pelos hooks; null = sem hooks para esta sessão. */
   status: SessionStatus | null;
+  /** Janela de contexto usada. `estimated` = calculada do .jsonl, sem o status line. */
+  context: { percent: number; tokens: number; window: number; estimated: boolean } | null;
 }
 
 export interface World {
   projects: Project[];
   sessions: WorldSession[];
   settings: { sessionsPerProject: number };
+  usage: Usage | null;
+}
+
+/** Janelas possíveis quando ainda não sabemos o tamanho real para o modelo. */
+const DEFAULT_WINDOW = 200_000;
+const LARGE_WINDOW = 1_000_000;
+
+/**
+ * Sem o status line, deduz a janela de cada modelo: se alguma sessão dele já passou de 200k
+ * tokens, a janela só pode ser a grande.
+ */
+function guessWindows(sessions: SessionInfo[]): Map<string, number> {
+  const guess = new Map<string, number>();
+  for (const s of sessions) {
+    if (!s.model || s.contextTokens === null) continue;
+    if (s.contextTokens > DEFAULT_WINDOW) guess.set(s.model, LARGE_WINDOW);
+    else if (!guess.has(s.model)) guess.set(s.model, DEFAULT_WINDOW);
+  }
+  return guess;
+}
+
+function contextOf(s: SessionInfo, statusLine: StatusLineStore, guessed: Map<string, number>): WorldSession['context'] {
+  const exact = statusLine.context(s.id);
+  // O status line é a fonte exata; o .jsonl só ganha se for mais novo (ex.: sessão continuou sem ele).
+  if (exact && exact.updatedAt >= s.lastActivity - 5000) {
+    return { percent: Math.round(exact.percent), tokens: exact.tokens, window: exact.window, estimated: false };
+  }
+  if (s.contextTokens === null) return null;
+  const window = statusLine.windowFor(s.model) ?? (s.model ? guessed.get(s.model) : undefined) ?? DEFAULT_WINDOW;
+  return { percent: Math.min(100, Math.round((s.contextTokens / window) * 100)), tokens: s.contextTokens, window, estimated: true };
 }
 
 async function discoverProjectDirs(config: Config): Promise<string[]> {
@@ -86,7 +119,7 @@ export interface LiveSession {
   startedAt: number;
 }
 
-export async function buildWorld(config: Config, terminals: LiveSession[], hooks: HookState[]): Promise<World> {
+export async function buildWorld(config: Config, terminals: LiveSession[], hooks: HookState[], statusLine: StatusLineStore): Promise<World> {
   const dirs = await discoverProjectDirs(config);
   const projects = await Promise.all(dirs.map(loadProject));
   const all = await listSessions(config.sessionMaxAgeDays);
@@ -98,9 +131,10 @@ export async function buildWorld(config: Config, terminals: LiveSession[], hooks
   for (const s of [...terminals.map((t) => ({ id: t.id, cwd: t.cwd, at: t.startedAt })), ...hooks.map((h) => ({ id: h.id, cwd: h.cwd, at: h.updatedAt }))]) {
     if (known.has(s.id) || !s.cwd) continue;
     known.add(s.id);
-    all.unshift({ id: s.id, cwd: s.cwd, title: 'Nova sessão', gitBranch: null, lastActivity: s.at });
+    all.unshift({ id: s.id, cwd: s.cwd, title: 'Nova sessão', gitBranch: null, lastActivity: s.at, contextTokens: null, model: null });
   }
 
+  const guessed = guessWindows(all);
   const sessions: WorldSession[] = all.map((s) => {
     const hook = hookById.get(s.id);
     return {
@@ -110,7 +144,8 @@ export async function buildWorld(config: Config, terminals: LiveSession[], hooks
       inTown: inTown.has(s.id),
       live: inTown.has(s.id) || !!hook,
       status: hook?.status ?? null,
+      context: contextOf(s, statusLine, guessed),
     };
   });
-  return { projects, sessions, settings: { sessionsPerProject: config.sessionsPerProject } };
+  return { projects, sessions, settings: { sessionsPerProject: config.sessionsPerProject }, usage: statusLine.usage };
 }

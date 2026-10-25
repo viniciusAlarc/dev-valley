@@ -9,6 +9,7 @@ import { loadConfig, ROOT_DIR } from './config.js';
 import * as gitOps from './git.js';
 import { HookStore } from './hooks.js';
 import { Library } from './library.js';
+import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
 import { buildWorld, type Project, type World } from './world.js';
 
@@ -16,17 +17,19 @@ const config = loadConfig();
 const HOST = '127.0.0.1';
 const POLL_MS = 3000;
 
-let world: World = { projects: [], sessions: [], settings: { sessionsPerProject: config.sessionsPerProject } };
+let world: World = { projects: [], sessions: [], settings: { sessionsPerProject: config.sessionsPerProject }, usage: null };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 
 const terminals = new TerminalManager(() => void refreshWorld());
 const hooks = new HookStore();
 const library = new Library(config, () => world.projects);
+const statusLine = new StatusLineStore();
+let lastStatusLine: unknown = null;
 
 async function refreshWorld() {
   try {
-    world = await buildWorld(config, terminals.live(), hooks.all());
+    world = await buildWorld(config, terminals.live(), hooks.all(), statusLine);
     const json = JSON.stringify(world);
     if (json === worldJson) return;
     worldJson = json;
@@ -95,6 +98,17 @@ app.post('/api/open-vscode', (req, res) => {
   if (file) args.push('--goto', path.join(project.path, file));
   spawn('code', args, { detached: true, stdio: 'ignore' }).unref();
   res.json({ ok: true });
+});
+
+// Chamado pelo status line do Claude Code: contexto da sessão e limites do plano.
+app.post('/api/statusline', (req, res) => {
+  lastStatusLine = req.body;
+  if (statusLine.handle(req.body ?? {})) void refreshWorld();
+  res.json({});
+});
+
+app.get('/api/statusline/last', (_req, res) => {
+  res.json(lastStatusLine);
 });
 
 // ---- Biblioteca ----

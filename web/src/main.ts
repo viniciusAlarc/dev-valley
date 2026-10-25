@@ -7,6 +7,7 @@ import { LibraryScene } from './game/LibraryScene';
 import { TownScene } from './game/TownScene';
 import './style.css';
 import { mountHud } from './ui/hud';
+import { mountUsage } from './ui/usage';
 
 await document.fonts.load('16px "Pixelify Sans"');
 
@@ -21,6 +22,7 @@ new Phaser.Game({
 });
 
 mountHud();
+mountUsage();
 
 onWorld((w) => scene.applyWorld(w));
 connectWorld();
