@@ -8,7 +8,6 @@ export interface Config {
   projectRoots: string[];
   extraProjects: string[];
   ignore: string[];
-  sessionsPerProject: number;
   sessionMaxAgeDays: number;
   /** Pastas extras de conhecimento que viram estantes na Biblioteca. */
   libraryRoots: string[];
@@ -36,7 +35,6 @@ export function loadConfig(): Config {
     projectRoots: (merged.projectRoots ?? []).map(expandHome),
     extraProjects: (merged.extraProjects ?? []).map(expandHome),
     ignore: merged.ignore ?? [],
-    sessionsPerProject: merged.sessionsPerProject ?? 4,
     sessionMaxAgeDays: merged.sessionMaxAgeDays ?? 14,
     libraryRoots: (merged.libraryRoots ?? []).map(expandHome),
   };

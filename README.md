@@ -61,7 +61,7 @@ e a vila não deixa retomar uma sessão que já está rodando em outro terminal.
 
 - `projectRoots`: pastas cujas subpastas viram casas
 - `extraProjects`: projetos avulsos fora dessas pastas
-- `sessionsPerProject` / `sessionMaxAgeDays`: quantos moradores aparecem por casa
+- `sessionMaxAgeDays`: por quantos dias uma sessão sem atividade continua morando na casa (no quintal só ficam as sessões rodando)
 - `auditorAcervos` (só no local): globs de regras de fora do repo que `scripts/auditar-referencias.py` também confere,
   por tipo (`guardrail`, `perfil`)
 

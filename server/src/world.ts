@@ -32,7 +32,6 @@ export interface WorldSession extends SessionInfo {
 export interface World {
   projects: Project[];
   sessions: WorldSession[];
-  settings: { sessionsPerProject: number };
   usage: Usage | null;
 }
 
@@ -147,5 +146,5 @@ export async function buildWorld(config: Config, terminals: LiveSession[], hooks
       context: contextOf(s, statusLine, guessed),
     };
   });
-  return { projects, sessions, settings: { sessionsPerProject: config.sessionsPerProject }, usage: statusLine.usage };
+  return { projects, sessions, usage: statusLine.usage };
 }

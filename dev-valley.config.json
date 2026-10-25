@@ -3,7 +3,6 @@
   "projectRoots": ["~/Documents/Desenvolvimento"],
   "extraProjects": [],
   "ignore": ["node_modules"],
-  "sessionsPerProject": 4,
   "sessionMaxAgeDays": 14,
   "libraryRoots": []
 }

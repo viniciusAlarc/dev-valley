@@ -64,18 +64,19 @@ export function activityOf(s: Session): SessionStatus | 'offline' {
 export interface World {
   projects: Project[];
   sessions: Session[];
-  settings: { sessionsPerProject: number };
   /** Limites do plano, vindos do status line; null até a primeira sessão reportar. */
   usage: { rows: UsageRow[]; updatedAt: number } | null;
 }
 
-/** Quem aparece no quintal: quem precisa de você, quem trabalha, depois os mais recentes. */
+/**
+ * Quem aparece no quintal: só sessões vivas (quem precisa de você, quem trabalha, depois os mais recentes).
+ * Sessão encerrada fica dentro de casa até ser retomada ou passar de `sessionMaxAgeDays`.
+ */
 export function yardResidents(world: World, projectId: string | null): Session[] {
   const rank = { permission: 0, working: 1, idle: 2, offline: 3 };
   return world.sessions
-    .filter((s) => s.projectId === projectId)
-    .sort((a, b) => rank[activityOf(a)] - rank[activityOf(b)] || b.lastActivity - a.lastActivity)
-    .slice(0, Math.max(world.settings.sessionsPerProject, world.sessions.filter((s) => s.projectId === projectId && s.live).length));
+    .filter((s) => s.projectId === projectId && s.live)
+    .sort((a, b) => rank[activityOf(a)] - rank[activityOf(b)] || b.lastActivity - a.lastActivity);
 }
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
@@ -144,7 +145,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], settings: { sessionsPerProject: 4 }, usage: null };
+let world: World = { projects: [], sessions: [], usage: null };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

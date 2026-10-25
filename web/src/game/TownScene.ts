@@ -26,7 +26,7 @@ export class TownScene extends Phaser.Scene {
   private projectKey = '';
   private houses = new Map<string, HouseView>();
   private residents = new Map<string, Resident>();
-  private world: World = { projects: [], sessions: [], settings: { sessionsPerProject: 4 }, usage: null };
+  private world: World = { projects: [], sessions: [], usage: null };
   private ready = false;
   private pendingWorld: World | null = null;
   private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT', Phaser.Input.Keyboard.Key>;
