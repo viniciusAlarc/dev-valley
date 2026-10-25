@@ -13,6 +13,15 @@ export interface Project {
   changes: FileChange[];
   /** Linhas abertas do `PENDENCIAS.md`; null = o projeto não tem o arquivo. */
   pendencias: Pendencia[] | null;
+  /** `docs-dev/painel.json` (plano e fases); null = o projeto não tem o arquivo. */
+  painel: Painel | null;
+}
+
+export type PhaseState = 'feito' | 'andamento' | 'a fazer';
+
+export interface Painel {
+  plano: { nome: string; doc: string | null; fases: { nome: string; estado: PhaseState }[] } | null;
+  entregas: { data: string; o_que: string; como: string }[];
 }
 
 export interface Pendencia {

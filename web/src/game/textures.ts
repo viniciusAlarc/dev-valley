@@ -128,6 +128,30 @@ function bush(scene: Phaser.Scene) {
   add(scene, 'bush', c);
 }
 
+/** Canteiro da horta: uma fase do `painel.json`. Terra arada (a fazer), broto (andamento) ou planta madura (feito). */
+function crop(scene: Phaser.Scene, key: string, stage: 0 | 1 | 2) {
+  const { c, ctx } = makeCanvas(14, 16);
+  rect(ctx, 1, 9, 12, 6, '#8a5a2e');
+  for (const y of [11, 13]) rect(ctx, 2, y, 10, 1, '#6e4521');
+  rect(ctx, 1, 9, 12, 1, '#a8743c');
+  if (stage === 1) {
+    rect(ctx, 6, 6, 1, 4, '#3f8a3a');
+    rect(ctx, 4, 6, 2, 1, '#58a84a');
+    rect(ctx, 7, 5, 2, 1, '#58a84a');
+  }
+  if (stage === 2) {
+    rect(ctx, 6, 2, 2, 8, '#2f6e30');
+    disc(ctx, 4, 5, 2, '#3f8a3a');
+    disc(ctx, 10, 5, 2, '#3f8a3a');
+    disc(ctx, 7, 2, 2, '#58a84a');
+    rect(ctx, 3, 7, 2, 2, '#e8892b');
+    rect(ctx, 9, 7, 2, 2, '#e8892b');
+    rect(ctx, 7, 0, 1, 1, '#f5d142');
+  }
+  outline(ctx, 14, 16);
+  add(scene, key, c);
+}
+
 function flower(scene: Phaser.Scene, key: string, petal: string) {
   const { c, ctx } = makeCanvas(5, 6);
   rect(ctx, 2, 3, 1, 3, '#3f8a3a');
@@ -451,6 +475,9 @@ export function generateTextures(scene: Phaser.Scene) {
   tree(scene, 'tree0', ['#2f6b2f', '#3f8a3a', '#5aa64a']);
   tree(scene, 'tree1', ['#2a5f34', '#357a45', '#4f9a58']);
   bush(scene);
+  crop(scene, 'crop-todo', 0);
+  crop(scene, 'crop-growing', 1);
+  crop(scene, 'crop-done', 2);
   flower(scene, 'flowerR', '#e05a6a');
   flower(scene, 'flowerY', '#f5d142');
   flower(scene, 'flowerB', '#7aa8f0');

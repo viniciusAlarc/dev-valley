@@ -4,6 +4,7 @@ import { openCommit } from './commit';
 import { openLibrary } from './library';
 import { openLibrarian } from './librarian';
 import { escapeHtml, isPanelOpen, openPanel } from './panel';
+import { openPainel } from './painel';
 import { openPendencias, openUserPendencias } from './pendencias';
 import { openProject } from './project';
 import { openSessionTerminal } from './terminal';
@@ -68,6 +69,10 @@ export const ui = {
   openUserPendencias(projects: Project[]) {
     this.hideTooltip();
     openUserPendencias(projects);
+  },
+  openPainel(project: Project) {
+    this.hideTooltip();
+    openPainel(project);
   },
   openCommit(project: Project) {
     this.hideTooltip();

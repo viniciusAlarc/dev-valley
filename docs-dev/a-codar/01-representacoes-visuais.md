@@ -27,8 +27,8 @@ A vila passa a mostrar os arquivos de acompanhamento que todo projeto tem (forma
 | # | Entrega | Estado |
 |---|---|---|
 | 1 | Quadro de pendências na casa + sinal na fachada | feito |
-| 2 | Quadro da praça com as pendências 👤 de todos os projetos | feito (falta conferir na vila) |
-| 3 | Horta das fases (`painel.json`) | a fazer |
+| 2 | Quadro da praça com as pendências 👤 de todos os projetos | feito |
+| 3 | Horta das fases (`painel.json`) | feito |
 | 4 | Diário do progresso (`PROGRESS.md`) | a fazer |
 
 O passo 3 cobre a primeira metade da PD-7 (casa mostrar o `painel.json`).

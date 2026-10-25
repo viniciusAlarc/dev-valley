@@ -13,6 +13,7 @@
     ]
   },
   "entregas": [
+    { "data": "2026-10-25", "o_que": "Horta no quintal com as fases do plano de cada projeto", "como": "server/src/painel.ts lê o docs-dev/painel.json; canteiros na TownScene" },
     { "data": "2026-10-25", "o_que": "Quadro de avisos da praça com as decisões pendentes de todos os projetos", "como": "noticeboard clicável, pendências 👤 lidas do PENDENCIAS.md" },
     { "data": "2026-10-25", "o_que": "Quadro de pendências na casa e sinal na fachada", "como": "server/src/pendencias.ts lê o PENDENCIAS.md; bilhetes no InteriorScene" },
     { "data": "2026-10-25", "o_que": "Bibliotecária no balcão da biblioteca", "como": "agente com catálogo em disco, claude -p sem sessão persistida" },

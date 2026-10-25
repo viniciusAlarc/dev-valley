@@ -24,13 +24,13 @@
 | PD-1 | 👤 | Decidir se hooks e status line saem do `~/.claude/settings.json` e viram um mod do Claude Code (mesmo caminho do mod guardrails) | 2026-10-25 |
 | PD-4 | 💻 | Fábrica: criar e editar agentes em `.claude/agents` | 2026-10-24 |
 | PD-5 | 💻 | Chat próprio via Claude Agent SDK, com pedidos de permissão em caixas de diálogo | 2026-10-24 |
-| PD-10 | 💻 | Representações visuais, passos 3 e 4: horta das fases, diário do progresso (`docs-dev/a-codar/01-representacoes-visuais.md`) | 2026-10-25 |
+| PD-10 | 💻 | Representações visuais, passo 4: diário do progresso (`docs-dev/a-codar/01-representacoes-visuais.md`) | 2026-10-25 |
 
 ## P4 — Baixo / melhoria
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
 | PD-6 | 💻 | Trocar a pixel art gerada em código por um tileset de verdade | 2026-10-24 |
-| PD-7 | 👤 | Casa mostrar o `docs-dev/painel.json` do projeto e ligar o sistema pela tabela "Subir" do `docs-dev/guias/OPERACAO.md` (formatos do G14, que todo projeto já tem) | 2026-10-25 |
+| PD-7 | 👤 | Ligar o sistema da casa pela tabela "Subir" do `docs-dev/guias/OPERACAO.md` (formatos do G14, que todo projeto já tem) | 2026-10-25 |
 | PD-8 | 💻 | Suíte de testes automatizada (hoje só typecheck + build + validação na vila) | 2026-10-25 |
 | PD-9 | 🖥️ | CI no GitHub rodando `python3 scripts/auditar-referencias.py . --tudo` (o repo ainda não tem CI) | 2026-10-25 |

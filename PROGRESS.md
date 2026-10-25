@@ -3,6 +3,20 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-25 — Horta das fases no quintal
+
+**O que mudou:** passo 3 do plano de representações visuais. O servidor lê o `docs-dev/painel.json` de cada projeto
+(só leitura; sem o arquivo ou com `plano: null`, sem horta). À esquerda de cada casa, um canteiro por fase do plano
+(até 9, grade 3x3, na ordem do JSON): terra arada = a fazer, broto = em andamento, planta madura = feito. O tooltip diz
+a fase e o estado; o clique abre o painel com as fases e as últimas entregas. A horta cabe na faixa que já era
+reservada ao lado da casa, então árvores e flores da vila não mudam de lugar.
+**Arquivos:** `server/src/painel.ts` (novo), `server/src/world.ts` (`Project.painel`), `web/src/api.ts`,
+`web/src/game/textures.ts` (`crop-todo`, `crop-growing`, `crop-done`), `web/src/game/TownScene.ts` (`plantGarden`),
+`web/src/ui/painel.ts` (novo), `web/src/ui/actions.ts`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` do front (diretório temporário), auditor sem achado;
+leitor testado contra o `painel.json` deste repo; canteiros conferidos num render fora do navegador (mesmas funções de
+desenho, script no scratchpad). Falta conferir na vila (reinício do usuário).
+
 ## 2026-10-25 — Quadro de avisos da praça e sinal só para P1
 
 **O que mudou:** passo 2 do plano de representações visuais. O quadro de avisos da praça (antes só enfeite) agora

@@ -4,6 +4,7 @@ import type { Config } from './config.js';
 import * as gitOps from './git.js';
 import type { HookState, SessionStatus } from './hooks.js';
 import type { StatusLineStore, Usage } from './statusline.js';
+import { readPainel, type Painel } from './painel.js';
 import { readPendencias, type Pendencia } from './pendencias.js';
 import { listSessions, type SessionInfo } from './sessions.js';
 
@@ -17,6 +18,8 @@ export interface Project {
   changes: gitOps.FileChange[];
   /** Linhas abertas do `PENDENCIAS.md`; null = o projeto não tem o arquivo. */
   pendencias: Pendencia[] | null;
+  /** `docs-dev/painel.json` (plano e fases); null = o projeto não tem o arquivo. */
+  painel: Painel | null;
 }
 
 export interface WorldSession extends SessionInfo {
@@ -85,7 +88,7 @@ async function discoverProjectDirs(config: Config): Promise<string[]> {
 }
 
 async function loadProject(dir: string): Promise<Project> {
-  const [isGit, pendencias] = await Promise.all([gitOps.isGitRepo(dir), readPendencias(dir)]);
+  const [isGit, pendencias, painel] = await Promise.all([gitOps.isGitRepo(dir), readPendencias(dir), readPainel(dir)]);
   const base: Project = {
     id: dir,
     name: path.basename(dir),
@@ -95,6 +98,7 @@ async function loadProject(dir: string): Promise<Project> {
     remote: null,
     changes: [],
     pendencias,
+    painel,
   };
   if (!isGit) return base;
   const [branch, remote, changes] = await Promise.all([

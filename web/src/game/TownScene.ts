@@ -6,6 +6,11 @@ import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect
 import { generateTextures, hash, mulberry32, ROOFS } from './textures';
 
 const ROOF_NAMES = Object.keys(ROOFS).filter((r) => r !== 'grey');
+/** Horta à esquerda da casa: um canteiro por fase do `painel.json`, 3 colunas x 3 linhas. */
+const GARDEN_COLS = 3;
+const GARDEN_MAX = 9;
+const CROP_TEXTURE = { feito: 'crop-done', andamento: 'crop-growing', 'a fazer': 'crop-todo' } as const;
+const PHASE_TEXT = { feito: 'feito', andamento: 'em andamento', 'a fazer': 'a fazer' } as const;
 
 interface Resident {
   view: VillagerView;
@@ -20,6 +25,8 @@ interface HouseView {
   badgeText?: Phaser.GameObjects.Text;
   /** "!" sobre o telhado quando há pendência P1 aberta. */
   alert: Phaser.GameObjects.Container;
+  crops: Phaser.GameObjects.Image[];
+  cropsKey: string;
 }
 
 export class TownScene extends Phaser.Scene {
@@ -292,7 +299,7 @@ export class TownScene extends Phaser.Scene {
       .setVisible(false);
     this.tweens.add({ targets: alert, y: alert.y - 3, yoyo: true, repeat: -1, duration: 700, ease: 'Sine.inOut' });
 
-    const view: HouseView = { plot, glows, alert };
+    const view: HouseView = { plot, glows, alert, crops: [], cropsKey: '' };
     if (p.isGit) {
       const bin = this.addSprite('bin', plot.bin.x, plot.bin.y);
       makeInteractive(
@@ -318,6 +325,26 @@ export class TownScene extends Phaser.Scene {
     return this.world.projects.find((p) => p.id === id)!;
   }
 
+  /** Replanta a horta só quando as fases mudam; sem plano no `painel.json`, sem horta. */
+  private plantGarden(view: HouseView, project: Project) {
+    const plano = project.painel?.plano;
+    const fases = (plano?.fases ?? []).slice(0, GARDEN_MAX);
+    const key = JSON.stringify(fases);
+    if (key === view.cropsKey) return;
+    view.cropsKey = key;
+    for (const c of view.crops) c.destroy();
+    const { x, y } = view.plot.house;
+    view.crops = fases.map((f, i) => {
+      const crop = this.addSprite(CROP_TEXTURE[f.estado], x - 72 + (i % GARDEN_COLS) * 14, y - 42 + Math.floor(i / GARDEN_COLS) * 14);
+      makeInteractive(
+        crop,
+        () => `Horta — ${plano!.nome}: ${f.nome} (${PHASE_TEXT[f.estado]}) — clique para ver o plano`,
+        () => ui.openPainel(this.currentProject(project.id)),
+      );
+      return crop;
+    });
+  }
+
   private updateHouse(view: HouseView, project: Project) {
     if (view.badge && view.badgeText) {
       const n = project.changes.length;
@@ -325,6 +352,7 @@ export class TownScene extends Phaser.Scene {
       view.badgeText.setText(n > 99 ? '99+' : String(n));
     }
     view.alert.setVisible(urgentPendencias(project).length > 0);
+    this.plantGarden(view, project);
     const lit = this.world.sessions.some((s) => s.projectId === project.id && s.live);
     for (const g of view.glows) {
       this.tweens.killTweensOf(g);
