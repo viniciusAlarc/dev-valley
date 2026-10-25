@@ -3,6 +3,14 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-25 — Pendências PD-1, PD-2 e PD-3 fechadas
+
+**O que mudou:** só acompanhamento, sem código. PD-2: o usuário conferiu numa sessão nova que `guardrails ✓` continua
+na status line junto com a do Dev Valley. PD-3: o usuário rodou `npm run hooks:install` de novo (bibliotecária com a
+descrição não proativa). PD-1: decisão do usuário, hooks e status line vão virar um mod do Claude Code; ainda não
+feito, então entrou como PD-11 com o plano em `docs-dev/a-codar/02-hooks-como-mod.md`.
+**Arquivos:** `PENDENCIAS.md`, `docs-dev/a-codar/02-hooks-como-mod.md` (novo).
+
 ## 2026-10-25 — Horta das fases no quintal
 
 **O que mudou:** passo 3 do plano de representações visuais. O servidor lê o `docs-dev/painel.json` de cada projeto
