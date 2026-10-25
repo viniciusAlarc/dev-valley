@@ -68,15 +68,22 @@ export interface World {
   usage: { rows: UsageRow[]; updatedAt: number } | null;
 }
 
+/** Avulsas encerradas que continuam soltas na praça (elas não têm casa para onde ir). */
+const PLAZA_OFFLINE_LIMIT = 4;
+
 /**
  * Quem aparece no quintal: só sessões vivas (quem precisa de você, quem trabalha, depois os mais recentes).
  * Sessão encerrada fica dentro de casa até ser retomada ou passar de `sessionMaxAgeDays`.
+ * Na praça (avulsas, `projectId` null) ficam todas as vivas mais as encerradas mais recentes.
  */
 export function yardResidents(world: World, projectId: string | null): Session[] {
   const rank = { permission: 0, working: 1, idle: 2, offline: 3 };
-  return world.sessions
-    .filter((s) => s.projectId === projectId && s.live)
+  const sorted = world.sessions
+    .filter((s) => s.projectId === projectId)
     .sort((a, b) => rank[activityOf(a)] - rank[activityOf(b)] || b.lastActivity - a.lastActivity);
+  if (projectId !== null) return sorted.filter((s) => s.live);
+  const live = sorted.filter((s) => s.live).length;
+  return sorted.slice(0, Math.max(PLAZA_OFFLINE_LIMIT, live));
 }
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {

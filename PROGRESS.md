@@ -3,6 +3,14 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-25 — Avulsas encerradas voltam à praça
+
+**O que mudou:** com o quintal só de vivas, as sessões avulsas encerradas ficaram sem lugar (a praça não tem
+"dentro de casa"). Decisão do usuário (25/10/2026): na praça ficam todas as avulsas vivas e, se houver vaga, as encerradas
+mais recentes, até 4 no total (regra antiga, agora fixa no código em `PLAZA_OFFLINE_LIMIT`). Os quintais das casas continuam só com vivas.
+**Arquivos:** `web/src/api.ts` (`yardResidents`).
+**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. Falta conferir na vila.
+
 ## 2026-10-25 — Quintal só com sessões vivas
 
 **O que mudou:** o botão "Encerrar sessão" já matava o processo (conferido: SIGHUP encerra o `claude` e o `SessionEnd`
