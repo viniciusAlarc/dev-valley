@@ -24,7 +24,7 @@ export function mountUsage() {
     if (!usage?.rows.length) {
       el.innerHTML = `
         <div class="usage-title">Uso do Claude</div>
-        <p class="usage-empty">Abra uma sessão do Claude Code para carregar o uso do plano.</p>`;
+        <p class="usage-empty">Aparece após a primeira resposta do Claude numa sessão (com o status line instalado).</p>`;
       return;
     }
     el.innerHTML = `

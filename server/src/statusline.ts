@@ -73,37 +73,48 @@ function parseRateLimits(rl: any): UsageRow[] | null {
   return rows.length ? rows : null;
 }
 
-/** Guardado em disco para as estimativas continuarem certas depois de reiniciar a vila. */
-const WINDOWS_FILE = path.join(os.homedir(), '.cache', 'dev-valley', 'context-windows.json');
+/** Guardados em disco para sobreviver a reinícios da vila. */
+const CACHE_DIR = path.join(os.homedir(), '.cache', 'dev-valley');
+const WINDOWS_FILE = path.join(CACHE_DIR, 'context-windows.json');
+const USAGE_FILE = path.join(CACHE_DIR, 'usage.json');
+
+function readJson<T>(file: string, fallback: T): T {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJson(file: string, data: unknown) {
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+}
 
 export class StatusLineStore {
   private contexts = new Map<string, SessionContext>();
   /** Tamanho da janela por modelo, aprendido do status line — usado para estimar sessões antigas. */
-  private windows = new Map<string, number>(this.loadWindows());
-  usage: Usage | null = null;
-
-  private loadWindows(): [string, number][] {
-    try {
-      return Object.entries(JSON.parse(fs.readFileSync(WINDOWS_FILE, 'utf8')));
-    } catch {
-      return [];
-    }
-  }
+  private windows = new Map<string, number>(Object.entries(readJson<Record<string, number>>(WINDOWS_FILE, {})));
+  /**
+   * O Claude Code só manda os limites depois da primeira resposta da API numa sessão,
+   * então o último valor conhecido fica salvo e aparece com "atualizado há X".
+   */
+  usage: Usage | null = readJson<Usage | null>(USAGE_FILE, null);
 
   private learnWindow(model: string, size: number) {
     if (this.windows.get(model) === size) return;
     this.windows.set(model, size);
-    fs.mkdirSync(path.dirname(WINDOWS_FILE), { recursive: true });
-    fs.writeFileSync(WINDOWS_FILE, JSON.stringify(Object.fromEntries(this.windows), null, 2));
+    writeJson(WINDOWS_FILE, Object.fromEntries(this.windows));
   }
 
   handle(p: any): boolean {
     let changed = false;
     const rows = parseRateLimits(p?.rate_limits);
     if (rows) {
-      const before = JSON.stringify(this.usage?.rows);
       this.usage = { rows, updatedAt: Date.now() };
-      changed ||= before !== JSON.stringify(rows);
+      writeJson(USAGE_FILE, this.usage);
+      // "atualizado há X" também muda, então a vila redesenha a cada reporte.
+      changed = true;
     }
     const cw = p?.context_window;
     const id = typeof p?.session_id === 'string' && /^[0-9a-f-]{36}$/.test(p.session_id) ? p.session_id : null;
