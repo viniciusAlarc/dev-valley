@@ -6,7 +6,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { hookCommand, MARKER, statusLineCommand } from './claude-commands.js';
-import { loadConfig } from './config.js';
+import { CATALOG_PATH } from './catalog.js';
+import { loadConfig, ROOT_DIR } from './config.js';
 
 const EVENTS = ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PermissionRequest', 'Notification', 'Stop', 'SessionEnd'];
 const SETTINGS = path.join(os.homedir(), '.claude', 'settings.json');
@@ -51,8 +52,30 @@ if (uninstall) {
 }
 fs.writeFileSync(SETTINGS, JSON.stringify(settings, null, 2) + '\n');
 
+// ---- Agentes permanentes (NPCs especiais) ----
+const AGENTS_DIR = path.join(os.homedir(), '.claude', 'agents');
+const AGENT_MARKER = '<!-- dev-valley:';
+let agentNote = '';
+for (const file of fs.readdirSync(path.join(ROOT_DIR, 'server', 'agents'))) {
+  const target = path.join(AGENTS_DIR, file);
+  const existing = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
+  // Um agente com o mesmo nome criado por você nunca é sobrescrito nem apagado.
+  if (existing !== null && !existing.includes(AGENT_MARKER)) {
+    agentNote += `\n   ⚠ ${target} já existe e não é do Dev Valley — mantive o seu.`;
+    continue;
+  }
+  if (uninstall) {
+    if (existing !== null) fs.rmSync(target);
+    continue;
+  }
+  const content = fs.readFileSync(path.join(ROOT_DIR, 'server', 'agents', file), 'utf8').replaceAll('{{CATALOGO}}', CATALOG_PATH);
+  fs.mkdirSync(AGENTS_DIR, { recursive: true });
+  fs.writeFileSync(target, content);
+  agentNote += `\n   Agente instalado: ${target}`;
+}
+
 console.log(
   uninstall
-    ? '🧹 Hooks e status line do Dev Valley removidos.'
-    : `🔔 Hooks do Dev Valley instalados em ${SETTINGS} (${EVENTS.length} eventos).${statusLineNote}\n   Backup: ${SETTINGS}.bak-dev-valley\n   Vale para sessões novas ou reabertas.`,
+    ? `🧹 Hooks, status line e agentes do Dev Valley removidos.${agentNote}`
+    : `🔔 Hooks do Dev Valley instalados em ${SETTINGS} (${EVENTS.length} eventos).${statusLineNote}${agentNote}\n   Backup: ${SETTINGS}.bak-dev-valley\n   Vale para sessões novas ou reabertas.`,
 );

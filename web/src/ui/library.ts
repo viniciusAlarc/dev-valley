@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { library, type LibraryFile, type LibrarySection } from '../api';
+import { ui } from './actions';
 import { loadMonaco } from './monaco';
 import { button, escapeHtml, openPanel, timeAgo } from './panel';
 
@@ -49,7 +50,7 @@ function resolvePath(from: string, href: string) {
   return '/' + out.join('/');
 }
 
-export async function openLibrary(opts: { sectionId?: string; search?: boolean } = {}) {
+export async function openLibrary(opts: { sectionId?: string; search?: boolean; path?: string } = {}) {
   let editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null;
   let current: OpenFile | null = null;
   let editing = false;
@@ -60,6 +61,7 @@ export async function openLibrary(opts: { sectionId?: string; search?: boolean }
     size: 'lg',
     onClose: () => editor?.dispose(),
   });
+  panel.actions.append(button('✦ Perguntar à bibliotecária', () => ui.openLibrarian(), 'primary'));
   panel.body.innerHTML = `
     <div class="library-layout">
       <aside class="library-nav">
@@ -301,9 +303,22 @@ export async function openLibrary(opts: { sectionId?: string; search?: boolean }
 
   await reload();
   if (opts.search) search.focus();
-  const start = sections.find((s) => s.id === opts.sectionId) ?? sections.find((s) => s.kind === 'global');
+  const start =
+    sections.find((s) => opts.path && s.files.some((f) => f.path === opts.path)) ??
+    sections.find((s) => s.id === opts.sectionId) ??
+    sections.find((s) => s.kind === 'global');
   if (start) {
-    tree.querySelector<HTMLDetailsElement>(`.shelf[data-id="${CSS.escape(start.id)}"]`)!.open = true;
-    if (start.files[0]) await openFile(start.files[0].path);
+    const shelf = tree.querySelector<HTMLDetailsElement>(`.shelf[data-id="${CSS.escape(start.id)}"]`)!;
+    shelf.open = true;
+    const target = (opts.path && start.files.find((f) => f.path === opts.path)) || start.files[0];
+    if (target) {
+      // abre as pastas até o livro escolhido
+      let folder = tree.querySelector(`.book[data-path="${CSS.escape(target.path)}"]`)?.parentElement?.closest('details');
+      while (folder) {
+        folder.open = true;
+        folder = folder.parentElement?.closest('details');
+      }
+      await openFile(target.path);
+    }
   }
 }

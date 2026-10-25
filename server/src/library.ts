@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { writeCatalog } from './catalog.js';
 import { CLAUDE_PROJECTS_DIR, type Config } from './config.js';
 import type { Project } from './world.js';
 
@@ -134,10 +135,18 @@ export class Library {
     private projects: () => Project[],
   ) {}
 
+  private catalogSignature = '';
+
   async sections(force = false): Promise<Section[]> {
     if (!force && this.cache && Date.now() - this.cache.at < CACHE_MS) return this.cache.sections;
     const sections = await scan(this.config, this.projects());
     this.cache = { at: Date.now(), sections };
+    // O catálogo da bibliotecária só é reescrito quando algum livro mudou.
+    const signature = JSON.stringify(sections.map((s) => [s.id, s.files.map((f) => [f.path, f.mtime])]));
+    if (signature !== this.catalogSignature) {
+      this.catalogSignature = signature;
+      await writeCatalog(sections).catch((err) => console.error('[catálogo] falha ao gravar:', err));
+    }
     return sections;
   }
 

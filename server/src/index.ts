@@ -9,6 +9,7 @@ import { loadConfig, ROOT_DIR } from './config.js';
 import * as gitOps from './git.js';
 import { HookStore } from './hooks.js';
 import { Library } from './library.js';
+import { askLibrarian } from './librarian.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
 import { buildWorld, type Project, type World } from './world.js';
@@ -25,6 +26,8 @@ const terminals = new TerminalManager(() => void refreshWorld());
 const hooks = new HookStore();
 const library = new Library(config, () => world.projects);
 const statusLine = new StatusLineStore();
+/** Sessões que a própria vila abre por baixo (consultas à bibliotecária) — não viram moradores. */
+const internalSessions = new Set<string>();
 let lastStatusLine: unknown = null;
 
 async function refreshWorld() {
@@ -59,8 +62,28 @@ app.get('/api/world', (_req, res) => {
 
 // Chamado pelos hooks do Claude Code (curl local) a cada evento de sessão.
 app.post('/api/hooks', (req, res) => {
-  if (hooks.handle(req.body ?? {})) void refreshWorld();
+  if (!internalSessions.has(req.body?.session_id) && hooks.handle(req.body ?? {})) void refreshWorld();
   res.json({});
+});
+
+// Pergunta à bibliotecária; responde em NDJSON conforme ela trabalha (passos e resposta final).
+app.post('/api/librarian/ask', (req, res) => {
+  const question = String(req.body?.question ?? '').trim();
+  if (!question) return res.status(400).json({ error: 'pergunta vazia' });
+  const history = Array.isArray(req.body?.history) ? req.body.history : [];
+  res.setHeader('Content-Type', 'application/x-ndjson');
+  const cancel = askLibrarian(
+    question,
+    history,
+    (event) => {
+      res.write(JSON.stringify(event) + '\n');
+      if (event.type !== 'step') res.end();
+    },
+    internalSessions,
+  );
+  res.on('close', () => {
+    if (!res.writableEnded) cancel();
+  });
 });
 
 app.get('/api/diff', async (req, res) => {
@@ -220,6 +243,9 @@ server.on('upgrade', (req, socket, head) => {
 
 await refreshWorld();
 setInterval(refreshWorld, POLL_MS);
+// Mantém o catálogo da bibliotecária em dia mesmo sem ninguém abrir a biblioteca.
+void library.sections();
+setInterval(() => void library.sections(), 60_000);
 
 server.listen(config.port, HOST, () => {
   console.log(`🌾 Dev Valley rodando em http://localhost:${config.port}`);

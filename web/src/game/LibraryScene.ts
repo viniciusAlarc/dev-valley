@@ -66,6 +66,7 @@ export class LibraryScene extends Phaser.Scene {
     const shelf = new URLSearchParams(location.search).get('estante');
     const section = this.instant && shelf && sections.find((s) => s.id === shelf || s.title === shelf || s.kind === shelf);
     if (section) ui.openLibrary({ sectionId: section.id });
+    else if (this.instant && shelf === 'bibliotecaria') ui.openLibrarian();
   }
 
   private leave() {
@@ -121,8 +122,16 @@ export class LibraryScene extends Phaser.Scene {
       .sprite(W / 2, counterY - 6, villagerTexture(this, 'bibliotecaria-dev-valley'), 0)
       .setOrigin(0.5, 1)
       .setDepth(counterY - 10);
-    makeInteractive(librarian, () => 'Bibliotecária — "Procurando algum livro?"', () => ui.openLibrary({ search: true }));
+    makeInteractive(
+      librarian,
+      () => '✦ Bibliotecária — agente permanente\n"Procurando algum conhecimento? Eu sei onde está."',
+      () => ui.openLibrarian(),
+    );
     this.prop('counter', W / 2, counterY);
+    // NPCs especiais (agentes, não sessões) ganham uma estrela dourada flutuando.
+    const star = this.add.text(W / 2 + 7, counterY - 40, '✦', { fontFamily: 'serif', fontSize: '10px', color: '#f7d046', resolution: 4 }).setOrigin(0.5).setDepth(100000);
+    star.setStroke('#5e3a1c', 2);
+    this.tweens.add({ targets: star, y: star.y - 3, alpha: 0.6, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut' });
 
     const catalog = this.prop('catalog', 40, counterY - 4);
     makeInteractive(catalog, () => 'Fichário — buscar em todos os livros', () => ui.openLibrary({ search: true }));

@@ -2,6 +2,7 @@ import type { Project, Session } from '../api';
 import { villagerName } from '../game/names';
 import { openCommit } from './commit';
 import { openLibrary } from './library';
+import { openLibrarian } from './librarian';
 import { escapeHtml, isPanelOpen, openPanel } from './panel';
 import { openProject } from './project';
 import { openSessionTerminal } from './terminal';
@@ -63,9 +64,13 @@ export const ui = {
     this.hideTooltip();
     openCommit(project);
   },
-  openLibrary(opts: { sectionId?: string; search?: boolean } = {}) {
+  openLibrary(opts: { sectionId?: string; search?: boolean; path?: string } = {}) {
     this.hideTooltip();
     void openLibrary(opts);
+  },
+  openLibrarian() {
+    this.hideTooltip();
+    openLibrarian();
   },
   openFactory() {
     this.hideTooltip();
