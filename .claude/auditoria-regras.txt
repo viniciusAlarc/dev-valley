@@ -1,0 +1,3 @@
+# Vencimento da auditoria de julgamento das regras (skill /auditar-regras).
+# Uma linha, AAAA-MM-DD. O hook de Stop avisa quando a data passa; a skill reagenda.
+2026-11-25

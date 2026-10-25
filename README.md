@@ -62,6 +62,8 @@ e a vila não deixa retomar uma sessão que já está rodando em outro terminal.
 - `projectRoots`: pastas cujas subpastas viram casas
 - `extraProjects`: projetos avulsos fora dessas pastas
 - `sessionsPerProject` / `sessionMaxAgeDays`: quantos moradores aparecem por casa
+- `auditorAcervos` (só no local): globs de regras de fora do repo que `scripts/auditar-referencias.py` também confere,
+  por tipo (`guardrail`, `perfil`)
 
 ## Estrutura
 
@@ -70,8 +72,4 @@ e a vila não deixa retomar uma sessão que já está rodando em outro terminal.
 
 ## Próximos passos
 
-1. ~~Hooks do Claude Code para status ao vivo~~ ✔ e ~~interior das casas~~ ✔
-2. ~~Biblioteca~~ ✔ e ~~bibliotecária~~ ✔
-3. Fábrica: criar e editar agentes em `.claude/agents`
-4. Chat próprio via Claude Agent SDK, com pedidos de permissão em caixas de diálogo
-5. Trocar a pixel art gerada em código por um tileset de verdade
+O que está aberto fica em [`PENDENCIAS.md`](PENDENCIAS.md); o histórico, em [`PROGRESS.md`](PROGRESS.md).

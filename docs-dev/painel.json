@@ -1,0 +1,20 @@
+{
+  "plano": {
+    "nome": "Vila v1",
+    "doc": "PENDENCIAS.md",
+    "fases": [
+      { "nome": "Vila e casas", "estado": "feito" },
+      { "nome": "Interior e status ao vivo", "estado": "feito" },
+      { "nome": "Biblioteca e bibliotecária", "estado": "feito" },
+      { "nome": "Fábrica de agentes", "estado": "a fazer" },
+      { "nome": "Chat via Agent SDK", "estado": "a fazer" },
+      { "nome": "Tileset", "estado": "a fazer" }
+    ]
+  },
+  "entregas": [
+    { "data": "2026-10-25", "o_que": "Bibliotecária no balcão da biblioteca", "como": "agente com catálogo em disco, claude -p sem sessão persistida" },
+    { "data": "2026-10-25", "o_que": "Biblioteca com leitor, edição e busca", "como": "server/src/library.ts, LibraryScene" },
+    { "data": "2026-10-24", "o_que": "Interior das casas e balões de status ao vivo", "como": "hooks do Claude Code em POST /api/hooks" },
+    { "data": "2026-10-24", "o_que": "Vila com casas, moradores, caixa de envio e terminal", "como": "Phaser + node-pty com claude --resume" }
+  ]
+}

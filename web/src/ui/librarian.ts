@@ -94,7 +94,7 @@ export function openLibrarian() {
     <div class="librarian">
       <div class="librarian-log"></div>
       <form class="librarian-form">
-        <input type="text" placeholder="Pergunte onde está algo documentado… ex.: como funciona o multi-tenant no erp_b2b?" />
+        <input type="text" placeholder="Pergunte onde está algo documentado… ex.: onde está a regra de commit?" />
         <button class="btn btn-primary" type="submit">Perguntar</button>
       </form>
     </div>`;
