@@ -1,21 +1,6 @@
 import { api, type FileChange, type Project } from '../api';
+import { languageFor, loadMonaco } from './monaco';
 import { button, escapeHtml, openPanel } from './panel';
-
-type Monaco = typeof import('monaco-editor');
-let monacoPromise: Promise<Monaco> | null = null;
-
-/** O Monaco é pesado, então só carrega quando a caixa de envio é aberta pela primeira vez. */
-function loadMonaco(): Promise<Monaco> {
-  monacoPromise ??= (async () => {
-    const [monaco, { default: EditorWorker }] = await Promise.all([
-      import('monaco-editor'),
-      import('monaco-editor/esm/vs/editor/editor.worker?worker'),
-    ]);
-    (self as any).MonacoEnvironment = { getWorker: () => new EditorWorker() };
-    return monaco;
-  })();
-  return monacoPromise;
-}
 
 const STATUS_LABEL: Record<string, string> = {
   M: 'modificado',
@@ -29,11 +14,6 @@ const STATUS_LABEL: Record<string, string> = {
 function statusOf(change: FileChange) {
   const code = change.status.trim()[0] ?? 'M';
   return { code: code === '?' ? 'N' : code, label: STATUS_LABEL[code] ?? change.status };
-}
-
-function languageFor(monaco: Monaco, file: string) {
-  const ext = '.' + file.split('.').pop()!.toLowerCase();
-  return monaco.languages.getLanguages().find((l) => l.extensions?.includes(ext))?.id ?? 'plaintext';
 }
 
 export function openCommit(project: Project) {

@@ -81,9 +81,11 @@ export class TownScene extends Phaser.Scene {
       this.projectKey = projectKey;
       this.buildTown(world.projects);
       // Link direto para dentro de uma casa: http://localhost:4777/?casa=<nome> (ou #casa=<nome>)
-      const target = new URLSearchParams(location.search).get('casa') ?? new URLSearchParams(location.hash.slice(1)).get('casa');
+      const params = new URLSearchParams(location.search || location.hash.slice(1));
+      const target = params.get('casa');
       const project = firstBuild && world.projects.find((p) => p.name === target);
       if (project) this.enterHouse(project, true);
+      else if (firstBuild && target === 'biblioteca') this.enter('library', {}, true);
     }
     for (const view of this.houses.values()) {
       const project = world.projects.find((p) => p.id === view.plot.project.id);
@@ -93,10 +95,14 @@ export class TownScene extends Phaser.Scene {
   }
 
   private enterHouse(project: Project, instant = false) {
+    this.enter('interior', { projectId: project.id }, instant);
+  }
+
+  private enter(sceneKey: 'interior' | 'library', data: object, instant = false) {
     ui.hideTooltip();
     const go = () => {
       this.scene.sleep();
-      this.scene.launch('interior', { projectId: project.id, instant });
+      this.scene.launch(sceneKey, { ...data, instant });
     };
     if (instant) return go();
     this.cameras.main.fadeOut(250);
@@ -165,7 +171,7 @@ export class TownScene extends Phaser.Scene {
 
   private buildCivic(layout: Layout) {
     const lib = this.addSprite('library', layout.library.x, layout.library.y);
-    makeInteractive(lib, () => 'Biblioteca — base de conhecimento', () => ui.openLibrary());
+    makeInteractive(lib, () => 'Biblioteca — instruções, memórias e docs — clique para entrar', () => this.enter('library', {}));
     label(this, layout.library.x, layout.library.y + 10, 'Biblioteca', layout.library.y + 10);
 
     const fac = this.addSprite('factory', layout.factory.x, layout.factory.y);

@@ -4,5 +4,6 @@
   "extraProjects": [],
   "ignore": ["node_modules"],
   "sessionsPerProject": 4,
-  "sessionMaxAgeDays": 14
+  "sessionMaxAgeDays": 14,
+  "libraryRoots": []
 }

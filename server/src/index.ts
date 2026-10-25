@@ -8,6 +8,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { loadConfig, ROOT_DIR } from './config.js';
 import * as gitOps from './git.js';
 import { HookStore } from './hooks.js';
+import { Library } from './library.js';
 import { TerminalManager } from './terminals.js';
 import { buildWorld, type Project, type World } from './world.js';
 
@@ -21,6 +22,7 @@ const eventClients = new Set<WebSocket>();
 
 const terminals = new TerminalManager(() => void refreshWorld());
 const hooks = new HookStore();
+const library = new Library(config, () => world.projects);
 
 async function refreshWorld() {
   try {
@@ -93,6 +95,46 @@ app.post('/api/open-vscode', (req, res) => {
   if (file) args.push('--goto', path.join(project.path, file));
   spawn('code', args, { detached: true, stdio: 'ignore' }).unref();
   res.json({ ok: true });
+});
+
+// ---- Biblioteca ----
+
+app.get('/api/library', async (_req, res) => {
+  res.json(await library.sections());
+});
+
+app.get('/api/library/file', async (req, res) => {
+  const file = await library.read(req.query.path);
+  if (!file) return res.status(404).json({ error: 'arquivo fora da biblioteca' });
+  res.json(file);
+});
+
+app.put('/api/library/file', async (req, res) => {
+  const result = await library.write(req.body.path, req.body.content, req.body.mtime);
+  if (!result) return res.status(404).json({ error: 'arquivo fora da biblioteca' });
+  if ('conflict' in result) return res.status(409).json({ error: 'O arquivo mudou no disco desde que foi aberto. Recarregue antes de salvar.' });
+  res.json(result);
+});
+
+app.post('/api/library/claude-md', async (req, res) => {
+  const project = findProject(req.body.project);
+  if (!project) return res.status(400).json({ error: 'projeto inválido' });
+  const file = await library.createClaudeMd(project);
+  if (!file) return res.status(409).json({ error: 'o projeto já tem CLAUDE.md' });
+  res.json({ path: file });
+});
+
+app.post('/api/library/open-vscode', async (req, res) => {
+  const file = await library.read(req.body.path);
+  if (!file) return res.status(404).json({ error: 'arquivo fora da biblioteca' });
+  spawn('code', ['--goto', file.path], { detached: true, stdio: 'ignore' }).unref();
+  res.json({ ok: true });
+});
+
+app.get('/api/library/search', async (req, res) => {
+  const q = String(req.query.q ?? '').trim();
+  if (q.length < 2) return res.json([]);
+  res.json(await library.search(q));
 });
 
 app.post('/api/sessions', (req, res) => {

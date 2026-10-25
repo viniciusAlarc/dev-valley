@@ -10,6 +10,8 @@ export interface Config {
   ignore: string[];
   sessionsPerProject: number;
   sessionMaxAgeDays: number;
+  /** Pastas extras de conhecimento que viram estantes na Biblioteca. */
+  libraryRoots: string[];
 }
 
 export const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -36,5 +38,6 @@ export function loadConfig(): Config {
     ignore: merged.ignore ?? [],
     sessionsPerProject: merged.sessionsPerProject ?? 4,
     sessionMaxAgeDays: merged.sessionMaxAgeDays ?? 14,
+    libraryRoots: (merged.libraryRoots ?? []).map(expandHome),
   };
 }

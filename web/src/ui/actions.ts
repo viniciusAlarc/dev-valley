@@ -1,6 +1,7 @@
 import type { Project, Session } from '../api';
 import { villagerName } from '../game/names';
 import { openCommit } from './commit';
+import { openLibrary } from './library';
 import { escapeHtml, isPanelOpen, openPanel } from './panel';
 import { openProject } from './project';
 import { openSessionTerminal } from './terminal';
@@ -23,14 +24,16 @@ function comingSoon(title: string, text: string) {
 export const ui = {
   isPanelOpen,
   /** Onde o jogador está: null = na vila, ou o nome da casa. */
-  setLocation(houseName: string | null) {
+  setLocation(placeName: string | null, helpText?: string) {
     const title = document.querySelector('.hud-title');
     const help = document.querySelector('.hud-help');
-    if (title) title.textContent = houseName ? `Dev Valley › ${houseName}` : 'Dev Valley';
+    if (title) title.textContent = placeName ? `Dev Valley › ${placeName}` : 'Dev Valley';
     if (help)
-      help.textContent = houseName
-        ? 'Clique num morador para abrir o chat · escrivaninha = painel do projeto · Esc ou tapete para sair'
-        : 'Arraste ou WASD para andar · roda do mouse para zoom · clique em pessoas, casas e caixas';
+      help.textContent =
+        helpText ??
+        (placeName
+          ? 'Clique num morador para abrir o chat · escrivaninha = painel do projeto · Esc ou tapete para sair'
+          : 'Arraste ou WASD para andar · roda do mouse para zoom · clique em pessoas, casas e caixas');
   },
   showTooltip(text: string) {
     const el = tooltip();
@@ -60,9 +63,9 @@ export const ui = {
     this.hideTooltip();
     openCommit(project);
   },
-  openLibrary() {
+  openLibrary(opts: { sectionId?: string; search?: boolean } = {}) {
     this.hideTooltip();
-    comingSoon('Biblioteca', 'Aqui vão morar seus CLAUDE.md, memórias e documentos de referência.');
+    void openLibrary(opts);
   },
   openFactory() {
     this.hideTooltip();

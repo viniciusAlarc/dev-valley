@@ -40,6 +40,7 @@ export function openProject(project: Project) {
       openTerminal({ sessionId, projectId: project.id, title: 'Nova sessão' });
     }, 'primary'),
     button('Abrir no VS Code', () => api.openVsCode(project.id)),
+    button('📚 Documentação', () => ui.openLibrary({ sectionId: `project:${project.id}` })),
     ...(project.isGit ? [button(`Caixa de envio (${project.changes.length})`, () => openCommit(project))] : []),
   );
 }

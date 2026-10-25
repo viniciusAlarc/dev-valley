@@ -62,6 +62,42 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   return data as T;
 }
 
+export type SectionKind = 'global' | 'memory' | 'project' | 'root';
+
+export interface LibraryFile {
+  path: string;
+  rel: string;
+  size: number;
+  mtime: number;
+}
+
+export interface LibrarySection {
+  id: string;
+  title: string;
+  kind: SectionKind;
+  base: string;
+  projectId?: string;
+  files: LibraryFile[];
+  missingClaudeMd?: boolean;
+}
+
+export interface SearchHit {
+  path: string;
+  section: string;
+  rel: string;
+  line: number;
+  text: string;
+}
+
+export const library = {
+  sections: () => request<LibrarySection[]>('GET', '/api/library'),
+  read: (path: string) => request<{ path: string; content: string; mtime: number }>('GET', `/api/library/file?path=${encodeURIComponent(path)}`),
+  write: (path: string, content: string, mtime: number) => request<{ mtime: number }>('PUT', '/api/library/file', { path, content, mtime }),
+  createClaudeMd: (project: string) => request<{ path: string }>('POST', '/api/library/claude-md', { project }),
+  search: (q: string) => request<SearchHit[]>('GET', `/api/library/search?q=${encodeURIComponent(q)}`),
+  openVsCode: (path: string) => request('POST', '/api/library/open-vscode', { path }),
+};
+
 export const api = {
   diff: (project: string, file: string) =>
     request<{ original: string; modified: string }>(

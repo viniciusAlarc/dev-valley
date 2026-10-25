@@ -236,3 +236,141 @@ export function generateInteriorTextures(scene: Phaser.Scene) {
   rug(scene);
   doormat(scene);
 }
+
+// ---------------- biblioteca ----------------
+
+const BOOK_COLORS = ['#c0392b', '#2e86c1', '#27ae60', '#d4ac0d', '#8e44ad', '#e67e22', '#ecf0f1', '#16a085', '#7d5b36'];
+
+/** Estante alta com moldura na cor da seção; `fill` (0..1) decide quantos livros aparecem. */
+export function libraryShelf(scene: Phaser.Scene, key: string, trim: string, fill: number, seed: number) {
+  if (scene.textures.exists(key)) return key;
+  const { c, ctx } = makeCanvas(38, 56);
+  rect(ctx, 1, 2, 36, 53, '#5e3a1c');
+  rect(ctx, 3, 4, 32, 49, '#3a2412');
+  rect(ctx, 0, 0, 38, 4, trim);
+  rect(ctx, 0, 3, 38, 1, '#2b1a0e');
+  const rnd = mulberry32(seed);
+  const shelves = [4, 16, 28, 40];
+  const capacity = shelves.length * 10;
+  let books = Math.round(fill * capacity);
+  for (const y of shelves) {
+    let x = 4;
+    while (x < 33 && books > 0) {
+      const w = 2 + Math.floor(rnd() * 2);
+      const h = 7 + Math.floor(rnd() * 4);
+      if (x + w > 34) break;
+      // de vez em quando um livro tombado
+      if (rnd() < 0.08 && x + 7 < 34) {
+        rect(ctx, x, y + 9, 7, 2, BOOK_COLORS[Math.floor(rnd() * BOOK_COLORS.length)]);
+        x += 8;
+      } else {
+        rect(ctx, x, y + 11 - h, w, h, BOOK_COLORS[Math.floor(rnd() * BOOK_COLORS.length)]);
+        rect(ctx, x, y + 11 - h + 2, w, 1, 'rgba(255,255,255,0.25)');
+        x += w;
+      }
+      books--;
+    }
+    rect(ctx, 3, y + 11, 32, 2, '#7a4b20');
+  }
+  rect(ctx, 1, 53, 36, 3, trim);
+  outline(ctx, 38, 56);
+  add(scene, key, c);
+  return key;
+}
+
+function libFloor(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(16, 16);
+  rect(ctx, 0, 0, 16, 16, '#a8744a');
+  rect(ctx, 0, 0, 8, 8, '#9a6a42');
+  rect(ctx, 8, 8, 8, 8, '#9a6a42');
+  rect(ctx, 0, 7, 16, 1, '#7d5434');
+  rect(ctx, 7, 0, 1, 16, '#7d5434');
+  rect(ctx, 1, 1, 3, 1, '#b8845a');
+  rect(ctx, 9, 9, 3, 1, '#b07c50');
+  add(scene, 'libFloor', c);
+}
+
+function libWall(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(16, 40);
+  rect(ctx, 0, 0, 16, 26, '#3f5e4a');
+  for (let x = 0; x < 16; x += 8) rect(ctx, x + 3, 0, 2, 26, '#476a54');
+  for (let y = 5; y < 26; y += 10) rect(ctx, 7, y, 2, 2, '#c9a227');
+  rect(ctx, 0, 26, 16, 2, '#c9a227');
+  rect(ctx, 0, 28, 16, 10, '#5e3a1c');
+  rect(ctx, 2, 30, 12, 6, '#6b4423');
+  rect(ctx, 0, 38, 16, 2, '#3a2412');
+  add(scene, 'libWall', c);
+}
+
+function counter(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(72, 28);
+  rect(ctx, 0, 6, 72, 6, '#8f5f30');
+  rect(ctx, 0, 6, 72, 1, '#c9955a');
+  rect(ctx, 2, 12, 68, 15, '#6b4423');
+  for (let x = 6; x < 68; x += 16) rect(ctx, x, 14, 12, 11, '#7a4f2a');
+  // pilha de livros, sineta e carimbo
+  rect(ctx, 6, 1, 12, 2, '#2e86c1');
+  rect(ctx, 7, 3, 11, 2, '#c0392b');
+  rect(ctx, 5, 5, 13, 2, '#27ae60');
+  disc(ctx, 56, 4, 3, '#e8c252');
+  rect(ctx, 55, 0, 2, 2, '#e8c252');
+  rect(ctx, 40, 3, 4, 4, '#5e3a1c');
+  rect(ctx, 39, 2, 6, 2, '#c0392b');
+  outline(ctx, 72, 28);
+  add(scene, 'counter', c);
+}
+
+function catalog(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(32, 36);
+  rect(ctx, 1, 2, 30, 32, '#7a4b20');
+  rect(ctx, 0, 0, 32, 3, '#a8743c');
+  for (let y = 5; y < 32; y += 7)
+    for (let x = 3; x < 29; x += 9) {
+      rect(ctx, x, y, 8, 6, '#a8743c');
+      rect(ctx, x + 3, y + 3, 2, 1, '#e8c252');
+      rect(ctx, x + 2, y + 1, 4, 1, '#f4ead2');
+    }
+  outline(ctx, 32, 36);
+  add(scene, 'catalog', c);
+}
+
+function readingTable(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(50, 26);
+  rect(ctx, 0, 8, 50, 6, '#8f5f30');
+  rect(ctx, 0, 8, 50, 1, '#c9955a');
+  rect(ctx, 3, 14, 4, 11, '#5e3a1c');
+  rect(ctx, 43, 14, 4, 11, '#5e3a1c');
+  // livro aberto
+  rect(ctx, 12, 5, 9, 5, '#fbf3df');
+  rect(ctx, 21, 5, 9, 5, '#f4ead2');
+  rect(ctx, 20, 5, 2, 5, '#c9b991');
+  rect(ctx, 13, 6, 6, 1, '#b9a985');
+  rect(ctx, 23, 7, 5, 1, '#b9a985');
+  // vela
+  rect(ctx, 38, 2, 3, 7, '#f4efe3');
+  rect(ctx, 39, 0, 1, 2, '#f7a400');
+  outline(ctx, 50, 26);
+  add(scene, 'readingTable', c);
+}
+
+function globe(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(18, 28);
+  disc(ctx, 9, 8, 7, '#3a6ea8');
+  rect(ctx, 5, 4, 4, 3, '#4f9a32');
+  rect(ctx, 10, 9, 4, 4, '#4f9a32');
+  rect(ctx, 6, 11, 2, 2, '#4f9a32');
+  rect(ctx, 8, 16, 2, 8, '#6b4423');
+  rect(ctx, 4, 24, 10, 3, '#5e3a1c');
+  outline(ctx, 18, 28);
+  add(scene, 'globe', c);
+}
+
+export function generateLibraryTextures(scene: Phaser.Scene) {
+  if (scene.textures.exists('libFloor')) return;
+  libFloor(scene);
+  libWall(scene);
+  counter(scene);
+  catalog(scene);
+  readingTable(scene);
+  globe(scene);
+}
