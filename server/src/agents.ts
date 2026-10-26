@@ -100,8 +100,8 @@ export class Agents {
   constructor(private projects: () => Project[]) {}
 
   /** As pastas onde a Fábrica pode mexer: a global e a de cada projeto da vila. */
-  private dirs(): { dir: string; projectId: string | null }[] {
-    return [{ dir: GLOBAL_AGENTS_DIR, projectId: null }, ...this.projects().map((p) => ({ dir: projectDir(p), projectId: p.id }))];
+  private dirs(projects = this.projects()): { dir: string; projectId: string | null }[] {
+    return [{ dir: GLOBAL_AGENTS_DIR, projectId: null }, ...projects.map((p) => ({ dir: projectDir(p), projectId: p.id }))];
   }
 
   /** O arquivo, se estiver numa pasta conhecida e tiver nome de agente; senão null. */
@@ -113,9 +113,10 @@ export class Agents {
     return { file: resolved, projectId: owner.projectId };
   }
 
-  async list(): Promise<AgentSummary[]> {
+  /** `projects`: os do mundo que está sendo montado (o mundo atual ainda não os tem). */
+  async list(projects?: Project[]): Promise<AgentSummary[]> {
     const out: AgentSummary[] = [];
-    for (const { dir, projectId } of this.dirs()) {
+    for (const { dir, projectId } of this.dirs(projects)) {
       let files: string[];
       try {
         files = (await fs.readdir(dir)).filter((f) => f.endsWith('.md')).sort();
@@ -166,6 +167,11 @@ export class Agents {
       extra,
       mtime: (await fs.stat(loc.file)).mtimeMs,
     };
+  }
+
+  /** Nome com que o Claude Code chama o agente (`--agent`): o do cabeçalho, ou o do arquivo se aquele for estranho. */
+  static cliName(agent: AgentSummary) {
+    return NAME_RE.test(agent.name) ? agent.name : path.basename(agent.path, '.md');
   }
 
   async create(target: unknown, name: unknown, input: AgentInput): Promise<{ path: string } | { error: string }> {

@@ -1,14 +1,15 @@
-import type { Project, Session } from '../api';
+import { agents, type AgentSummary, type Project, type Session } from '../api';
 import { villagerName } from '../game/names';
 import { openCommit } from './commit';
 import { openLibrary } from './library';
 import { openLibrarian } from './librarian';
 import { escapeHtml, isPanelOpen, openPanel } from './panel';
 import { openDiary } from './diario';
+import { openFactory } from './factory';
 import { openPainel } from './painel';
 import { openPendencias, openUserPendencias } from './pendencias';
 import { openProject } from './project';
-import { openSessionTerminal } from './terminal';
+import { openSessionTerminal, openTerminal } from './terminal';
 
 const tooltip = () => document.getElementById('tooltip')!;
 
@@ -18,11 +19,6 @@ document.addEventListener('mousemove', (e) => {
   el.style.left = `${e.clientX + 14}px`;
   el.style.top = `${e.clientY + 14}px`;
 });
-
-function comingSoon(title: string, text: string) {
-  const panel = openPanel({ title });
-  panel.body.innerHTML = `<p>${escapeHtml(text)}</p><p class="muted">Em construção — próxima fase do Dev Valley.</p>`;
-}
 
 /** Tudo o que a cidade pode pedir para a interface fazer. */
 export const ui = {
@@ -91,8 +87,15 @@ export const ui = {
     this.hideTooltip();
     openLibrarian();
   },
-  openFactory() {
+  /** Clique num NPC ✦ da Fábrica: conversa nova com o agente (decisão do usuário, 26/10/2026). */
+  async talkToAgent(agent: AgentSummary) {
     this.hideTooltip();
-    comingSoon('Fábrica de Agentes', 'Aqui você vai criar e editar os agentes do Claude Code (.claude/agents).');
+    const { sessionId, projectId, name } = await agents.talk(agent.path);
+    openTerminal({ sessionId, projectId, title: `✦ ${name}` });
+  },
+  /** `path`: abre já na edição desse agente. */
+  openFactory(path?: string) {
+    this.hideTooltip();
+    void openFactory(path);
   },
 };

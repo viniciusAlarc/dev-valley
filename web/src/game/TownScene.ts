@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { urgentPendencias, yardResidents, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
-import { label, makeInteractive, TEXT_STYLE, VillagerView } from './common';
+import { AgentNpc, label, makeInteractive, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
 import { generateTextures, hash, mulberry32, ROOFS } from './textures';
 
@@ -11,6 +11,8 @@ const GARDEN_COLS = 3;
 const GARDEN_MAX = 9;
 const CROP_TEXTURE = { feito: 'crop-done', andamento: 'crop-growing', 'a fazer': 'crop-todo' } as const;
 const PHASE_TEXT = { feito: 'feito', andamento: 'em andamento', 'a fazer': 'a fazer' } as const;
+/** NPCs ✦ em volta da Fábrica (os demais agentes ficam só no painel). */
+const MAX_AGENT_NPCS = 8;
 
 interface Resident {
   view: VillagerView;
@@ -35,7 +37,9 @@ export class TownScene extends Phaser.Scene {
   private projectKey = '';
   private houses = new Map<string, HouseView>();
   private residents = new Map<string, Resident>();
-  private world: World = { projects: [], sessions: [], usage: null };
+  private agentNpcs = new Map<string, { npc: AgentNpc; timer?: Phaser.Time.TimerEvent }>();
+  private agentArea!: Rect;
+  private world: World = { projects: [], sessions: [], agents: [], usage: null };
   private ready = false;
   private pendingWorld: World | null = null;
   private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT', Phaser.Input.Keyboard.Key>;
@@ -101,6 +105,7 @@ export class TownScene extends Phaser.Scene {
       if (project) this.updateHouse(view, project);
     }
     this.syncResidents();
+    this.syncAgents();
   }
 
   private enterHouse(project: Project, instant = false) {
@@ -123,6 +128,8 @@ export class TownScene extends Phaser.Scene {
   private buildTown(projects: Project[]) {
     for (const r of this.residents.values()) r.timer?.remove();
     this.residents.clear();
+    for (const a of this.agentNpcs.values()) a.timer?.remove();
+    this.agentNpcs.clear();
     this.houses.clear();
     this.children.removeAll(true);
 
@@ -186,6 +193,8 @@ export class TownScene extends Phaser.Scene {
     const fac = this.addSprite('factory', layout.factory.x, layout.factory.y);
     makeInteractive(fac, () => 'Fábrica — criação de agentes', () => ui.openFactory());
     label(this, layout.factory.x, layout.factory.y + 10, 'Fábrica de Agentes', layout.factory.y + 10);
+    // Pátio da Fábrica, entre a placa e a rua: onde os agentes passeiam.
+    this.agentArea = { x: layout.factory.x - 56, y: layout.factory.y + 18, w: 112, h: 10 };
     this.time.addEvent({
       delay: 900,
       loop: true,
@@ -363,6 +372,57 @@ export class TownScene extends Phaser.Scene {
   // ---------------- moradores ----------------
 
   /** Do lado de fora só ficam os moradores mais relevantes; o resto está dentro de casa. */
+  /** Um NPC ✦ por agente (menos os do Dev Valley, como a bibliotecária, que mora na biblioteca). */
+  private syncAgents() {
+    if (!this.agentArea) return;
+    const shown = this.world.agents.filter((a) => !a.managed).slice(0, MAX_AGENT_NPCS);
+    const byPath = new Map(shown.map((a) => [a.path, a]));
+    for (const [path, a] of this.agentNpcs) {
+      if (byPath.has(path)) continue;
+      a.timer?.remove();
+      a.npc.destroy();
+      this.agentNpcs.delete(path);
+    }
+    for (const agent of shown) {
+      const existing = this.agentNpcs.get(agent.path);
+      if (existing) {
+        existing.npc.agent = agent;
+        continue;
+      }
+      const where = agent.projectId === null ? 'global' : `projeto ${this.world.projects.find((p) => p.id === agent.projectId)?.name ?? ''}`;
+      const rnd = mulberry32(hash(agent.path));
+      const area = this.agentArea;
+      const entry: { npc: AgentNpc; timer?: Phaser.Time.TimerEvent } = {
+        npc: new AgentNpc(this, agent, where, area.x + rnd() * area.w, area.y + rnd() * area.h),
+      };
+      this.agentNpcs.set(agent.path, entry);
+      this.wanderAgent(entry, 800 + rnd() * 3000);
+    }
+  }
+
+  /** Passeio do agente: só na horizontal, pelo pátio da Fábrica. */
+  private wanderAgent(entry: { npc: AgentNpc; timer?: Phaser.Time.TimerEvent }, delay: number) {
+    entry.timer = this.time.delayedCall(delay, () => {
+      const { npc } = entry;
+      if (!npc.sprite.active) return;
+      const tx = Math.round(this.agentArea.x + Math.random() * this.agentArea.w);
+      const dist = Math.abs(tx - npc.sprite.x);
+      npc.walk('side', tx < npc.sprite.x);
+      this.tweens.add({
+        targets: npc.sprite,
+        x: tx,
+        duration: Math.max(1, dist) * 50,
+        onUpdate: () => npc.place(),
+        onComplete: () => {
+          if (!npc.sprite.active) return;
+          npc.stand();
+          if (Math.random() < 0.7) npc.face('down');
+          this.wanderAgent(entry, 2500 + Math.random() * 5000);
+        },
+      });
+    });
+  }
+
   private visibleSessions(): Session[] {
     const owners = [null, ...this.world.projects.map((p) => p.id)];
     return owners.flatMap((id) => yardResidents(this.world, id));

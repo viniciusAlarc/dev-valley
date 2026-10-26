@@ -23,7 +23,7 @@ export class TerminalManager {
     return [...this.terminals.values()].map(({ id, cwd, startedAt }) => ({ id, cwd, startedAt }));
   }
 
-  attach(ws: WebSocket, opts: { sessionId: string; cwd: string; mode: 'resume' | 'new'; cols: number; rows: number }) {
+  attach(ws: WebSocket, opts: { sessionId: string; cwd: string; mode: 'resume' | 'new'; agent?: string; cols: number; rows: number }) {
     let term = this.terminals.get(opts.sessionId);
     if (!term) {
       term = this.spawn(opts);
@@ -54,8 +54,10 @@ export class TerminalManager {
     for (const t of this.terminals.values()) t.pty.kill();
   }
 
-  private spawn(opts: { sessionId: string; cwd: string; mode: 'resume' | 'new'; cols: number; rows: number }): Terminal {
+  private spawn(opts: { sessionId: string; cwd: string; mode: 'resume' | 'new'; agent?: string; cols: number; rows: number }): Terminal {
     const args = opts.mode === 'resume' ? ['--resume', opts.sessionId] : ['--session-id', opts.sessionId];
+    // Conversa com um agente da Fábrica: o próprio agente é quem responde na sessão.
+    if (opts.mode === 'new' && opts.agent) args.push('--agent', opts.agent);
     const proc = pty.spawn('claude', args, {
       name: 'xterm-256color',
       cols: opts.cols,

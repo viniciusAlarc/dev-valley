@@ -3,6 +3,34 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — Fábrica de agentes (PD-4)
+
+**O que mudou:** decisões do usuário (26/10/2026, `docs-dev/context/fabrica-de-agentes.md`): a Fábrica mostra e edita
+os agentes globais (`~/.claude/agents`) e os de cada projeto (`<projeto>/.claude/agents`); edição por formulário;
+apagar com confirmação; cada agente vira um NPC ✦ em volta da Fábrica. O servidor (`agents.ts`) lista, lê, cria, salva e
+apaga só dentro dessas pastas (nome do arquivo validado, caminho resolvido), compara a data do arquivo ao salvar (como a
+biblioteca), escreve a descrição entre aspas quando ela tem `:` ou `#` e **preserva** campos do cabeçalho que o
+formulário não conhece (ex.: `color`). Agente do Dev Valley (a bibliotecária) é só leitura e não é apagado. O mundo leva
+a lista de agentes; o painel (mesmo layout da biblioteca) a acompanha ao vivo. Formulário: nome e lugar (só ao criar; o
+nome não muda depois), descrição, ferramentas em caixas (nenhuma = todas as da sessão; ferramentas que o agente já tem
+fora da lista aparecem junto), modelo (o mesmo da sessão, Sonnet, Opus, Haiku) e instruções. Até 8 NPCs ✦ passeiam no
+pátio da Fábrica (a bibliotecária fica na biblioteca). A Fábrica deixou de ser "em construção".
+Ajustes depois do primeiro teste do usuário (26/10/2026): (1) clicar num botão de painel acionava o que estivesse na
+vila embaixo dele ("+ Novo agente" abria a biblioteca): o Phaser escuta o mouse na janela inteira; agora clique e hover
+só valem quando começam no canvas da vila (`onCanvas` em `common.ts`), para todos os painéis. (2) Decisão do usuário:
+clicar no NPC ✦ **abre uma conversa nova com o agente** (`claude --agent <nome>`), não a edição: agente de projeto na
+pasta do projeto, global na praça (pasta pessoal). O servidor guarda a sessão pendente (`POST /api/agents/session`) e
+o terminal passa o `--agent` ao abrir; o nome do agente não vai na URL. Conferido na vila pelo usuário em 26/10/2026
+(PD-4 fechada; plano em `docs-dev/context/fabrica-de-agentes.md`).
+**Arquivos:** `server/src/agents.ts` (novo), `server/src/world.ts` (`World.agents`), `server/src/index.ts`
+(`/api/agents`), `web/src/api.ts`, `web/src/ui/factory.ts` (novo), `web/src/ui/actions.ts` (`talkToAgent`), `server/src/terminals.ts` (`--agent`),
+`web/src/game/common.ts` (`AgentNpc`, `onCanvas`), `web/src/game/TownScene.ts` (`syncAgents`), `web/src/style.css`, `README.md`, `CLAUDE.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Módulo de
+agentes testado num HOME de teste: criar (global e projeto), nome repetido e inválido recusados, ferramenta com
+caractere estranho filtrada, descrição com `:` e `#` entre aspas, `color` preservado ao salvar, conflito de data (409),
+agente do Dev Valley protegido (403), caminho fora das pastas recusado, apagar. Falta conferir na vila (reinício do
+usuário: o servidor mudou).
+
 ## 2026-10-26 — Status line e hooks viram o mod dev-valley, com permissão no shell (PD-11)
 
 **O que mudou:** decisões do usuário (26/10/2026): o `hooks:install`/`uninstall` passa a instalar e remover o mod; a

@@ -100,6 +100,8 @@ export function activityOf(s: Session): SessionStatus | 'offline' {
 export interface World {
   projects: Project[];
   sessions: Session[];
+  /** Agentes globais e dos projetos (Fábrica, PD-4). */
+  agents: AgentSummary[];
   /** Limites do plano, vindos do status line; null até a primeira sessão reportar. */
   usage: { rows: UsageRow[]; updatedAt: number } | null;
 }
@@ -132,6 +134,41 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
   return data as T;
 }
+
+export interface AgentSummary {
+  path: string;
+  name: string;
+  description: string;
+  /** null = global; senão o projeto onde o agente mora. */
+  projectId: string | null;
+  /** Gerado pelo Dev Valley (ex.: a bibliotecária): só leitura. */
+  managed: boolean;
+}
+
+export interface AgentFile extends AgentSummary {
+  /** null = herda todas as ferramentas da sessão. */
+  tools: string[] | null;
+  /** null = o mesmo modelo da sessão. */
+  model: string | null;
+  instructions: string;
+  mtime: number;
+}
+
+export interface AgentInput {
+  description: string;
+  tools: string[] | null;
+  model: string | null;
+  instructions: string;
+}
+
+export const agents = {
+  read: (path: string) => request<AgentFile>('GET', `/api/agents/file?path=${encodeURIComponent(path)}`),
+  create: (projectId: string | null, name: string, input: AgentInput) => request<{ path: string }>('POST', '/api/agents', { projectId, name, ...input }),
+  save: (path: string, mtime: number, input: AgentInput) => request<{ mtime: number }>('PUT', '/api/agents', { path, mtime, ...input }),
+  remove: (path: string) => request('DELETE', `/api/agents?path=${encodeURIComponent(path)}`),
+  /** Conversa nova com o agente (o servidor escolhe a pasta: o projeto dele, ou a praça se for global). */
+  talk: (path: string) => request<{ sessionId: string; projectId: string | null; name: string }>('POST', '/api/agents/session', { path }),
+};
 
 export type SectionKind = 'global' | 'memory' | 'project' | 'root';
 
@@ -189,7 +226,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], usage: null };
+let world: World = { projects: [], sessions: [], agents: [], usage: null };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

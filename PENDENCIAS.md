@@ -19,7 +19,6 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| PD-4 | 💻 | Fábrica: criar e editar agentes em `.claude/agents` | 2026-10-24 |
 | PD-5 | 💻 | Chat próprio via Claude Agent SDK, com pedidos de permissão em caixas de diálogo | 2026-10-24 |
 
 ## P4 — Baixo / melhoria

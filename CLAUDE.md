@@ -37,7 +37,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 - `server/` — Node + Express + `ws` + `node-pty`, rodado com `tsx`. Lê projetos e sessões
   (`~/.claude/projects/**/*.jsonl`), roda git, mantém os terminais (`claude --resume`).
   - `src/index.ts` (entrada), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
-    `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `install-hooks.ts`.
+    `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `agents.ts` (Fábrica), `install-hooks.ts`.
   - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`.
 - `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
   sessão, rodapé com contexto e uso, nomes dos moradores e `@Nome`. Marketplace local em `.claude-plugin/`.

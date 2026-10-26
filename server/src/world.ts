@@ -7,6 +7,7 @@ import type { StatusLineStore, Usage } from './statusline.js';
 import { readPainel, type Painel } from './painel.js';
 import { readPendencias, type Pendencia } from './pendencias.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
+import type { AgentSummary, Agents } from './agents.js';
 import type { Moradores } from './moradores.js';
 import { listSessions, type SessionInfo } from './sessions.js';
 
@@ -44,6 +45,8 @@ export interface WorldSession extends SessionInfo {
 export interface World {
   projects: Project[];
   sessions: WorldSession[];
+  /** Agentes globais e dos projetos (Fábrica, PD-4). */
+  agents: AgentSummary[];
   usage: Usage | null;
 }
 
@@ -144,6 +147,7 @@ export async function buildWorld(
   hooks: HookState[],
   statusLine: StatusLineStore,
   moradores: Moradores,
+  agents: Agents,
 ): Promise<World> {
   const dirs = await discoverProjectDirs(config);
   const projects = await Promise.all(dirs.map(loadProject));
@@ -174,5 +178,5 @@ export async function buildWorld(
     };
   });
   await moradores.sync(sessions, projects);
-  return { projects, sessions, usage: statusLine.usage };
+  return { projects, sessions, agents: await agents.list(projects), usage: statusLine.usage };
 }

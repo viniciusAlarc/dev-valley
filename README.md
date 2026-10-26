@@ -16,7 +16,8 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | Biblioteca | CLAUDE.md, memórias e docs de cada projeto, com leitor, edição e busca |
 | ✦ Bibliotecária | Agente permanente (`~/.claude/agents/bibliotecaria.md`) que acha qualquer conhecimento documentado |
 | Painel "Uso do Claude" | Limites do plano (5h e semanal), como no `/usage` — minimizável |
-| Fábrica | Criação de agentes (em construção) |
+| Fábrica | Agentes do Claude Code (`~/.claude/agents` e `<projeto>/.claude/agents`): criar, editar e apagar por formulário |
+| ✦ NPC no pátio da Fábrica | Um agente — clique para conversar com ele (`claude --agent`; global na praça, de projeto na casa) |
 
 ### NPCs especiais: agentes permanentes
 

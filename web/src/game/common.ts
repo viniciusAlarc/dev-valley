@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { activityOf, contextText, type Session } from '../api';
+import { activityOf, contextText, type AgentSummary, type Session } from '../api';
 import { ui } from '../ui/actions';
 import { villagerName } from './names';
 import { StatusBubble } from './statusBubble';
@@ -12,9 +12,17 @@ export const TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
   resolution: 4,
 };
 
-/** Diferencia clique de arraste (o arraste move a câmera). */
+/**
+ * O ponteiro está na própria vila, e não num painel HTML por cima dela: o Phaser escuta o mouse na janela inteira, e
+ * sem isto um clique num botão do painel acionava o que estivesse embaixo (ex.: "+ Novo agente" abria a biblioteca).
+ */
+export function onCanvas(pointer: Phaser.Input.Pointer) {
+  return pointer.event?.target === pointer.manager.game.canvas;
+}
+
+/** Diferencia clique de arraste (o arraste move a câmera); só vale clique feito na vila. */
 export function isClick(pointer: Phaser.Input.Pointer) {
-  return pointer.getDistance() < 6 && pointer.getDuration() < 500;
+  return onCanvas(pointer) && pointer.getDistance() < 6 && pointer.getDuration() < 500;
 }
 
 export function makeInteractive(
@@ -23,7 +31,8 @@ export function makeInteractive(
   onClick: () => void,
 ) {
   obj.setInteractive({ useHandCursor: true });
-  obj.on('pointerover', () => {
+  obj.on('pointerover', (p: Phaser.Input.Pointer) => {
+    if (!onCanvas(p)) return;
     obj.setTint(0xfff2c4);
     ui.showTooltip(tooltip());
   });
@@ -128,5 +137,68 @@ export class VillagerView {
     this.sprite.destroy();
     this.shadow.destroy();
     this.bubble.destroy();
+  }
+}
+
+/**
+ * Agente (Fábrica, PD-4) como NPC ✦ em volta da Fábrica: mesma aparência gerada dos moradores e a estrela da
+ * bibliotecária no lugar do balão de status. Clicar abre uma conversa nova com ele (editar: pelo prédio da Fábrica).
+ */
+export class AgentNpc {
+  readonly sprite: Phaser.GameObjects.Sprite;
+  readonly texture: string;
+  facing: Facing = 'down';
+  private shadow: Phaser.GameObjects.Image;
+  private star: Phaser.GameObjects.Text;
+
+  constructor(
+    private scene: Phaser.Scene,
+    public agent: AgentSummary,
+    where: string,
+    x: number,
+    y: number,
+  ) {
+    this.texture = villagerTexture(scene, `agente:${agent.path}`);
+    this.shadow = scene.add.image(x, y, 'shadow').setOrigin(0.5);
+    this.sprite = scene.add.sprite(x, y, this.texture, 0).setOrigin(0.5, 1);
+    this.star = scene.add.text(x, y, '✦', { fontFamily: 'serif', fontSize: '10px', color: '#f7d046', resolution: 4 }).setOrigin(0.5);
+    makeInteractive(
+      this.sprite,
+      () =>
+        `✦ ${this.agent.name} — agente (${where}) — clique para conversar` +
+        (this.agent.description ? `\n${this.agent.description.slice(0, 120)}` : ''),
+      () => void ui.talkToAgent(this.agent),
+    );
+    this.place();
+  }
+
+  face(facing: Facing, flipX = false) {
+    this.facing = facing;
+    this.sprite.setFlipX(facing === 'side' && flipX);
+    if (!this.sprite.anims.isPlaying) this.sprite.setFrame(FACING_ROW[facing] * 4);
+  }
+
+  walk(facing: Facing, flipX = false) {
+    this.face(facing, flipX);
+    this.sprite.play(`${this.texture}-walk-${facing}`, true);
+  }
+
+  stand() {
+    this.sprite.stop();
+    this.sprite.setFrame(FACING_ROW[this.facing] * 4);
+  }
+
+  place() {
+    const { x, y } = this.sprite;
+    this.sprite.setDepth(y);
+    this.shadow.setPosition(x, y).setDepth(y - 1);
+    this.star.setPosition(x + 6, y - 34).setDepth(y + 1);
+  }
+
+  destroy() {
+    this.scene.tweens.killTweensOf(this.sprite);
+    this.sprite.destroy();
+    this.shadow.destroy();
+    this.star.destroy();
   }
 }

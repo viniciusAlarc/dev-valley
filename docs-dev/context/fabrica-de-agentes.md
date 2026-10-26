@@ -1,7 +1,7 @@
 # Fábrica de agentes (PD-4)
 
-> Decidido em 26/10/2026 (G7). Ao implementar: registrar no `PROGRESS.md`, fechar a PD-4 e mover este arquivo para
-> `docs-dev/context/`.
+> Decidido e implementado em 26/10/2026 (PD-4). Saiu de `docs-dev/a-codar/` ao fechar (G7) e fica aqui como registro
+> das decisões.
 
 Agente do Claude Code = um arquivo `.md` com cabeçalho (`name`, `description`, `tools`, `model`) e as instruções
 embaixo, em `~/.claude/agents` (vale em todo lugar) ou em `<projeto>/.claude/agents` (só naquele projeto).
@@ -12,7 +12,10 @@ embaixo, em `~/.claude/agents` (vale em todo lugar) ou em `<projeto>/.claude/age
 2. **Edição por formulário:** nome, descrição (quando usar), ferramentas por caixas, modelo numa lista, instruções num
    campo grande. A vila monta o `.md`.
 3. **Apagar pela Fábrica, com confirmação** mostrando o arquivo que sai.
-4. **Cada agente vira um NPC ✦ andando em volta da Fábrica**; clicar abre a edição dele.
+4. **Cada agente vira um NPC ✦ andando em volta da Fábrica.** Clicar nele **abre uma conversa nova com o agente**
+   (`claude --agent <nome>`), revisado pelo usuário em 26/10/2026 (antes: abria a edição). Agente de projeto conversa
+   na pasta do projeto (vira morador da casa); agente global, sempre na praça (pasta pessoal). Sempre sessão nova; as
+   anteriores continuam como moradores. Editar: pelo prédio da Fábrica.
 
 ## Padrões assumidos (contestáveis)
 
@@ -31,6 +34,6 @@ embaixo, em `~/.claude/agents` (vale em todo lugar) ou em `<projeto>/.claude/age
 
 | # | Entrega | Estado |
 |---|---|---|
-| 1 | Servidor: listar, ler, criar, salvar e apagar (só nas pastas de agentes conhecidas) | a fazer |
-| 2 | Painel da Fábrica: lista por lugar + formulário + apagar com confirmação | a fazer |
-| 3 | NPCs ✦ em volta da Fábrica | a fazer |
+| 1 | Servidor: listar, ler, criar, salvar e apagar (só nas pastas de agentes conhecidas) | feito |
+| 2 | Painel da Fábrica: lista por lugar + formulário + apagar com confirmação | feito |
+| 3 | NPCs ✦ em volta da Fábrica (clique = conversa com o agente) | feito |

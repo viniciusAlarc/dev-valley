@@ -7,12 +7,13 @@
       { "nome": "Interior e status ao vivo", "estado": "feito" },
       { "nome": "Biblioteca e bibliotecária", "estado": "feito" },
       { "nome": "Representações visuais", "estado": "feito" },
-      { "nome": "Fábrica de agentes", "estado": "a fazer" },
+      { "nome": "Fábrica de agentes", "estado": "feito" },
       { "nome": "Chat via Agent SDK", "estado": "a fazer" },
       { "nome": "Tileset", "estado": "a fazer" }
     ]
   },
   "entregas": [
+    { "data": "2026-10-26", "o_que": "Fábrica de agentes: criar, editar e apagar agentes globais e de projeto; NPCs ✦ no pátio", "como": "server/src/agents.ts, /api/agents, web/src/ui/factory.ts" },
     { "data": "2026-10-25", "o_que": "Diário do progresso no atril da casa", "como": "server/src/progress.ts, GET /api/progress sob demanda" },
     { "data": "2026-10-25", "o_que": "Horta no quintal com as fases do plano de cada projeto", "como": "server/src/painel.ts lê o docs-dev/painel.json; canteiros na TownScene" },
     { "data": "2026-10-25", "o_que": "Quadro de avisos da praça com as decisões pendentes de todos os projetos", "como": "noticeboard clicável, pendências 👤 lidas do PENDENCIAS.md" },

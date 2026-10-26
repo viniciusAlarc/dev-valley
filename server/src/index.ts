@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
+import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
@@ -10,6 +11,7 @@ import * as gitOps from './git.js';
 import { HookStore } from './hooks.js';
 import { Library } from './library.js';
 import { askLibrarian } from './librarian.js';
+import { agentInput, Agents } from './agents.js';
 import { Moradores } from './moradores.js';
 import { readProgress } from './progress.js';
 import { StatusLineStore } from './statusline.js';
@@ -20,7 +22,7 @@ const config = loadConfig();
 const HOST = '127.0.0.1';
 const POLL_MS = 3000;
 
-let world: World = { projects: [], sessions: [], usage: null };
+let world: World = { projects: [], sessions: [], agents: [], usage: null };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 
@@ -31,11 +33,14 @@ const statusLine = new StatusLineStore();
 /** Sessões que a própria vila abre por baixo (consultas à bibliotecária) — não viram moradores. */
 const internalSessions = new Set<string>();
 const moradores = new Moradores();
+const agents = new Agents(() => world.projects);
+/** Sessões novas de conversa com um agente, esperando o terminal abrir: id → pasta e agente (o front não escolhe). */
+const agentSessions = new Map<string, { cwd: string; agent: string }>();
 let lastStatusLine: unknown = null;
 
 async function refreshWorld() {
   try {
-    world = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores);
+    world = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents);
     const json = JSON.stringify(world);
     if (json === worldJson) return;
     worldJson = json;
@@ -75,6 +80,50 @@ app.post('/api/moradores/nome', async (req, res) => {
   const id = req.body?.session_id;
   if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) return res.status(400).json({ error: 'sessão inválida' });
   res.json({ name: internalSessions.has(id) ? null : await moradores.claim(id) });
+});
+
+// ---- Fábrica de agentes (PD-4): só nas pastas de agentes (global e dos projetos) ----
+
+app.get('/api/agents/file', async (req, res) => {
+  const agent = await agents.read(req.query.path);
+  if (!agent) return res.status(404).json({ error: 'Agente não encontrado.' });
+  res.json(agent);
+});
+
+app.post('/api/agents', async (req, res) => {
+  const input = agentInput(req.body);
+  if (!input) return res.status(400).json({ error: 'Preencha a descrição.' });
+  const result = await agents.create(req.body.projectId ?? null, req.body.name, input);
+  if ('error' in result) return res.status(400).json(result);
+  void refreshWorld();
+  res.json(result);
+});
+
+app.put('/api/agents', async (req, res) => {
+  const input = agentInput(req.body);
+  if (!input) return res.status(400).json({ error: 'Preencha a descrição.' });
+  const result = await agents.save(req.body.path, req.body.mtime, input);
+  if ('error' in result) return res.status(result.status).json({ error: result.error });
+  void refreshWorld();
+  res.json(result);
+});
+
+// Clique no NPC ✦: conversa nova com o agente. Agente de projeto roda no projeto; global, na praça (pasta pessoal,
+// fora de qualquer projeto). Decisão do usuário, 26/10/2026.
+app.post('/api/agents/session', async (req, res) => {
+  const agent = await agents.read(req.body?.path);
+  if (!agent) return res.status(404).json({ error: 'Agente não encontrado.' });
+  const project = agent.projectId ? findProject(agent.projectId) : undefined;
+  const sessionId = randomUUID();
+  agentSessions.set(sessionId, { cwd: project?.path ?? os.homedir(), agent: Agents.cliName(agent) });
+  res.json({ sessionId, projectId: project?.id ?? null, name: agent.name });
+});
+
+app.delete('/api/agents', async (req, res) => {
+  const result = await agents.remove(req.query.path);
+  if ('error' in result) return res.status(result.status).json({ error: result.error });
+  void refreshWorld();
+  res.json(result);
 });
 
 // Pergunta à bibliotecária; responde em NDJSON conforme ela trabalha (passos e resposta final).
@@ -241,7 +290,9 @@ server.on('upgrade', (req, socket, head) => {
       const sessionId = url.searchParams.get('session') ?? '';
       const known = world.sessions.find((s) => s.id === sessionId);
       const project = findProject(url.searchParams.get('project'));
-      const cwd = known?.cwd ?? project?.path;
+      const forAgent = known ? undefined : agentSessions.get(sessionId);
+      agentSessions.delete(sessionId);
+      const cwd = known?.cwd ?? forAgent?.cwd ?? project?.path;
       if (!/^[0-9a-f-]{36}$/.test(sessionId) || !cwd) {
         ws.close(1008, 'sessão inválida');
         return;
@@ -250,6 +301,7 @@ server.on('upgrade', (req, socket, head) => {
         sessionId,
         cwd,
         mode: known ? 'resume' : 'new',
+        agent: forAgent?.agent,
         cols: Number(url.searchParams.get('cols')) || 120,
         rows: Number(url.searchParams.get('rows')) || 32,
       });
