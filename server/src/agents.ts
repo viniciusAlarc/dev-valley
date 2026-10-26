@@ -1,0 +1,210 @@
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import type { Project } from './world.js';
+
+/**
+ * Fábrica de agentes (PD-4): os `.md` de ~/.claude/agents (globais) e de <projeto>/.claude/agents.
+ * Só lê e grava dentro dessas pastas; agente gerado pelo Dev Valley (marca abaixo) é só leitura.
+ */
+export const GLOBAL_AGENTS_DIR = path.join(os.homedir(), '.claude', 'agents');
+const MANAGED_MARKER = '<!-- dev-valley:';
+const NAME_RE = /^[a-z0-9][a-z0-9-]{0,49}$/;
+const KNOWN = ['name', 'description', 'tools', 'model'];
+
+export interface AgentSummary {
+  path: string;
+  name: string;
+  description: string;
+  /** null = global; senão o projeto onde o agente mora. */
+  projectId: string | null;
+  /** Gerado pelo Dev Valley (ex.: a bibliotecária): só leitura. */
+  managed: boolean;
+}
+
+export interface AgentFile extends AgentSummary {
+  /** null = herda todas as ferramentas da sessão. */
+  tools: string[] | null;
+  /** null = o mesmo modelo da sessão. */
+  model: string | null;
+  instructions: string;
+  /** Linhas do cabeçalho que o formulário não conhece, preservadas ao salvar. */
+  extra: string[];
+  mtime: number;
+}
+
+export interface AgentInput {
+  description: string;
+  tools: string[] | null;
+  model: string | null;
+  instructions: string;
+}
+
+const projectDir = (p: Project) => path.join(p.path, '.claude', 'agents');
+
+function unquote(v: string) {
+  const t = v.trim();
+  if (t.startsWith('"') && t.endsWith('"')) {
+    try {
+      return JSON.parse(t) as string;
+    } catch {
+      return t.slice(1, -1);
+    }
+  }
+  if (t.startsWith("'") && t.endsWith("'")) return t.slice(1, -1).replaceAll("''", "'");
+  return t;
+}
+
+/** Cabeçalho simples (`chave: valor`, continuação indentada); o que não é dos campos conhecidos vai em `extra`. */
+function parse(raw: string) {
+  const fields: Record<string, string> = {};
+  const extra: string[] = [];
+  let body = raw;
+  const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (m) {
+    body = raw.slice(m[0].length);
+    let lastKnown: string | null = null;
+    for (const line of m[1].split(/\r?\n/)) {
+      const kv = line.match(/^([A-Za-z_][\w-]*):\s?(.*)$/);
+      if (kv && KNOWN.includes(kv[1])) {
+        lastKnown = kv[1];
+        fields[kv[1]] = kv[2];
+      } else if (kv) {
+        lastKnown = null;
+        extra.push(line);
+      } else if (lastKnown && /^\s+\S/.test(line)) {
+        fields[lastKnown] += ' ' + line.trim();
+      } else {
+        extra.push(line);
+      }
+    }
+  }
+  return { fields, extra, body };
+}
+
+/** Valor YAML seguro numa linha: entre aspas quando tem `:`, `#` ou começa com caractere especial. */
+function yamlValue(v: string) {
+  const one = v.replace(/\s*\n\s*/g, ' ').trim();
+  return /[:#]|^[\s"'\[\]{}>|*&!%@`,-]/.test(one) ? JSON.stringify(one) : one;
+}
+
+function render(name: string, input: AgentInput, extra: string[]) {
+  const head = [`name: ${name}`, `description: ${yamlValue(input.description)}`];
+  if (input.tools?.length) head.push(`tools: ${input.tools.join(', ')}`);
+  if (input.model) head.push(`model: ${input.model}`);
+  head.push(...extra.filter((l) => l.trim()));
+  return `---\n${head.join('\n')}\n---\n\n${input.instructions.trim()}\n`;
+}
+
+export class Agents {
+  constructor(private projects: () => Project[]) {}
+
+  /** As pastas onde a Fábrica pode mexer: a global e a de cada projeto da vila. */
+  private dirs(): { dir: string; projectId: string | null }[] {
+    return [{ dir: GLOBAL_AGENTS_DIR, projectId: null }, ...this.projects().map((p) => ({ dir: projectDir(p), projectId: p.id }))];
+  }
+
+  /** O arquivo, se estiver numa pasta conhecida e tiver nome de agente; senão null. */
+  private locate(file: unknown): { file: string; projectId: string | null } | null {
+    if (typeof file !== 'string') return null;
+    const resolved = path.resolve(file);
+    const owner = this.dirs().find((d) => path.dirname(resolved) === d.dir);
+    if (!owner || !NAME_RE.test(path.basename(resolved, '.md')) || !resolved.endsWith('.md')) return null;
+    return { file: resolved, projectId: owner.projectId };
+  }
+
+  async list(): Promise<AgentSummary[]> {
+    const out: AgentSummary[] = [];
+    for (const { dir, projectId } of this.dirs()) {
+      let files: string[];
+      try {
+        files = (await fs.readdir(dir)).filter((f) => f.endsWith('.md')).sort();
+      } catch {
+        continue;
+      }
+      for (const f of files) {
+        const file = path.join(dir, f);
+        try {
+          const raw = await fs.readFile(file, 'utf8');
+          const { fields } = parse(raw);
+          out.push({
+            path: file,
+            name: unquote(fields.name ?? '') || f.replace(/\.md$/, ''),
+            description: unquote(fields.description ?? ''),
+            projectId,
+            managed: raw.includes(MANAGED_MARKER),
+          });
+        } catch {
+          // arquivo sumiu entre o readdir e a leitura
+        }
+      }
+    }
+    return out;
+  }
+
+  async read(file: unknown): Promise<AgentFile | null> {
+    const loc = this.locate(file);
+    if (!loc) return null;
+    let raw: string;
+    try {
+      raw = await fs.readFile(loc.file, 'utf8');
+    } catch {
+      return null;
+    }
+    const { fields, extra, body } = parse(raw);
+    const tools = unquote(fields.tools ?? '');
+    const model = unquote(fields.model ?? '');
+    return {
+      path: loc.file,
+      name: unquote(fields.name ?? '') || path.basename(loc.file, '.md'),
+      description: unquote(fields.description ?? ''),
+      projectId: loc.projectId,
+      managed: raw.includes(MANAGED_MARKER),
+      tools: tools ? tools.split(',').map((t) => t.trim()).filter(Boolean) : null,
+      model: model && model !== 'inherit' ? model : null,
+      instructions: body.trim(),
+      extra,
+      mtime: (await fs.stat(loc.file)).mtimeMs,
+    };
+  }
+
+  async create(target: unknown, name: unknown, input: AgentInput): Promise<{ path: string } | { error: string }> {
+    if (typeof name !== 'string' || !NAME_RE.test(name)) return { error: 'Nome inválido: use letras minúsculas, números e hífen.' };
+    const dir = target === null ? GLOBAL_AGENTS_DIR : this.dirs().find((d) => d.projectId === target)?.dir;
+    if (!dir) return { error: 'Lugar inválido.' };
+    const file = path.join(dir, `${name}.md`);
+    await fs.mkdir(dir, { recursive: true });
+    try {
+      await fs.writeFile(file, render(name, input, []), { flag: 'wx' });
+    } catch {
+      return { error: `Já existe um agente ${name} nesse lugar.` };
+    }
+    return { path: file };
+  }
+
+  async save(file: unknown, mtime: unknown, input: AgentInput): Promise<{ mtime: number } | { error: string; status: number }> {
+    const current = await this.read(file);
+    if (!current) return { error: 'Agente não encontrado.', status: 404 };
+    if (current.managed) return { error: 'Agente do Dev Valley: edite o modelo em server/agents/ no repo.', status: 403 };
+    if (Math.abs(current.mtime - Number(mtime)) > 1) return { error: 'O arquivo mudou no disco desde que foi aberto. Recarregue antes de salvar.', status: 409 };
+    await fs.writeFile(current.path, render(current.name, input, current.extra));
+    return { mtime: (await fs.stat(current.path)).mtimeMs };
+  }
+
+  async remove(file: unknown): Promise<{ ok: true } | { error: string; status: number }> {
+    const current = await this.read(file);
+    if (!current) return { error: 'Agente não encontrado.', status: 404 };
+    if (current.managed) return { error: 'Agente do Dev Valley não é apagado pela Fábrica (use npm run hooks:uninstall).', status: 403 };
+    await fs.rm(current.path);
+    return { ok: true };
+  }
+}
+
+/** Valida o corpo de criar/salvar vindo do front. */
+export function agentInput(body: any): AgentInput | null {
+  if (typeof body?.description !== 'string' || !body.description.trim()) return null;
+  if (typeof body?.instructions !== 'string') return null;
+  const tools = Array.isArray(body.tools) ? body.tools.filter((t: unknown): t is string => typeof t === 'string' && /^[\w*().:-]+$/.test(t)) : null;
+  const model = typeof body.model === 'string' && /^[\w.-]+$/.test(body.model) ? body.model : null;
+  return { description: body.description, tools: tools?.length ? tools : null, model, instructions: body.instructions };
+}
