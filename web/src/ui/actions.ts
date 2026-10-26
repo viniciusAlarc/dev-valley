@@ -2,6 +2,7 @@ import { agents, type AgentSummary, type Project, type Session, type World } fro
 import { villagerName } from '../game/names';
 import { openCommit } from './commit';
 import { openConferir } from './conferir';
+import { openGuardrails } from './guardrails';
 import { openLibrary } from './library';
 import { openAdministrador, openLibrarian } from './librarian';
 import { escapeHtml, isPanelOpen, openPanel } from './panel';
@@ -70,6 +71,10 @@ export const ui = {
   openUserPendencias(projects: Project[]) {
     this.hideTooltip();
     openUserPendencias(projects);
+  },
+  openGuardrails(g: NonNullable<World['guardrails']>) {
+    this.hideTooltip();
+    openGuardrails(g);
   },
   openConferir(world: World) {
     this.hideTooltip();

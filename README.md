@@ -17,6 +17,7 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | Janela acesa | Alguma sessão do projeto está rodando |
 | Andaime na fachada | Falta estrutura de acompanhamento (`CLAUDE.md`, `PENDENCIAS.md`, `PROGRESS.md`, `docs-dev/painel.json`, auditor) — clique para ver como resolver |
 | Praça | Sessões abertas fora de qualquer projeto |
+| Outdoor atrás da praça | Guardrails: se o plugin está ligado no `settings.json` e, no clique, a lista de regras (configurado no local) |
 | Sino na praça | Entregas do `PROGRESS.md` que ainda dizem "Falta conferir na vila", e o reinício pendente do Dev Valley |
 | Biblioteca | CLAUDE.md, memórias e docs de cada projeto, com leitor, edição e busca |
 | ✦ Bibliotecária | Agente permanente (`~/.claude/agents/bibliotecaria.md`) que acha qualquer conhecimento documentado |
@@ -81,6 +82,8 @@ onde está a conversa, sem busca. O texto da mensagem é lido só na sua máquin
 - `sessionMaxAgeDays`: por quantos dias uma sessão sem atividade continua morando na casa (no quintal só ficam as sessões rodando)
 - `auditorAcervos` (só no local): globs de regras de fora do repo que `scripts/auditar-referencias.py` também confere,
   por tipo (`guardrail`, `perfil`)
+- `guardrails` (só no local): `{ "plugin": "<nome@marketplace>", "core": "<arquivo com ## G<n> — título>" }` liga o
+  outdoor dos guardrails atrás da praça (plugin ligado no `~/.claude/settings.json` e a lista de regras); sem ele, não há outdoor
 
 ## Estrutura
 

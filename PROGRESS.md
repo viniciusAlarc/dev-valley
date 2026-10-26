@@ -3,6 +3,25 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — Outdoor dos guardrails atrás da praça
+
+**O que mudou:** passo 6 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor lê se o plugin dos
+guardrails está ligado (`enabledPlugins` no `~/.claude/settings.json`) e a lista de regras (títulos `## G<n> — ...`
+do arquivo de guardrails); só leitura. Plugin e arquivo vêm de uma chave nova, `guardrails`, que fica **só no config
+local** (o caminho é pessoal e o repositório é público); sem ela, não há outdoor. Na vila, um outdoor na faixa atrás
+da praça, entre a biblioteca e a Fábrica (reservada no layout, sem árvore nem flor embaixo; cabe com 3 ou 4 colunas
+de casas): "Guardrails" e "✓ ligado" (verde) ou "✗ desligado" (vermelho). O tooltip diz quantas regras e o plugin; o
+clique abre a lista em ordem numérica, com botão para abrir o arquivo na biblioteca e o aviso de que "ligado" é o
+`settings.json` (se a status line da sessão não mostra `guardrails ✓`, o mod não carregou nela).
+**Arquivos:** `server/src/guardrails.ts` (novo), `server/src/config.ts` (`guardrails`), `server/src/world.ts`
+(`World.guardrails`), `server/src/index.ts`, `web/src/api.ts`, `web/src/game/layout.ts` (`billboard`, faixa
+reservada), `web/src/game/textures.ts` (`billboard`), `web/src/game/TownScene.ts` (`buildBillboard`,
+`updateBillboard`), `web/src/ui/guardrails.ts` (novo), `web/src/ui/actions.ts`, `README.md` (config e mapa),
+`CLAUDE.md`; `dev-valley.config.local.json` (ignorado pelo git) ganhou a chave.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
+testado com o config real (plugin ligado, 21 regras) e sem a chave (null). Posição conferida pelas medidas da praça,
+da biblioteca e da Fábrica, não renderizada. Conferido na vila pelo usuário em 26/10/2026.
+
 ## 2026-10-26 — Placa de vistoria na fachada
 
 **O que mudou:** passo 5 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor lê a data de vencimento

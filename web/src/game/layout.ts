@@ -32,6 +32,8 @@ export interface Layout {
   stone: Set<string>;
   plots: Plot[];
   library: { x: number; y: number };
+  /** Outdoor dos guardrails, atrás da praça (âncora embaixo-centro). */
+  billboard: { x: number; y: number };
   factory: { x: number; y: number };
   fountain: { x: number; y: number };
   plaza: Rect;
@@ -72,6 +74,8 @@ export function computeLayout(projects: Project[]): Layout {
   const plaza: Rect = { x: midX - 5, y: civicTop + 3, w: 12, h: 7 };
   for (let y = plaza.y; y < plaza.y + plaza.h; y++) for (let x = plaza.x; x < plaza.x + plaza.w; x++) stone.add(key(x, y));
   reserved.push(plaza);
+  // Faixa atrás da praça para o outdoor dos guardrails (sem árvore nem flor embaixo dos postes).
+  reserved.push({ x: midX - 2, y: civicTop - 1, w: 6, h: plaza.y - civicTop + 1 });
   const civicRoadY = civicTop + CIVIC_H - 2;
   hLine(civicRoadY, left, right);
   vLine(midX, plaza.y + plaza.h, civicRoadY);
@@ -112,6 +116,7 @@ export function computeLayout(projects: Project[]): Layout {
     stone,
     plots,
     library: { x: (libraryTile.x + 3.5) * TILE, y: (libraryTile.y + 6) * TILE },
+    billboard: { x: (plaza.x + plaza.w / 2) * TILE, y: plaza.y * TILE - 2 },
     factory: { x: (factoryTile.x + 3.5) * TILE, y: (factoryTile.y + 7) * TILE },
     fountain: { x: (plaza.x + plaza.w / 2) * TILE, y: (plaza.y + 3) * TILE },
     plaza: { x: plaza.x * TILE, y: plaza.y * TILE, w: plaza.w * TILE, h: plaza.h * TILE },

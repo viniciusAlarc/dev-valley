@@ -11,6 +11,11 @@ export interface Config {
   sessionMaxAgeDays: number;
   /** Pastas extras de conhecimento que viram estantes na Biblioteca. */
   libraryRoots: string[];
+  /**
+   * Outdoor dos guardrails na vila: o plugin que os aplica (chave de `enabledPlugins` no settings.json) e o arquivo
+   * com a lista (`## G<n> — título`). Fica no config local (caminho pessoal); sem ele, não há outdoor.
+   */
+  guardrails: { plugin: string; core: string } | null;
 }
 
 export const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -37,5 +42,6 @@ export function loadConfig(): Config {
     ignore: merged.ignore ?? [],
     sessionMaxAgeDays: merged.sessionMaxAgeDays ?? 14,
     libraryRoots: (merged.libraryRoots ?? []).map(expandHome),
+    guardrails: merged.guardrails?.plugin && merged.guardrails.core ? { plugin: merged.guardrails.plugin, core: expandHome(merged.guardrails.core) } : null,
   };
 }

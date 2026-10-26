@@ -8,11 +8,12 @@
       { "nome": "Caixa de sementes", "estado": "feito" },
       { "nome": "Ervas do retrabalho", "estado": "feito" },
       { "nome": "Placa de vistoria", "estado": "feito" },
-      { "nome": "Outdoor dos guardrails", "estado": "a fazer" },
+      { "nome": "Outdoor dos guardrails", "estado": "feito" },
       { "nome": "Fábrica por dentro e skills", "estado": "a fazer" }
     ]
   },
   "entregas": [
+    { "data": "2026-10-26", "o_que": "Outdoor dos guardrails atrás da praça: plugin ligado e a lista de regras", "como": "server/src/guardrails.ts; plugin e arquivo no config local (repo público)" },
     { "data": "2026-10-26", "o_que": "Placa de vistoria na fachada, amarela quando a auditoria das regras vence", "como": "readAuditoria em server/src/estrutura.ts lê .claude/auditoria-regras.txt" },
     { "data": "2026-10-26", "o_que": "Ervas no quintal, uma por linha do RETRABALHO.md", "como": "server/src/retrabalho.ts (cabeçalho e linhas como no arquivo); growWeeds na TownScene" },
     { "data": "2026-10-26", "o_que": "Caixa de sementes dentro da casa com os planos de docs-dev/a-codar/", "como": "server/src/sementes.ts; pacotes na InteriorScene, plano abre no leitor da biblioteca" },
@@ -21,7 +22,6 @@
     { "data": "2026-10-26", "o_que": "Sino na praça com as entregas a conferir e o reinício pendente da vila", "como": "server/src/progress.ts (toCheck), server/src/reinicio.ts, web/src/ui/conferir.ts" },
     { "data": "2026-10-26", "o_que": "Fábrica de agentes: criar, editar e apagar agentes globais e de projeto; NPCs ✦ no pátio", "como": "server/src/agents.ts, /api/agents, web/src/ui/factory.ts" },
     { "data": "2026-10-25", "o_que": "Diário do progresso no atril da casa", "como": "server/src/progress.ts, GET /api/progress sob demanda" },
-    { "data": "2026-10-25", "o_que": "Horta no quintal com as fases do plano de cada projeto", "como": "server/src/painel.ts lê o docs-dev/painel.json; canteiros na TownScene" },
-    { "data": "2026-10-25", "o_que": "Quadro de avisos da praça com as decisões pendentes de todos os projetos", "como": "noticeboard clicável, pendências 👤 lidas do PENDENCIAS.md" }
+    { "data": "2026-10-25", "o_que": "Horta no quintal com as fases do plano de cada projeto", "como": "server/src/painel.ts lê o docs-dev/painel.json; canteiros na TownScene" }
   ]
 }

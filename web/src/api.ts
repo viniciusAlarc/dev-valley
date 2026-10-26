@@ -120,6 +120,8 @@ export interface World {
   usage: { rows: UsageRow[]; updatedAt: number } | null;
   /** Código do Dev Valley mudou depois que a vila subiu: falta o reinício do usuário (sino da praça). */
   restart: { server: boolean; web: boolean };
+  /** Outdoor dos guardrails; null = não configurado no config local. */
+  guardrails: { enabled: boolean; plugin: string; core: string; items: { id: string; title: string }[] } | null;
 }
 
 /** Avulsas encerradas que continuam soltas na praça (elas não têm casa para onde ir). */
@@ -242,7 +244,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false } };
+let world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false }, guardrails: null };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

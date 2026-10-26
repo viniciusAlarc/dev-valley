@@ -57,8 +57,10 @@ export class TownScene extends Phaser.Scene {
   private residents = new Map<string, Resident>();
   private agentNpcs = new Map<string, { npc: AgentNpc; timer?: Phaser.Time.TimerEvent }>();
   private agentArea!: Rect;
-  private world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false } };
+  private world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false }, guardrails: null };
   private ready = false;
+  /** Outdoor dos guardrails: some sem configuração; o estado muda a cada atualização do mundo. */
+  private billboard?: { board: Phaser.GameObjects.Image; title: Phaser.GameObjects.Text; status: Phaser.GameObjects.Text };
   /** Sino da praça: balança de tempos em tempos enquanto há algo para conferir. */
   private bell?: Phaser.GameObjects.Image;
   private pendingWorld: World | null = null;
@@ -126,6 +128,34 @@ export class TownScene extends Phaser.Scene {
     }
     this.syncResidents();
     this.syncAgents();
+    this.updateBillboard();
+  }
+
+  private buildBillboard(layout: Layout) {
+    const { x, y } = layout.billboard;
+    const board = this.addSprite('billboard', x, y);
+    const depth = board.depth + 1;
+    const title = this.add.text(x, y - 33, 'Guardrails', { ...TEXT_STYLE, fontSize: '9px' }).setOrigin(0.5).setDepth(depth);
+    const status = this.add.text(x, y - 24, '', { ...TEXT_STYLE }).setOrigin(0.5).setDepth(depth);
+    makeInteractive(
+      board,
+      () => {
+        const g = this.world.guardrails;
+        if (!g) return '';
+        return `Guardrails — ${g.items.length} regra(s) · plugin ${g.plugin} ${g.enabled ? 'ligado' : 'desligado'} no settings.json — clique para ver a lista`;
+      },
+      () => this.world.guardrails && ui.openGuardrails(this.world.guardrails),
+    );
+    this.billboard = { board, title, status };
+    this.updateBillboard();
+  }
+
+  private updateBillboard() {
+    if (!this.billboard) return;
+    const g = this.world.guardrails;
+    const { board, title, status } = this.billboard;
+    for (const o of [board, title, status]) o.setVisible(!!g);
+    if (g) status.setText(g.enabled ? '✓ ligado' : '✗ desligado').setColor(g.enabled ? '#2f6e30' : '#b8241c');
   }
 
   /** Três balanços curtos a cada poucos segundos, só enquanto há entrega a conferir ou reinício pendente. */
@@ -239,6 +269,7 @@ export class TownScene extends Phaser.Scene {
     });
 
     this.buildPlaza(layout);
+    this.buildBillboard(layout);
     label(this, layout.fountain.x, layout.plaza.y + layout.plaza.h - 4, 'Praça', layout.plaza.y + layout.plaza.h);
   }
 

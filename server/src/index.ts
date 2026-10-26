@@ -23,7 +23,7 @@ const config = loadConfig();
 const HOST = '127.0.0.1';
 const POLL_MS = 3000;
 
-let world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false } };
+let world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false }, guardrails: null };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 

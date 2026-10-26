@@ -49,5 +49,5 @@ aparecem no quintal); `docs-conhecimento` na biblioteca (a pasta ainda não exis
 | 3 | Caixa de sementes (`a-codar/`) dentro da casa | feito |
 | 4 | Ervas do retrabalho no quintal | feito |
 | 5 | Placa de vistoria | feito |
-| 6 | Outdoor dos guardrails | a fazer |
+| 6 | Outdoor dos guardrails | feito |
 | 7 | Fábrica por dentro, com skills | a fazer |

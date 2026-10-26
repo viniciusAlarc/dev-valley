@@ -395,6 +395,26 @@ function noticeBoard(scene: Phaser.Scene) {
 
 // ---------------- praça ----------------
 
+/** Outdoor dos guardrails atrás da praça: painel em branco; o texto e o estado são escritos pela cena. */
+function billboard(scene: Phaser.Scene) {
+  const W = 64;
+  const H = 40;
+  const { c, ctx } = makeCanvas(W, H);
+  // postes e travessa de apoio
+  for (const x of [12, 50]) {
+    rect(ctx, x, 20, 3, 20, '#6b4423');
+    rect(ctx, x, 20, 1, 20, '#8d5f30');
+  }
+  rect(ctx, 10, 30, 44, 2, '#6b4423');
+  // moldura e painel
+  rect(ctx, 0, 0, W, 24, '#7a4b20');
+  rect(ctx, 0, 0, W, 1, '#a8743c');
+  rect(ctx, 2, 2, W - 4, 20, '#f2e6c4');
+  rect(ctx, 2, 20, W - 4, 2, '#d6cebd');
+  outline(ctx, W, H);
+  add(scene, 'billboard', c);
+}
+
 /** Sino de conferência: entregas esperando o usuário conferir na vila. */
 function bell(scene: Phaser.Scene) {
   const W = 10;
@@ -571,6 +591,7 @@ export function generateTextures(scene: Phaser.Scene) {
   bin(scene);
   fountain(scene);
   noticeBoard(scene);
+  billboard(scene);
   bell(scene);
   bench(scene);
   lamppost(scene);

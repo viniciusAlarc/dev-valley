@@ -5,6 +5,7 @@ import * as gitOps from './git.js';
 import type { HookState, SessionStatus } from './hooks.js';
 import type { StatusLineStore, Usage } from './statusline.js';
 import { missingStructure, readAuditoria } from './estrutura.js';
+import { readGuardrails, type Guardrails } from './guardrails.js';
 import { readPainel, type Painel } from './painel.js';
 import { readPendencias, type Pendencia } from './pendencias.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
@@ -62,6 +63,8 @@ export interface World {
   usage: Usage | null;
   /** Código do Dev Valley mudou depois que a vila subiu (sino da praça). */
   restart: RestartPending;
+  /** Outdoor dos guardrails; null = não configurado (`guardrails` no config local). */
+  guardrails: Guardrails | null;
 }
 
 /** Janelas possíveis quando ainda não sabemos o tamanho real para o modelo. */
@@ -200,5 +203,5 @@ export async function buildWorld(
     };
   });
   await moradores.sync(sessions, projects);
-  return { projects, sessions, agents: await agents.list(projects), usage: statusLine.usage, restart: await restartPending() };
+  return { projects, sessions, agents: await agents.list(projects), usage: statusLine.usage, restart: await restartPending(), guardrails: await readGuardrails(config) };
 }
