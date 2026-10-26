@@ -20,6 +20,8 @@ O front não tem processo próprio: `npm start` gera o build do `web/` e o servi
 - Node LTS (fnm) dentro do WSL e `npm install` na raiz.
 - `claude` no PATH: o terminal da vila e a bibliotecária chamam o CLI.
 - `jq` e `curl`: usados pelos hooks e pela status line instalados com `npm run hooks:install`.
+- O hook de moradores roda com o node que rodou o `npm run hooks:install` (caminho absoluto): trocou a versão do
+  node no fnm, rodar o install de novo.
 - Sem `.env` e sem segredo.
 
 ## Ver o que está rodando

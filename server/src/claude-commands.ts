@@ -11,6 +11,14 @@ export function hookCommand(port: number) {
   );
 }
 
+/**
+ * Hook de nomes dos moradores (SessionStart e UserPromptSubmit): roda `server/hooks/morador.mjs` com o node que
+ * rodou o install (o PATH do hook pode não ter o node do fnm). Trocou a versão do node: rodar o install de novo.
+ */
+export function moradorCommand(port: number, node: string, script: string) {
+  return `'${node}' '${script}' ${port} 2>/dev/null; exit 0 ${MARKER}`;
+}
+
 /** Linha mostrada no rodapé de cada sessão do Claude Code: contexto e limites do plano. */
 const STATUS_FORMAT = String.raw`["🌾 ctx \((.context_window.used_percentage // 0) | floor)%"] + (if .rate_limits.limits then [.rate_limits.limits[] | select(.kind == "session" or .kind == "weekly_all") | "\(if .kind == "session" then "5h" else "7d" end) \(.percent | floor)%"] else [(.rate_limits.five_hour // empty | "5h \(.used_percentage | floor)%"), (.rate_limits.seven_day // empty | "7d \(.used_percentage | floor)%")] end) | join(" · ")`;
 

@@ -63,7 +63,8 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 2. **O servidor escuta só em `127.0.0.1` e recusa WebSocket de outra origem:** os terminais rodam comandos de
    verdade. Nunca afrouxar isso.
 3. **Hooks mandam à vila só `session_id`, `cwd`, nome do evento e tipo de notificação.** Nunca conteúdo de
-   arquivo ou prompt.
+   arquivo ou prompt. O hook de moradores (`server/hooks/morador.mjs`) lê o prompt **só localmente**, para achar
+   `@Nome` no mapa `~/.claude/dev-valley/moradores.json`; à vila ele manda apenas o `session_id`.
 4. **`hooks:install` mexe em `~/.claude/settings.json` (global, com backup):** só instala status line se não
    houver um, nunca sobrescreve agente do usuário com o mesmo nome, e o uninstall remove só o que é do Dev Valley.
 5. **Consultas da bibliotecária usam `claude -p --no-session-persistence`** para não virarem moradores.

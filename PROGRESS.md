@@ -3,6 +3,27 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — Nomes únicos dos moradores e citação @Nome entre sessões
+
+**O que mudou:** decisões do usuário (26/10/2026): (1) nenhum nome repetido entre moradores; (2) uma sessão sabe a
+que outra o usuário se refere ao citar `@Nome`, sem busca; (3) cada sessão sabe o próprio nome. Antes o nome saía de
+um hash do id sobre 24 nomes, e repetia a partir de umas 6 sessões. Agora o servidor dá os nomes (`moradores.ts`):
+cadastro persistente sessão → nome em `~/.claude/dev-valley/nomes.json`, únicos entre as sessões da vila, lista com 80
+nomes; quem já tinha nome sem conflito manteve (nos repetidos, a sessão mais antiga ficou com ele). A cada atualização
+a vila grava o mapa `~/.claude/dev-valley/moradores.json` (nome → sessão, projeto, pasta, título, estado, `.jsonl`).
+Hook novo `server/hooks/morador.mjs` em SessionStart (pergunta o nome à vila por `POST /api/moradores/nome`, mandando
+só o `session_id`, e conta à sessão quem ela é) e UserPromptSubmit (acha `@Nome` no prompt localmente e junta o
+morador do mapa; e-mail e `@pacote` não contam). Regra 3 do CLAUDE.md, README e OPERACAO atualizados.
+**Arquivos:** `server/src/moradores.ts` (novo), `server/hooks/morador.mjs` (novo), `server/src/world.ts`,
+`server/src/sessions.ts` (`file`), `server/src/index.ts`, `server/src/claude-commands.ts`, `server/src/install-hooks.ts`,
+`web/src/api.ts`, `web/src/game/names.ts`, `CLAUDE.md`, `README.md`, `docs-dev/guias/OPERACAO.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário). Auditor acusa só
+`~/.claude/dev-valley/nomes.json` e `moradores.json`, que a vila cria na primeira atualização depois do reinício. Nomes
+testados com as 11 sessões reais gravando num HOME de teste: 11 nomes únicos, 8 mantiveram o nome antigo, estáveis após
+reinício. Hook testado com citação (morador achado, nome desconhecido avisado, e-mail e `@types/node` ignorados), sem
+citação (saída vazia) e com a vila fechada (silêncio, exit 0). Depois do reinício e do `hooks:install` (26/10/2026): auditor limpo, mapa com 11
+moradores e 11 nomes únicos, e o SessionStart com a vila no ar devolveu o nome certo. Conferido pelo usuário numa sessão nova: ela sabe o próprio nome e `@Vera` trouxe quem é (PD-12 fechada).
+
 ## 2026-10-25 — Diário do progresso no atril da casa
 
 **O que mudou:** passo 4 (último) do plano de representações visuais. Dentro da casa, entre a estante e o quadro de

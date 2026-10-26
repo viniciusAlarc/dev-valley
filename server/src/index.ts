@@ -10,6 +10,7 @@ import * as gitOps from './git.js';
 import { HookStore } from './hooks.js';
 import { Library } from './library.js';
 import { askLibrarian } from './librarian.js';
+import { Moradores } from './moradores.js';
 import { readProgress } from './progress.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
@@ -29,11 +30,12 @@ const library = new Library(config, () => world.projects);
 const statusLine = new StatusLineStore();
 /** Sessões que a própria vila abre por baixo (consultas à bibliotecária) — não viram moradores. */
 const internalSessions = new Set<string>();
+const moradores = new Moradores();
 let lastStatusLine: unknown = null;
 
 async function refreshWorld() {
   try {
-    world = await buildWorld(config, terminals.live(), hooks.all(), statusLine);
+    world = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores);
     const json = JSON.stringify(world);
     if (json === worldJson) return;
     worldJson = json;
@@ -65,6 +67,14 @@ app.get('/api/world', (_req, res) => {
 app.post('/api/hooks', (req, res) => {
   if (!internalSessions.has(req.body?.session_id) && hooks.handle(req.body ?? {})) void refreshWorld();
   res.json({});
+});
+
+// Hook SessionStart (server/hooks/morador.mjs): a sessão que acabou de abrir pergunta o próprio nome de morador.
+// Recebe só o session_id (regra 3); consultas internas da bibliotecária não viram moradores.
+app.post('/api/moradores/nome', async (req, res) => {
+  const id = req.body?.session_id;
+  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) return res.status(400).json({ error: 'sessão inválida' });
+  res.json({ name: internalSessions.has(id) ? null : await moradores.claim(id) });
 });
 
 // Pergunta à bibliotecária; responde em NDJSON conforme ela trabalha (passos e resposta final).

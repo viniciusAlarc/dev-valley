@@ -11,6 +11,8 @@ export interface SessionInfo {
   /** Tokens de entrada da última resposta = quanto da janela de contexto está ocupado. */
   contextTokens: number | null;
   model: string | null;
+  /** Caminho do `.jsonl` da conversa; null enquanto a sessão nova ainda não gravou nada. */
+  file: string | null;
 }
 
 interface CacheEntry {
@@ -20,7 +22,7 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 
-function parseSession(id: string, raw: string, mtimeMs: number): SessionInfo | null {
+function parseSession(id: string, raw: string, mtimeMs: number, file: string): SessionInfo | null {
   let cwd: string | null = null;
   let aiTitle: string | null = null;
   let lastPrompt: string | null = null;
@@ -53,7 +55,7 @@ function parseSession(id: string, raw: string, mtimeMs: number): SessionInfo | n
   }
   if (!cwd) return null;
   const title = aiTitle ?? (lastPrompt ?? firstPrompt ?? 'Sessão sem título').slice(0, 80);
-  return { id, cwd, title, gitBranch, lastActivity: mtimeMs, contextTokens, model };
+  return { id, cwd, title, gitBranch, lastActivity: mtimeMs, contextTokens, model, file };
 }
 
 /** Lê as sessões salvas pelo Claude Code em ~/.claude/projects/<projeto>/<id>.jsonl. */
@@ -83,7 +85,7 @@ export async function listSessions(maxAgeDays: number): Promise<SessionInfo[]> {
         if (cached.info) result.push(cached.info);
         continue;
       }
-      const info = parseSession(file.replace(/\.jsonl$/, ''), await fs.readFile(filePath, 'utf8'), stat.mtimeMs);
+      const info = parseSession(file.replace(/\.jsonl$/, ''), await fs.readFile(filePath, 'utf8'), stat.mtimeMs, filePath);
       cache.set(filePath, { mtimeMs: stat.mtimeMs, info });
       if (info) result.push(info);
     }

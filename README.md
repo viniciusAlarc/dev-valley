@@ -7,7 +7,7 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 |---|---|
 | Casa | Pasta em `projectRoots` (geralmente um repo git) |
 | Caixa de envio ao lado da casa | `git status` — clique para ver o diff e commitar |
-| Morador | Sessão do Claude Code (`~/.claude/projects/**/*.jsonl`) — clique para abrir o chat |
+| Morador | Sessão do Claude Code (`~/.claude/projects/**/*.jsonl`) — clique para abrir o chat. Nome único na vila |
 | Dentro da casa (clique nela) | Todas as sessões do projeto: as ativas trabalham nas mesas, as antigas descansam no sofá |
 | Escrivaninha | Painel do projeto: branch, remoto, nova sessão, VS Code, caixa de envio |
 | Balão "..." / "!" | Sessão trabalhando / pedindo sua permissão (via hooks) |
@@ -54,6 +54,12 @@ primeira resposta da API em cada sessão.
 Os hooks mandam para a vila apenas `session_id`, `cwd`, nome do evento e o tipo de notificação — nunca conteúdo de arquivos ou prompts.
 Se a vila estiver fechada, o hook falha em silêncio em até 1s. Sessões abertas fora da vila (ex.: VS Code) também aparecem,
 e a vila não deixa retomar uma sessão que já está rodando em outro terminal.
+
+**Nomes dos moradores.** Cada sessão tem um nome único na vila, guardado em `~/.claude/dev-valley/nomes.json`. Ao abrir,
+a sessão fica sabendo o próprio nome. Numa mensagem, cite outro morador como `@Nome` (ex.: "vê o que a @Lia fez"): o hook
+acha o nome no mapa `~/.claude/dev-valley/moradores.json` (gravado pela vila) e entrega à sessão quem é, de que projeto e
+onde está a conversa, sem busca. O texto da mensagem é lido só na sua máquina; à vila vai apenas o `session_id`.
+O hook roda com o node que rodou o `hooks:install`: trocou a versão do node, rode o install de novo.
 
 ## Configuração
 

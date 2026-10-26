@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { hookCommand, MARKER, statusLineCommand } from './claude-commands.js';
+import { hookCommand, MARKER, moradorCommand, statusLineCommand } from './claude-commands.js';
 import { CATALOG_PATH } from './catalog.js';
 import { loadConfig, ROOT_DIR } from './config.js';
 
@@ -31,8 +31,11 @@ for (const event of Object.keys(hooks)) {
 }
 if (!uninstall) {
   const cmd = hookCommand(loadConfig().port);
+  const morador = moradorCommand(loadConfig().port, process.execPath, path.join(ROOT_DIR, 'server', 'hooks', 'morador.mjs'));
   for (const event of EVENTS) {
     const entry: HookEntry = { hooks: [{ type: 'command', command: cmd, timeout: 3 }] };
+    // Nomes dos moradores: a sessão sabe o próprio nome e quem é cada @Nome citado.
+    if (event === 'SessionStart' || event === 'UserPromptSubmit') entry.hooks.push({ type: 'command', command: morador, timeout: 3 });
     if (event === 'PreToolUse' || event === 'PostToolUse' || event === 'PermissionRequest') entry.matcher = '*';
     (hooks[event] ??= []).push(entry);
   }

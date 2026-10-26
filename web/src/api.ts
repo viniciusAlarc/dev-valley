@@ -49,6 +49,8 @@ export function urgentPendencias(project: Project): Pendencia[] {
 
 export interface Session {
   id: string;
+  /** Nome do morador, único na vila (dado pelo servidor, server/src/moradores.ts). */
+  name: string;
   cwd: string;
   title: string;
   gitBranch: string | null;

@@ -1,11 +1,6 @@
-import { hash } from './textures';
+import { getWorld } from '../api';
 
-const VILLAGER_NAMES = [
-  'Ana', 'Bento', 'Caio', 'Duda', 'Elis', 'Fábio', 'Gabi', 'Heitor', 'Íris', 'Joca', 'Kika', 'Lia',
-  'Malu', 'Nico', 'Otto', 'Pietra', 'Rafa', 'Sofia', 'Theo', 'Vivi', 'Zeca', 'Bia', 'Davi', 'Nina',
-];
-
-/** Cada sessão ganha um nome fixo, derivado do id. */
+/** Nome do morador: único na vila e fixo, dado pelo servidor (server/src/moradores.ts). */
 export function villagerName(sessionId: string) {
-  return VILLAGER_NAMES[hash(sessionId) % VILLAGER_NAMES.length];
+  return getWorld().sessions.find((s) => s.id === sessionId)?.name || 'Morador novo';
 }

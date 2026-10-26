@@ -7,6 +7,7 @@ import type { StatusLineStore, Usage } from './statusline.js';
 import { readPainel, type Painel } from './painel.js';
 import { readPendencias, type Pendencia } from './pendencias.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
+import type { Moradores } from './moradores.js';
 import { listSessions, type SessionInfo } from './sessions.js';
 
 export interface Project {
@@ -26,6 +27,8 @@ export interface Project {
 }
 
 export interface WorldSession extends SessionInfo {
+  /** Nome do morador, único na vila (ver moradores.ts). */
+  name: string;
   /** Id do projeto onde o NPC mora; null = mora na praça. */
   projectId: string | null;
   /** Terminal aberto pela própria vila. */
@@ -135,7 +138,13 @@ export interface LiveSession {
   startedAt: number;
 }
 
-export async function buildWorld(config: Config, terminals: LiveSession[], hooks: HookState[], statusLine: StatusLineStore): Promise<World> {
+export async function buildWorld(
+  config: Config,
+  terminals: LiveSession[],
+  hooks: HookState[],
+  statusLine: StatusLineStore,
+  moradores: Moradores,
+): Promise<World> {
   const dirs = await discoverProjectDirs(config);
   const projects = await Promise.all(dirs.map(loadProject));
   const all = await listSessions(config.sessionMaxAgeDays);
@@ -147,7 +156,7 @@ export async function buildWorld(config: Config, terminals: LiveSession[], hooks
   for (const s of [...terminals.map((t) => ({ id: t.id, cwd: t.cwd, at: t.startedAt })), ...hooks.map((h) => ({ id: h.id, cwd: h.cwd, at: h.updatedAt }))]) {
     if (known.has(s.id) || !s.cwd) continue;
     known.add(s.id);
-    all.unshift({ id: s.id, cwd: s.cwd, title: 'Nova sessão', gitBranch: null, lastActivity: s.at, contextTokens: null, model: null });
+    all.unshift({ id: s.id, cwd: s.cwd, title: 'Nova sessão', gitBranch: null, lastActivity: s.at, contextTokens: null, model: null, file: null });
   }
 
   const guessed = guessWindows(all);
@@ -155,6 +164,7 @@ export async function buildWorld(config: Config, terminals: LiveSession[], hooks
     const hook = hookById.get(s.id);
     return {
       ...s,
+      name: '',
       lastActivity: Math.max(s.lastActivity, hook?.updatedAt ?? 0),
       projectId: ownerOf(s, projects)?.id ?? null,
       inTown: inTown.has(s.id),
@@ -163,5 +173,6 @@ export async function buildWorld(config: Config, terminals: LiveSession[], hooks
       context: contextOf(s, statusLine, guessed),
     };
   });
+  await moradores.sync(sessions, projects);
   return { projects, sessions, usage: statusLine.usage };
 }
