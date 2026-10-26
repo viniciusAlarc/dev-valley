@@ -8,7 +8,7 @@ import { escapeHtml, openPanel } from './panel';
  */
 export function openSementes(project: Project) {
   const list = project.sementes ?? [];
-  const panel = openPanel({ title: `Sementes — ${project.name}`, subtitle: `${list.length} plano(s) decidido(s) e não codado(s) · docs-dev/a-codar/`, size: 'lg' });
+  const panel = openPanel({ title: `Sementes — ${project.name}`, subtitle: `${list.length} plano(s) decidido(s) e não codado(s) · docs-dev/a-codar/`, size: 'lg', scroll: true });
   if (!list.length) {
     panel.body.innerHTML = '<p class="empty">Nenhum plano esperando código. A caixa está vazia.</p>';
     return;

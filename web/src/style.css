@@ -227,6 +227,11 @@ body {
   flex-direction: column;
 }
 
+.panel-lg .panel-body.panel-scroll {
+  overflow: auto;
+  display: block;
+}
+
 .btn,
 .btn-close {
   font-family: var(--font);

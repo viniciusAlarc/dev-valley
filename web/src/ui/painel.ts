@@ -12,6 +12,7 @@ export function openPainel(project: Project) {
     title: `Horta — ${plano?.nome || project.name}`,
     subtitle: `${plano ? `${done} de ${plano.fases.length} fase(s) feitas · ` : ''}docs-dev/painel.json${plano?.doc ? ` · plano em ${plano.doc}` : ''}`,
     size: 'lg',
+    scroll: true,
   });
   const fases = (plano?.fases ?? [])
     .map(({ nome, estado }) => {

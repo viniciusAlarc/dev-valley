@@ -128,6 +128,21 @@ function bush(scene: Phaser.Scene) {
   add(scene, 'bush', c);
 }
 
+/** Erva daninha do quintal: uma linha do `RETRABALHO.md` (G17). A variante com flor só muda o desenho. */
+function weed(scene: Phaser.Scene, key: string, flower: boolean) {
+  const { c, ctx } = makeCanvas(9, 9);
+  for (const [x, top, color] of [[1, 4, '#5f7d2a'], [3, 1, '#7a9a34'], [4, 3, '#5f7d2a'], [6, 2, '#8aa83c'], [7, 5, '#5f7d2a']] as const)
+    rect(ctx, x, top, 1, 9 - top, color);
+  rect(ctx, 2, 6, 5, 3, '#4b6522');
+  if (flower) {
+    rect(ctx, 2, 1, 3, 1, '#a35bc4');
+    rect(ctx, 3, 0, 1, 3, '#a35bc4');
+    rect(ctx, 3, 1, 1, 1, '#f5d142');
+  }
+  outline(ctx, 9, 9);
+  add(scene, key, c);
+}
+
 /** Andaime na frente da fachada: projeto sem a estrutura de acompanhamento dos guardrails (casa em obra). */
 function scaffold(scene: Phaser.Scene) {
   const W = 26;
@@ -530,6 +545,8 @@ export function generateTextures(scene: Phaser.Scene) {
   tree(scene, 'tree1', ['#2a5f34', '#357a45', '#4f9a58']);
   bush(scene);
   scaffold(scene);
+  weed(scene, 'weed0', false);
+  weed(scene, 'weed1', true);
   crop(scene, 'crop-todo', 0);
   crop(scene, 'crop-growing', 1);
   crop(scene, 'crop-done', 2);

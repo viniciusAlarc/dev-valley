@@ -11,7 +11,7 @@ export function openConferir(world: World) {
     .filter((g) => g.list.length)
     .sort((a, b) => a.project.name.localeCompare(b.project.name));
   const total = groups.reduce((n, g) => n + g.list.length, 0);
-  const panel = openPanel({ title: 'Sino de conferência', subtitle: `${total} entrega(s) esperando você conferir · PROGRESS.md`, size: 'lg' });
+  const panel = openPanel({ title: 'Sino de conferência', subtitle: `${total} entrega(s) esperando você conferir · PROGRESS.md`, size: 'lg', scroll: true });
 
   const restart = [
     world.restart.server && 'O servidor do Dev Valley mudou depois que a vila subiu.',

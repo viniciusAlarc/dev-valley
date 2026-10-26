@@ -22,7 +22,7 @@ function row(p: Pendencia, lead: string) {
 /** Quadro de bilhetes da casa: o `PENDENCIAS.md` do projeto, só leitura, agrupado por prioridade. */
 export function openPendencias(project: Project) {
   const list = project.pendencias ?? [];
-  const panel = openPanel({ title: `Pendências — ${project.name}`, subtitle: `${list.length} aberta(s) · PENDENCIAS.md`, size: 'lg' });
+  const panel = openPanel({ title: `Pendências — ${project.name}`, subtitle: `${list.length} aberta(s) · PENDENCIAS.md`, size: 'lg', scroll: true });
   if (!list.length) {
     panel.body.innerHTML = '<p class="empty">Nenhuma pendência aberta. O quadro está limpo.</p>';
     return;
@@ -49,7 +49,7 @@ export function openUserPendencias(projects: Project[]) {
     .filter((g) => g.list.length)
     .sort((a, b) => a.list[0].priority - b.list[0].priority || a.project.name.localeCompare(b.project.name));
   const total = groups.reduce((n, g) => n + g.list.length, 0);
-  const panel = openPanel({ title: 'Quadro de avisos', subtitle: `${total} decisão(ões) esperando você · 👤 nos PENDENCIAS.md`, size: 'lg' });
+  const panel = openPanel({ title: 'Quadro de avisos', subtitle: `${total} decisão(ões) esperando você · 👤 nos PENDENCIAS.md`, size: 'lg', scroll: true });
   if (!total) {
     panel.body.innerHTML = '<p class="empty">Nenhuma decisão esperando você em nenhum projeto.</p>';
     return;

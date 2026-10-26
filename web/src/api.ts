@@ -21,6 +21,8 @@ export interface Project {
   missingStructure: string[];
   /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. */
   sementes: { path: string; title: string }[] | null;
+  /** `RETRABALHO.md` (ervas do quintal): cabeçalho e linhas como estão no arquivo; null = sem o arquivo. */
+  retrabalho: { header: string[]; rows: string[][] } | null;
 }
 
 export interface ProgressEntry {

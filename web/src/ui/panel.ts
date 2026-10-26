@@ -21,7 +21,11 @@ export function closePanel() {
   panel.root.remove();
 }
 
-export function openPanel(opts: { title: string; subtitle?: string; size?: 'sm' | 'lg'; onClose?: () => void }): Panel {
+/**
+ * `scroll`: no painel grande o corpo não rola (quem rola é um bloco interno, como a lista da biblioteca); painel de
+ * conteúdo simples (listas, tabelas) passa `scroll: true` para o próprio corpo rolar.
+ */
+export function openPanel(opts: { title: string; subtitle?: string; size?: 'sm' | 'lg'; scroll?: boolean; onClose?: () => void }): Panel {
   closePanel();
   const root = document.createElement('div');
   root.className = 'overlay';
@@ -35,7 +39,7 @@ export function openPanel(opts: { title: string; subtitle?: string; size?: 'sm' 
         <div class="panel-actions"></div>
         <button class="btn-close" title="Fechar (Esc)">✕</button>
       </header>
-      <div class="panel-body"></div>
+      <div class="panel-body${opts.scroll ? ' panel-scroll' : ''}"></div>
     </div>`;
   document.getElementById('panels')!.append(root);
   const panel: Panel = {

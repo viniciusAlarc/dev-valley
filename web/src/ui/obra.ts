@@ -13,7 +13,7 @@ const PIECES: Record<string, { what: string; by: 'skill' | 'script' }> = {
 /** Casa em obra: o que falta da estrutura de acompanhamento e como resolver. Só leitura (decisão de 26/10/2026). */
 export function openObra(project: Project) {
   const missing = project.missingStructure;
-  const panel = openPanel({ title: `Em obra — ${project.name}`, subtitle: `${missing.length} peça(s) da estrutura faltando`, size: 'lg' });
+  const panel = openPanel({ title: `Em obra — ${project.name}`, subtitle: `${missing.length} peça(s) da estrutura faltando`, size: 'lg', scroll: true });
   if (!missing.length) {
     panel.body.innerHTML = '<p class="empty">A estrutura de acompanhamento está completa.</p>';
     return;

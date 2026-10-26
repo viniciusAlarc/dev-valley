@@ -10,6 +10,9 @@ const ROOF_NAMES = Object.keys(ROOFS).filter((r) => r !== 'grey');
 /** Horta à esquerda da casa: um canteiro por fase do `painel.json`, 3 colunas x 3 linhas. */
 const GARDEN_COLS = 3;
 const GARDEN_MAX = 9;
+/** Ervas à direita da casa, acima da caixa de envio: uma por linha do `RETRABALHO.md`, 3 colunas x 3 linhas. */
+const WEEDS_COLS = 3;
+const WEEDS_MAX = 9;
 const CROP_TEXTURE = { feito: 'crop-done', andamento: 'crop-growing', 'a fazer': 'crop-todo' } as const;
 const PHASE_TEXT = { feito: 'feito', andamento: 'em andamento', 'a fazer': 'a fazer' } as const;
 /** NPCs ✦ em volta da Fábrica (os demais agentes ficam só no painel). */
@@ -32,6 +35,8 @@ interface HouseView {
   scaffold: Phaser.GameObjects.Image;
   crops: Phaser.GameObjects.Image[];
   cropsKey: string;
+  weeds: Phaser.GameObjects.Image[];
+  weedsKey: string;
 }
 
 export class TownScene extends Phaser.Scene {
@@ -353,7 +358,7 @@ export class TownScene extends Phaser.Scene {
       () => ui.openObra(this.currentProject(p.id)),
     );
 
-    const view: HouseView = { plot, glows, alert, scaffold, crops: [], cropsKey: '' };
+    const view: HouseView = { plot, glows, alert, scaffold, crops: [], cropsKey: '', weeds: [], weedsKey: '' };
     if (p.isGit) {
       const bin = this.addSprite('bin', plot.bin.x, plot.bin.y);
       makeInteractive(
@@ -380,6 +385,25 @@ export class TownScene extends Phaser.Scene {
   }
 
   /** Replanta a horta só quando as fases mudam; sem plano no `painel.json`, sem horta. */
+  /** Uma erva por retrabalho (até 9), à direita da casa; só replanta quando a contagem muda. Sem o arquivo, nada. */
+  private growWeeds(view: HouseView, project: Project) {
+    const n = Math.min(project.retrabalho?.rows.length ?? 0, WEEDS_MAX);
+    const key = String(n);
+    if (key === view.weedsKey) return;
+    view.weedsKey = key;
+    for (const w of view.weeds) w.destroy();
+    const { x, y } = view.plot.house;
+    view.weeds = Array.from({ length: n }, (_, i) => {
+      const weed = this.addSprite(i % 3 === 1 ? 'weed1' : 'weed0', x + 42 + (i % WEEDS_COLS) * 9, y - 48 + Math.floor(i / WEEDS_COLS) * 9);
+      makeInteractive(
+        weed,
+        () => `Retrabalho — ${this.currentProject(project.id).retrabalho?.rows.length ?? 0} registro(s) no RETRABALHO.md — clique para ver`,
+        () => ui.openRetrabalho(this.currentProject(project.id)),
+      );
+      return weed;
+    });
+  }
+
   private plantGarden(view: HouseView, project: Project) {
     const plano = project.painel?.plano;
     const fases = (plano?.fases ?? []).slice(0, GARDEN_MAX);
@@ -408,6 +432,7 @@ export class TownScene extends Phaser.Scene {
     view.alert.setVisible(urgentPendencias(project).length > 0);
     view.scaffold.setVisible(project.missingStructure.length > 0);
     this.plantGarden(view, project);
+    this.growWeeds(view, project);
     const lit = this.world.sessions.some((s) => s.projectId === project.id && s.live);
     for (const g of view.glows) {
       this.tweens.killTweensOf(g);

@@ -47,7 +47,7 @@ aparecem no quintal); `docs-conhecimento` na biblioteca (a pasta ainda não exis
 | 1 | Sino de conferência, reinício pendente e ✦ administrador da praça | feito |
 | 2 | Casa em obra | feito |
 | 3 | Caixa de sementes (`a-codar/`) dentro da casa | feito |
-| 4 | Ervas do retrabalho no quintal | a fazer |
+| 4 | Ervas do retrabalho no quintal | feito |
 | 5 | Placa de vistoria | a fazer |
 | 6 | Outdoor dos guardrails | a fazer |
 | 7 | Fábrica por dentro, com skills | a fazer |

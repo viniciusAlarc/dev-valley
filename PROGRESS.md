@@ -3,6 +3,35 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — Painéis de leitura sem rolagem
+
+**O que mudou:** o usuário achou o painel do retrabalho cortado nas primeiras linhas. Causa: no painel grande o corpo
+tem `overflow: hidden` (quem rola é um bloco interno, como na biblioteca), e os painéis de conteúdo simples punham a
+lista direto no corpo. Afetava também as pendências da casa, o quadro de avisos, a horta, o sino, a obra e as sementes.
+`openPanel` ganhou a opção `scroll` (classe `panel-scroll`, o próprio corpo rola) e os 7 painéis a usam; os que têm
+rolagem própria (biblioteca, terminal, commit, diário, Fábrica, conversa com agentes) não mudam.
+**Arquivos:** `web/src/ui/panel.ts`, `web/src/style.css`, `web/src/ui/{pendencias,painel,conferir,obra,sementes,retrabalho}.ts`,
+`RETRABALHO.md`.
+**Testes:** `tsc` + `vite build` (diretório temporário), `npm run typecheck -w server`, auditor sem achado. Conferido
+na vila pelo usuário em 26/10/2026.
+
+## 2026-10-26 — Ervas do retrabalho no quintal
+
+**O que mudou:** passo 4 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor lê o `RETRABALHO.md` de
+cada projeto (G17) guardando o cabeçalho da tabela e as linhas como estão: os projetos variam o formato (data
+`AAAA-MM-DD` ou `DD/MM`, coluna extra como "Virou regra?"), então nada é reinterpretado. Só leitura; sem o arquivo,
+sem ervas. No quintal, à direita da casa e acima da caixa de envio (espelhando a horta), uma erva daninha por linha
+(até 9, grade 3x3; uma em cada três tem florzinha). O tooltip diz quantos registros há; o clique abre a tabela com as
+colunas do arquivo e o lembrete de que três da mesma causa pedem `/nova-regra` (decisão do usuário: sem etiqueta nem
+IA, o agrupamento é dele).
+**Arquivos:** `server/src/retrabalho.ts` (novo), `server/src/world.ts` (`Project.retrabalho`), `web/src/api.ts`,
+`web/src/game/textures.ts` (`weed0`, `weed1`), `web/src/game/TownScene.ts` (`growWeeds`), `web/src/ui/retrabalho.ts`
+(novo), `web/src/ui/actions.ts`, `README.md`, `CLAUDE.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
+testado contra os projetos reais (mesma contagem de linhas de um `grep`, nos dois formatos, todas com o número de
+colunas do cabeçalho). Posição das ervas conferida pelas medidas da caixa de envio, do selo dela e do telhado, não
+renderizada. Conferido na vila pelo usuário em 26/10/2026.
+
 ## 2026-10-26 — Caixa de sementes dentro da casa
 
 **O que mudou:** passo 3 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor lê os planos em

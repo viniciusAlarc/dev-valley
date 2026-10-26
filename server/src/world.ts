@@ -8,6 +8,7 @@ import { missingStructure } from './estrutura.js';
 import { readPainel, type Painel } from './painel.js';
 import { readPendencias, type Pendencia } from './pendencias.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
+import { readRetrabalho, type Retrabalho } from './retrabalho.js';
 import { readSementes, type Semente } from './sementes.js';
 import { restartPending, type RestartPending } from './reinicio.js';
 import type { AgentSummary, Agents } from './agents.js';
@@ -32,6 +33,8 @@ export interface Project {
   missingStructure: string[];
   /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. */
   sementes: Semente[] | null;
+  /** `RETRABALHO.md` (ervas do quintal); null = o projeto não tem o arquivo. */
+  retrabalho: Retrabalho | null;
 }
 
 export interface WorldSession extends SessionInfo {
@@ -106,13 +109,14 @@ async function discoverProjectDirs(config: Config): Promise<string[]> {
 }
 
 async function loadProject(dir: string): Promise<Project> {
-  const [isGit, pendencias, painel, progress, missing, sementes] = await Promise.all([
+  const [isGit, pendencias, painel, progress, missing, sementes, retrabalho] = await Promise.all([
     gitOps.isGitRepo(dir),
     readPendencias(dir),
     readPainel(dir),
     summarizeProgress(dir),
     missingStructure(dir),
     readSementes(dir),
+    readRetrabalho(dir),
   ]);
   const base: Project = {
     id: dir,
@@ -127,6 +131,7 @@ async function loadProject(dir: string): Promise<Project> {
     progress,
     missingStructure: missing,
     sementes,
+    retrabalho,
   };
   if (!isGit) return base;
   const [branch, remote, changes] = await Promise.all([
