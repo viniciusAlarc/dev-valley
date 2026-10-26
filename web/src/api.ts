@@ -17,6 +17,8 @@ export interface Project {
   painel: Painel | null;
   /** Resumo do `PROGRESS.md` (as entregas vêm por `api.progress`); null = o projeto não tem o arquivo. */
   progress: { entries: number; lastDate: string; toCheck: { date: string; title: string }[] } | null;
+  /** Arquivos de acompanhamento que faltam (casa em obra); vazio = estrutura completa. */
+  missingStructure: string[];
 }
 
 export interface ProgressEntry {

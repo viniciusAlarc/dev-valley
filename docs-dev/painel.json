@@ -4,7 +4,7 @@
     "doc": "docs-dev/a-codar/ambiente-de-ia-na-vila.md",
     "fases": [
       { "nome": "Sino e administrador", "estado": "feito" },
-      { "nome": "Casa em obra", "estado": "a fazer" },
+      { "nome": "Casa em obra", "estado": "feito" },
       { "nome": "Caixa de sementes", "estado": "a fazer" },
       { "nome": "Ervas do retrabalho", "estado": "a fazer" },
       { "nome": "Placa de vistoria", "estado": "a fazer" },
@@ -13,6 +13,7 @@
     ]
   },
   "entregas": [
+    { "data": "2026-10-26", "o_que": "Casa em obra: andaime no projeto sem a estrutura de acompanhamento", "como": "server/src/estrutura.ts; painel com o que falta e como resolver" },
     { "data": "2026-10-26", "o_que": "✦ Administrador da praça: explica o sino e o quadro e registra o que o usuário conferiu", "como": "server/src/administrador.ts sobre consulta.ts; Edit só nos arquivos de acompanhamento" },
     { "data": "2026-10-26", "o_que": "Sino na praça com as entregas a conferir e o reinício pendente da vila", "como": "server/src/progress.ts (toCheck), server/src/reinicio.ts, web/src/ui/conferir.ts" },
     { "data": "2026-10-26", "o_que": "Fábrica de agentes: criar, editar e apagar agentes globais e de projeto; NPCs ✦ no pátio", "como": "server/src/agents.ts, /api/agents, web/src/ui/factory.ts" },
@@ -21,7 +22,6 @@
     { "data": "2026-10-25", "o_que": "Quadro de avisos da praça com as decisões pendentes de todos os projetos", "como": "noticeboard clicável, pendências 👤 lidas do PENDENCIAS.md" },
     { "data": "2026-10-25", "o_que": "Quadro de pendências na casa e sinal na fachada", "como": "server/src/pendencias.ts lê o PENDENCIAS.md; bilhetes no InteriorScene" },
     { "data": "2026-10-25", "o_que": "Bibliotecária no balcão da biblioteca", "como": "agente com catálogo em disco, claude -p sem sessão persistida" },
-    { "data": "2026-10-25", "o_que": "Biblioteca com leitor, edição e busca", "como": "server/src/library.ts, LibraryScene" },
-    { "data": "2026-10-24", "o_que": "Interior das casas e balões de status ao vivo", "como": "hooks do Claude Code em POST /api/hooks" }
+    { "data": "2026-10-25", "o_que": "Biblioteca com leitor, edição e busca", "como": "server/src/library.ts, LibraryScene" }
   ]
 }

@@ -4,6 +4,7 @@ import type { Config } from './config.js';
 import * as gitOps from './git.js';
 import type { HookState, SessionStatus } from './hooks.js';
 import type { StatusLineStore, Usage } from './statusline.js';
+import { missingStructure } from './estrutura.js';
 import { readPainel, type Painel } from './painel.js';
 import { readPendencias, type Pendencia } from './pendencias.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
@@ -26,6 +27,8 @@ export interface Project {
   painel: Painel | null;
   /** Resumo do `PROGRESS.md`; null = o projeto não tem o arquivo. */
   progress: ProgressSummary | null;
+  /** Arquivos de acompanhamento que faltam (casa em obra); vazio = estrutura completa. */
+  missingStructure: string[];
 }
 
 export interface WorldSession extends SessionInfo {
@@ -100,11 +103,12 @@ async function discoverProjectDirs(config: Config): Promise<string[]> {
 }
 
 async function loadProject(dir: string): Promise<Project> {
-  const [isGit, pendencias, painel, progress] = await Promise.all([
+  const [isGit, pendencias, painel, progress, missing] = await Promise.all([
     gitOps.isGitRepo(dir),
     readPendencias(dir),
     readPainel(dir),
     summarizeProgress(dir),
+    missingStructure(dir),
   ]);
   const base: Project = {
     id: dir,
@@ -117,6 +121,7 @@ async function loadProject(dir: string): Promise<Project> {
     pendencias,
     painel,
     progress,
+    missingStructure: missing,
   };
   if (!isGit) return base;
   const [branch, remote, changes] = await Promise.all([

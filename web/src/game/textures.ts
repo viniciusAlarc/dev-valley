@@ -128,6 +128,34 @@ function bush(scene: Phaser.Scene) {
   add(scene, 'bush', c);
 }
 
+/** Andaime na frente da fachada: projeto sem a estrutura de acompanhamento dos guardrails (casa em obra). */
+function scaffold(scene: Phaser.Scene) {
+  const W = 26;
+  const H = 46;
+  const { c, ctx } = makeCanvas(W, H);
+  // travessas em X entre os pisos
+  for (let i = 0; i < 12; i++) {
+    rect(ctx, 3 + i * 1.7, 4 + i, 1, 1, '#8d5f30');
+    rect(ctx, 22 - i * 1.7, 4 + i, 1, 1, '#8d5f30');
+    rect(ctx, 3 + i * 1.7, 22 + i, 1, 1, '#8d5f30');
+    rect(ctx, 22 - i * 1.7, 22 + i, 1, 1, '#8d5f30');
+  }
+  // postes
+  for (const x of [1, 23]) {
+    rect(ctx, x, 0, 2, H, '#a0703a');
+    rect(ctx, x, 0, 1, H, '#c79a5e');
+  }
+  // pisos de tábua
+  for (const y of [16, 34]) {
+    rect(ctx, 0, y, W, 3, '#c79a5e');
+    rect(ctx, 0, y + 2, W, 1, '#8d5f30');
+  }
+  // fita de obra no piso de baixo
+  for (let x = 0; x < W; x += 4) rect(ctx, x, 35, 2, 1, '#f5d142');
+  outline(ctx, W, H);
+  add(scene, 'scaffold', c);
+}
+
 /** Canteiro da horta: uma fase do `painel.json`. Terra arada (a fazer), broto (andamento) ou planta madura (feito). */
 function crop(scene: Phaser.Scene, key: string, stage: 0 | 1 | 2) {
   const { c, ctx } = makeCanvas(14, 16);
@@ -501,6 +529,7 @@ export function generateTextures(scene: Phaser.Scene) {
   tree(scene, 'tree0', ['#2f6b2f', '#3f8a3a', '#5aa64a']);
   tree(scene, 'tree1', ['#2a5f34', '#357a45', '#4f9a58']);
   bush(scene);
+  scaffold(scene);
   crop(scene, 'crop-todo', 0);
   crop(scene, 'crop-growing', 1);
   crop(scene, 'crop-done', 2);

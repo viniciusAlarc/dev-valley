@@ -12,6 +12,7 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | Escrivaninha | Painel do projeto: branch, remoto, nova sessão, VS Code, caixa de envio |
 | Balão "..." / "!" | Sessão trabalhando / pedindo sua permissão (via hooks) |
 | Janela acesa | Alguma sessão do projeto está rodando |
+| Andaime na fachada | Falta estrutura de acompanhamento (`CLAUDE.md`, `PENDENCIAS.md`, `PROGRESS.md`, `docs-dev/painel.json`, auditor) — clique para ver como resolver |
 | Praça | Sessões abertas fora de qualquer projeto |
 | Sino na praça | Entregas do `PROGRESS.md` que ainda dizem "Falta conferir na vila", e o reinício pendente do Dev Valley |
 | Biblioteca | CLAUDE.md, memórias e docs de cada projeto, com leitor, edição e busca |

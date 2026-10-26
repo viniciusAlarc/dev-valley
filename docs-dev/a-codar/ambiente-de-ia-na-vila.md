@@ -45,7 +45,7 @@ aparecem no quintal); `docs-conhecimento` na biblioteca (a pasta ainda não exis
 | # | Entrega | Estado |
 |---|---|---|
 | 1 | Sino de conferência, reinício pendente e ✦ administrador da praça | feito |
-| 2 | Casa em obra | a fazer |
+| 2 | Casa em obra | feito |
 | 3 | Caixa de sementes (`a-codar/`) dentro da casa | a fazer |
 | 4 | Ervas do retrabalho no quintal | a fazer |
 | 5 | Placa de vistoria | a fazer |

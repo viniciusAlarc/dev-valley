@@ -7,6 +7,7 @@ import { openAdministrador, openLibrarian } from './librarian';
 import { escapeHtml, isPanelOpen, openPanel } from './panel';
 import { openDiary } from './diario';
 import { openFactory } from './factory';
+import { openObra } from './obra';
 import { openPainel } from './painel';
 import { openPendencias, openUserPendencias } from './pendencias';
 import { openProject } from './project';
@@ -75,6 +76,10 @@ export const ui = {
   openDiary(project: Project) {
     this.hideTooltip();
     void openDiary(project);
+  },
+  openObra(project: Project) {
+    this.hideTooltip();
+    openObra(project);
   },
   openPainel(project: Project) {
     this.hideTooltip();

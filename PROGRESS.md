@@ -3,6 +3,22 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — Casa em obra
+
+**O que mudou:** passo 2 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor confere, em cada projeto,
+a estrutura de acompanhamento dos guardrails: `CLAUDE.md`, `PENDENCIAS.md`, `PROGRESS.md`, `docs-dev/painel.json` e o
+auditor (`scripts/auditar-referencias.py`); só leitura. Faltando qualquer um, a casa ganha um andaime na frente da
+metade direita da fachada (postes, dois pisos de tábua e fita de obra). O tooltip diz o que falta; o clique abre o
+painel com o que cada peça é e como resolver: `/novo-projeto` numa sessão da casa para os documentos, e
+`~/Documents/IA/instalar-projeto.sh <caminho>` para o auditor.
+**Arquivos:** `server/src/estrutura.ts` (novo), `server/src/world.ts` (`Project.missingStructure`), `web/src/api.ts`,
+`web/src/game/textures.ts` (`scaffold`), `web/src/game/TownScene.ts`, `web/src/ui/obra.ts` (novo),
+`web/src/ui/actions.ts`, `README.md`, `CLAUDE.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
+testado contra os projetos reais (mesmo resultado de uma conferência por shell) e o projeto falso do scratchpad.
+Posição do andaime conferida pelas medidas da casa, do arbusto e da caixa de envio, não renderizada. Conferido na
+vila pelo usuário em 26/10/2026.
+
 ## 2026-10-26 — ✦ Administrador da praça
 
 **O que mudou:** decisão do usuário (26/10/2026): no lugar de um botão "Conferi" no sino, um agente permanente ao

@@ -28,6 +28,8 @@ interface HouseView {
   badgeText?: Phaser.GameObjects.Text;
   /** "!" sobre o telhado quando há pendência P1 aberta. */
   alert: Phaser.GameObjects.Container;
+  /** Andaime: falta estrutura de acompanhamento (casa em obra). */
+  scaffold: Phaser.GameObjects.Image;
   crops: Phaser.GameObjects.Image[];
   cropsKey: string;
 }
@@ -343,7 +345,15 @@ export class TownScene extends Phaser.Scene {
       .setVisible(false);
     this.tweens.add({ targets: alert, y: alert.y - 3, yoyo: true, repeat: -1, duration: 700, ease: 'Sine.inOut' });
 
-    const view: HouseView = { plot, glows, alert, crops: [], cropsKey: '' };
+    // Andaime na frente da metade direita da fachada (por cima da janela, por baixo do "!").
+    const scaffold = this.add.image(plot.house.x + 17, plot.house.y - 1, 'scaffold').setOrigin(0.5, 1).setDepth(plot.house.y + 1.5).setVisible(false);
+    makeInteractive(
+      scaffold,
+      () => `Em obra — falta: ${this.currentProject(p.id).missingStructure.join(', ')} — clique para ver como resolver`,
+      () => ui.openObra(this.currentProject(p.id)),
+    );
+
+    const view: HouseView = { plot, glows, alert, scaffold, crops: [], cropsKey: '' };
     if (p.isGit) {
       const bin = this.addSprite('bin', plot.bin.x, plot.bin.y);
       makeInteractive(
@@ -396,6 +406,7 @@ export class TownScene extends Phaser.Scene {
       view.badgeText.setText(n > 99 ? '99+' : String(n));
     }
     view.alert.setVisible(urgentPendencias(project).length > 0);
+    view.scaffold.setVisible(project.missingStructure.length > 0);
     this.plantGarden(view, project);
     const lit = this.world.sessions.some((s) => s.projectId === project.id && s.live);
     for (const g of view.glows) {
