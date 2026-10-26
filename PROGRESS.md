@@ -29,7 +29,7 @@ corpo da status line, nome ao abrir via `prompt.compose`, vila fechada, porta do
 regra 3: o corpo enviado tem só `session_id`, `cwd` e evento, nunca o texto da mensagem); `tsc` do mod;
 `npm run typecheck -w server`; auditor sem achado. Front sem mudança. Conferido pelo usuário numa sessão nova (status ao
 vivo, permissão, `@Nome`); depois disso o "você é o morador X" passou do `prompt.compose` (pulado) para a primeira
-mensagem, testado no `claude plugin test` e a conferir na próxima sessão nova (PD-14). PD-11 e PD-13 fechadas; o plano
+mensagem, testado no `claude plugin test` e conferido pelo usuário numa sessão nova em 26/10/2026 (PD-14 fechada). PD-11 e PD-13 fechadas; o plano
 foi para `docs-dev/context/hooks-como-mod.md`.
 
 ## 2026-10-26 — Nomes únicos dos moradores e citação @Nome entre sessões

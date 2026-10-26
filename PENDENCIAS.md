@@ -19,7 +19,6 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| PD-14 | 👤 | Numa sessão nova, conferir se ela sabe o próprio nome de morador (desde 26/10/2026 o aviso vai junto da primeira mensagem, não mais nas instruções da sessão) | 2026-10-26 |
 | PD-4 | 💻 | Fábrica: criar e editar agentes em `.claude/agents` | 2026-10-24 |
 | PD-5 | 💻 | Chat próprio via Claude Agent SDK, com pedidos de permissão em caixas de diálogo | 2026-10-24 |
 
