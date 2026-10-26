@@ -11,6 +11,14 @@ const ROOF_NAMES = Object.keys(ROOFS).filter((r) => r !== 'grey');
 const GARDEN_COLS = 3;
 const GARDEN_MAX = 9;
 /** Ervas à direita da casa, acima da caixa de envio: uma por linha do `RETRABALHO.md`, 3 colunas x 3 linhas. */
+/** A data do arquivo é o último dia do prazo; vence no dia seguinte (comparação pela data local). */
+function auditoriaVencida(due: string | null): boolean {
+  if (!due) return false;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return due < today;
+}
+
 const WEEDS_COLS = 3;
 const WEEDS_MAX = 9;
 const CROP_TEXTURE = { feito: 'crop-done', andamento: 'crop-growing', 'a fazer': 'crop-todo' } as const;
@@ -33,6 +41,8 @@ interface HouseView {
   alert: Phaser.GameObjects.Container;
   /** Andaime: falta estrutura de acompanhamento (casa em obra). */
   scaffold: Phaser.GameObjects.Image;
+  /** Placa de vistoria (data da auditoria das regras); amarela quando vencida. */
+  plaque: Phaser.GameObjects.Image;
   crops: Phaser.GameObjects.Image[];
   cropsKey: string;
   weeds: Phaser.GameObjects.Image[];
@@ -358,7 +368,22 @@ export class TownScene extends Phaser.Scene {
       () => ui.openObra(this.currentProject(p.id)),
     );
 
-    const view: HouseView = { plot, glows, alert, scaffold, crops: [], cropsKey: '', weeds: [], weedsKey: '' };
+    // Placa de vistoria embaixo da janela da esquerda, entre o peitoril e a fundação.
+    const plaque = this.add.image(plot.house.x - 16, plot.house.y - 8, 'plaque-ok').setOrigin(0.5, 1).setDepth(plot.house.y + 1).setVisible(false);
+    makeInteractive(
+      plaque,
+      () => {
+        const due = this.currentProject(p.id).auditoria ?? '';
+        const [y, m, d] = due.split('-');
+        return auditoriaVencida(due)
+          ? `Vistoria das regras vencida desde ${d}/${m}/${y} — numa sessão desta casa, rode /auditar-regras`
+          : `Vistoria das regras em dia — próxima até ${d}/${m}/${y} (/auditar-regras)`;
+      },
+      // A placa está na fachada: o clique continua entrando na casa.
+      () => this.enterHouse(this.currentProject(p.id)),
+    );
+
+    const view: HouseView = { plot, glows, alert, scaffold, plaque, crops: [], cropsKey: '', weeds: [], weedsKey: '' };
     if (p.isGit) {
       const bin = this.addSprite('bin', plot.bin.x, plot.bin.y);
       makeInteractive(
@@ -431,6 +456,7 @@ export class TownScene extends Phaser.Scene {
     }
     view.alert.setVisible(urgentPendencias(project).length > 0);
     view.scaffold.setVisible(project.missingStructure.length > 0);
+    view.plaque.setVisible(!!project.auditoria).setTexture(auditoriaVencida(project.auditoria) ? 'plaque-due' : 'plaque-ok');
     this.plantGarden(view, project);
     this.growWeeds(view, project);
     const lit = this.world.sessions.some((s) => s.projectId === project.id && s.live);

@@ -4,7 +4,7 @@ import type { Config } from './config.js';
 import * as gitOps from './git.js';
 import type { HookState, SessionStatus } from './hooks.js';
 import type { StatusLineStore, Usage } from './statusline.js';
-import { missingStructure } from './estrutura.js';
+import { missingStructure, readAuditoria } from './estrutura.js';
 import { readPainel, type Painel } from './painel.js';
 import { readPendencias, type Pendencia } from './pendencias.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
@@ -35,6 +35,8 @@ export interface Project {
   sementes: Semente[] | null;
   /** `RETRABALHO.md` (ervas do quintal); null = o projeto não tem o arquivo. */
   retrabalho: Retrabalho | null;
+  /** Vencimento da auditoria das regras, `AAAA-MM-DD` (placa de vistoria); null = sem `.claude/auditoria-regras.txt`. */
+  auditoria: string | null;
 }
 
 export interface WorldSession extends SessionInfo {
@@ -109,7 +111,7 @@ async function discoverProjectDirs(config: Config): Promise<string[]> {
 }
 
 async function loadProject(dir: string): Promise<Project> {
-  const [isGit, pendencias, painel, progress, missing, sementes, retrabalho] = await Promise.all([
+  const [isGit, pendencias, painel, progress, missing, sementes, retrabalho, auditoria] = await Promise.all([
     gitOps.isGitRepo(dir),
     readPendencias(dir),
     readPainel(dir),
@@ -117,6 +119,7 @@ async function loadProject(dir: string): Promise<Project> {
     missingStructure(dir),
     readSementes(dir),
     readRetrabalho(dir),
+    readAuditoria(dir),
   ]);
   const base: Project = {
     id: dir,
@@ -132,6 +135,7 @@ async function loadProject(dir: string): Promise<Project> {
     missingStructure: missing,
     sementes,
     retrabalho,
+    auditoria,
   };
   if (!isGit) return base;
   const [branch, remote, changes] = await Promise.all([

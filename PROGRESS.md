@@ -3,6 +3,22 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — Placa de vistoria na fachada
+
+**O que mudou:** passo 5 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor lê a data de vencimento
+da auditoria de julgamento das regras em `.claude/auditoria-regras.txt` de cada projeto (gravada pelo
+`instalar-projeto.sh`, reagendada pela skill `/auditar-regras`); só leitura, e sem o arquivo não há placa. Na
+fachada, embaixo da janela da esquerda (entre o peitoril e a fundação, do lado oposto ao andaime), uma plaquinha:
+papel quando está em dia, amarela quando a data já passou (vence no dia seguinte ao do arquivo, como o aviso do hook
+de Stop). O tooltip diz a data e, vencida, lembra o `/auditar-regras`; o clique entra na casa, como o resto da fachada.
+**Arquivos:** `server/src/estrutura.ts` (`readAuditoria`), `server/src/world.ts` (`Project.auditoria`),
+`web/src/api.ts`, `web/src/game/textures.ts` (`plaque-ok`, `plaque-due`), `web/src/game/TownScene.ts`
+(`auditoriaVencida`), `README.md`, `CLAUDE.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
+testado contra os projetos reais (mesmas datas de um `grep`; sem arquivo = null). Hoje nenhum projeto está vencido,
+então só a placa em dia aparece. Posição conferida pelas medidas da janela, da porta e da fundação, não renderizada.
+Conferido na vila pelo usuário em 26/10/2026.
+
 ## 2026-10-26 — Painéis de leitura sem rolagem
 
 **O que mudou:** o usuário achou o painel do retrabalho cortado nas primeiras linhas. Causa: no painel grande o corpo

@@ -143,6 +143,16 @@ function weed(scene: Phaser.Scene, key: string, flower: boolean) {
   add(scene, key, c);
 }
 
+/** Placa de vistoria embaixo da janela da esquerda: no prazo (papel) ou vencida (amarela). */
+function plaque(scene: Phaser.Scene, key: string, face: string, lines: string) {
+  const { c, ctx } = makeCanvas(9, 7);
+  rect(ctx, 0, 0, 9, 7, '#6b4423');
+  rect(ctx, 1, 1, 7, 5, face);
+  rect(ctx, 2, 2, 5, 1, lines);
+  rect(ctx, 2, 4, 3, 1, lines);
+  add(scene, key, c);
+}
+
 /** Andaime na frente da fachada: projeto sem a estrutura de acompanhamento dos guardrails (casa em obra). */
 function scaffold(scene: Phaser.Scene) {
   const W = 26;
@@ -545,6 +555,8 @@ export function generateTextures(scene: Phaser.Scene) {
   tree(scene, 'tree1', ['#2a5f34', '#357a45', '#4f9a58']);
   bush(scene);
   scaffold(scene);
+  plaque(scene, 'plaque-ok', '#f2e6c4', '#958c7c');
+  plaque(scene, 'plaque-due', '#f5d142', '#8c5a00');
   weed(scene, 'weed0', false);
   weed(scene, 'weed1', true);
   crop(scene, 'crop-todo', 0);

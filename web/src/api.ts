@@ -23,6 +23,8 @@ export interface Project {
   sementes: { path: string; title: string }[] | null;
   /** `RETRABALHO.md` (ervas do quintal): cabeçalho e linhas como estão no arquivo; null = sem o arquivo. */
   retrabalho: { header: string[]; rows: string[][] } | null;
+  /** Vencimento da auditoria das regras, `AAAA-MM-DD` (placa de vistoria); null = sem o arquivo. */
+  auditoria: string | null;
 }
 
 export interface ProgressEntry {
