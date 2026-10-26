@@ -16,7 +16,7 @@ export interface Project {
   /** `docs-dev/painel.json` (plano e fases); null = o projeto não tem o arquivo. */
   painel: Painel | null;
   /** Resumo do `PROGRESS.md` (as entregas vêm por `api.progress`); null = o projeto não tem o arquivo. */
-  progress: { entries: number; lastDate: string } | null;
+  progress: { entries: number; lastDate: string; toCheck: { date: string; title: string }[] } | null;
 }
 
 export interface ProgressEntry {
@@ -45,6 +45,12 @@ export interface Pendencia {
 /** Pendências P1 (crítico) abertas: só elas acendem o sinal na fachada da casa (decisão de 25/10/2026). */
 export function urgentPendencias(project: Project): Pendencia[] {
   return (project.pendencias ?? []).filter((p) => p.priority === 1);
+}
+
+/** Sino da praça: quantas entregas esperam conferência na vila, mais o reinício pendente do próprio Dev Valley. */
+export function bellCount(world: World): number {
+  const entries = world.projects.reduce((n, p) => n + (p.progress?.toCheck.length ?? 0), 0);
+  return entries + (world.restart.server || world.restart.web ? 1 : 0);
 }
 
 export interface Session {
@@ -104,6 +110,8 @@ export interface World {
   agents: AgentSummary[];
   /** Limites do plano, vindos do status line; null até a primeira sessão reportar. */
   usage: { rows: UsageRow[]; updatedAt: number } | null;
+  /** Código do Dev Valley mudou depois que a vila subiu: falta o reinício do usuário (sino da praça). */
+  restart: { server: boolean; web: boolean };
 }
 
 /** Avulsas encerradas que continuam soltas na praça (elas não têm casa para onde ir). */
@@ -226,7 +234,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], agents: [], usage: null };
+let world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false } };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

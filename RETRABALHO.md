@@ -5,4 +5,5 @@
 
 | Data | O que foi refeito | Causa |
 |---|---|---|
+| 2026-10-26 | Regra do sino de conferência refeita: casava a frase citada entre aspas (sumiu a própria entrega do sino) e "falta conferir" solto numa tabela de outro projeto | Supus que "falta conferir" só aparece como marcação; testei contra os arquivos reais mas não conferi cada item da lista |
 | 2026-10-26 | Mod dev-valley (PD-11) reescrito de eventos `classic.*` para eventos nativos, e a permissão voltou ao hook de shell | Supus que um mod de usuário recebe os eventos `classic.*`; validei com `claude plugin test` (que não tem o plugin de segurança acima) e não numa sessão real antes de pedir o install |

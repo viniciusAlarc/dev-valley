@@ -7,6 +7,7 @@ import type { StatusLineStore, Usage } from './statusline.js';
 import { readPainel, type Painel } from './painel.js';
 import { readPendencias, type Pendencia } from './pendencias.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
+import { restartPending, type RestartPending } from './reinicio.js';
 import type { AgentSummary, Agents } from './agents.js';
 import type { Moradores } from './moradores.js';
 import { listSessions, type SessionInfo } from './sessions.js';
@@ -48,6 +49,8 @@ export interface World {
   /** Agentes globais e dos projetos (Fábrica, PD-4). */
   agents: AgentSummary[];
   usage: Usage | null;
+  /** Código do Dev Valley mudou depois que a vila subiu (sino da praça). */
+  restart: RestartPending;
 }
 
 /** Janelas possíveis quando ainda não sabemos o tamanho real para o modelo. */
@@ -178,5 +181,5 @@ export async function buildWorld(
     };
   });
   await moradores.sync(sessions, projects);
-  return { projects, sessions, agents: await agents.list(projects), usage: statusLine.usage };
+  return { projects, sessions, agents: await agents.list(projects), usage: statusLine.usage, restart: await restartPending() };
 }

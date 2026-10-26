@@ -1,8 +1,9 @@
-import { agents, type AgentSummary, type Project, type Session } from '../api';
+import { agents, type AgentSummary, type Project, type Session, type World } from '../api';
 import { villagerName } from '../game/names';
 import { openCommit } from './commit';
+import { openConferir } from './conferir';
 import { openLibrary } from './library';
-import { openLibrarian } from './librarian';
+import { openAdministrador, openLibrarian } from './librarian';
 import { escapeHtml, isPanelOpen, openPanel } from './panel';
 import { openDiary } from './diario';
 import { openFactory } from './factory';
@@ -67,6 +68,10 @@ export const ui = {
     this.hideTooltip();
     openUserPendencias(projects);
   },
+  openConferir(world: World) {
+    this.hideTooltip();
+    openConferir(world);
+  },
   openDiary(project: Project) {
     this.hideTooltip();
     void openDiary(project);
@@ -82,6 +87,10 @@ export const ui = {
   openLibrary(opts: { sectionId?: string; search?: boolean; path?: string } = {}) {
     this.hideTooltip();
     void openLibrary(opts);
+  },
+  openAdministrador() {
+    this.hideTooltip();
+    openAdministrador();
   },
   openLibrarian() {
     this.hideTooltip();

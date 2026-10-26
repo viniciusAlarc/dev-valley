@@ -3,6 +3,47 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — ✦ Administrador da praça
+
+**O que mudou:** decisão do usuário (26/10/2026): no lugar de um botão "Conferi" no sino, um agente permanente ao
+lado do sino e do quadro de avisos. Ele tira dúvidas sobre os itens e, quando o usuário diz que conferiu, registra como
+a sessão faria: lê o `CLAUDE.md` do projeto, troca "Falta conferir na vila" por "Conferido na vila pelo usuário em
+DD/MM/AAAA", fecha o passo do plano em `a-codar/` e a pendência que esperava a conferência. Relato de problema não vira
+conferência. Mesmos fundamentos da bibliotecária (`claude -p --no-session-persistence`, Sonnet, não vira morador);
+a vila passa no prompt o que está no sino e no quadro, e libera `Edit` só para `PROGRESS.md`, `PENDENCIAS.md`,
+`docs-dev/painel.json` e `docs-dev/a-codar/**` de cada projeto (o resto é negado: no `-p` não há diálogo). A execução
+do `claude -p` saiu de `librarian.ts` para `consulta.ts` (base comum), e o painel de conversa da bibliotecária ficou
+genérico, com uma conversa por agente.
+Correção do sino: a regra casava a frase citada entre aspas (a própria entrega do sino sumia) e "falta conferir"
+solto numa tabela; agora só as frases-padrão "Falta conferir na vila" / "Conferido na vila", fora de aspas e crases.
+**Arquivos:** `server/agents/administrador.md` (novo), `server/src/administrador.ts` (novo), `server/src/consulta.ts`
+(novo), `server/src/librarian.ts`, `server/src/index.ts` (`/api/administrador/ask`), `server/src/progress.ts`,
+`web/src/ui/librarian.ts` (`openAdministrador`), `web/src/ui/actions.ts`, `web/src/game/TownScene.ts`, `README.md`,
+`CLAUDE.md` (regra 5), `RETRABALHO.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Permissão
+restrita testada num `claude -p` real (editou o arquivo liberado, foi negado no outro). Administrador testado num
+projeto falso no scratchpad (git): "conferi o botão azul" trocou o texto no `PROGRESS.md`, fechou o passo no
+`a-codar/` e a PD que esperava a conferência, e recusou editar código (US$ 0,09, 14s); "aparece, mas está cortado"
+não alterou nenhum arquivo. Regra do sino testada contra os `PROGRESS.md` reais. Conferido na vila pelo usuário em
+26/10/2026.
+
+## 2026-10-26 — Sino de conferência na praça
+
+**O que mudou:** passo 1 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md` (decisões do usuário em 26/10/2026). Na
+praça, entre o canteiro e a árvore do canto, um sino num poste: lista as entregas do `PROGRESS.md` de todos os projetos
+que dizem "Falta conferir" e ainda não dizem "Conferido na vila" (só leitura: a entrega sai quando a sessão troca o
+texto). O sino também avisa o reinício pendente do próprio Dev Valley: `server/src` mais novo que o processo, ou
+`web/src`/`web/index.html` mais novo que o último build (`web/dist`); a varredura roda no máximo a cada 15s. Com algo
+na lista, o sino dá três balanços a cada 6s. O canteiro da praça foi de +40 para +34 para o poste caber.
+**Arquivos:** `server/src/progress.ts` (`toCheck`), `server/src/reinicio.ts` (novo), `server/src/world.ts`
+(`World.restart`), `server/src/index.ts`, `web/src/api.ts` (`bellCount`), `web/src/game/textures.ts` (`bell`,
+`bell-post`), `web/src/game/TownScene.ts` (sino e `ringBell`), `web/src/ui/conferir.ts` (novo), `web/src/ui/actions.ts`,
+`README.md`, `CLAUDE.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
+testado contra os `PROGRESS.md` reais (a entrega da Fábrica, já conferida, fica de fora) e detector de reinício
+testado (acusou o front alterado). Posição do sino conferida pelas coordenadas (largura das peças vizinhas), não
+renderizada. Conferido na vila pelo usuário em 26/10/2026.
+
 ## 2026-10-26 — Fábrica de agentes (PD-4)
 
 **O que mudou:** decisões do usuário (26/10/2026, `docs-dev/context/fabrica-de-agentes.md`): a Fábrica mostra e edita
@@ -118,7 +159,7 @@ reservada ao lado da casa, então árvores e flores da vila não mudam de lugar.
 `web/src/ui/painel.ts` (novo), `web/src/ui/actions.ts`.
 **Testes:** `npm run typecheck -w server`, `tsc` + `vite build` do front (diretório temporário), auditor sem achado;
 leitor testado contra o `painel.json` deste repo; canteiros conferidos num render fora do navegador (mesmas funções de
-desenho, script no scratchpad). Falta conferir na vila (reinício do usuário).
+desenho, script no scratchpad). Conferido na vila pelo usuário em 26/10/2026.
 
 ## 2026-10-25 — Quadro de avisos da praça e sinal só para P1
 
@@ -129,7 +170,7 @@ aberta (P2 não acende mais, para não alertar o tempo todo).
 **Arquivos:** `web/src/ui/pendencias.ts` (`openUserPendencias`), `web/src/ui/actions.ts`, `web/src/game/TownScene.ts`
 (quadro clicável, sinal só P1), `web/src/api.ts` (`urgentPendencias`).
 **Testes:** `npm run typecheck -w server`, `tsc` + `vite build` do front (diretório temporário), auditor sem achado.
-Falta conferir na vila (reinício do usuário).
+Conferido na vila pelo usuário em 26/10/2026.
 
 ## 2026-10-25 — Quadro de pendências na casa e sinal na fachada
 
@@ -144,7 +185,7 @@ tooltip da casa diz quantas são.
 `web/src/game/InteriorScene.ts` (`pinNotes`), `web/src/game/TownScene.ts` (sinal), `web/src/style.css`.
 **Testes:** `npm run typecheck -w server`, `tsc` + `vite build` do front (num diretório temporário, para não trocar o
 front servido enquanto há sessões na vila), auditor sem achado; leitor testado contra o `PENDENCIAS.md` deste repo.
-Falta conferir na vila (reinício do usuário).
+Conferido na vila pelo usuário em 26/10/2026.
 
 ## 2026-10-25 — Praça mais completa
 
@@ -157,7 +198,7 @@ O campo `well` do layout passou a se chamar `fountain`; a textura do poço saiu.
 **Arquivos:** `web/src/game/textures.ts` (`fountain`, `noticeBoard`, `bench`, `lamppost`, `planter`, `plazaRing`),
 `web/src/game/TownScene.ts` (`buildPlaza`, faixa de passeio), `web/src/game/layout.ts`.
 **Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado; composição da praça conferida num render
-fora do navegador (mesmas funções de desenho). Falta conferir na vila.
+fora do navegador (mesmas funções de desenho). Conferido na vila pelo usuário em 26/10/2026.
 
 ## 2026-10-25 — Avulsas encerradas voltam à praça
 
@@ -165,7 +206,7 @@ fora do navegador (mesmas funções de desenho). Falta conferir na vila.
 "dentro de casa"). Decisão do usuário (25/10/2026): na praça ficam todas as avulsas vivas e, se houver vaga, as encerradas
 mais recentes, até 4 no total (regra antiga, agora fixa no código em `PLAZA_OFFLINE_LIMIT`). Os quintais das casas continuam só com vivas.
 **Arquivos:** `web/src/api.ts` (`yardResidents`).
-**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. Falta conferir na vila.
+**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. Conferido na vila pelo usuário em 26/10/2026.
 
 ## 2026-10-25 — Quintal só com sessões vivas
 
@@ -177,7 +218,7 @@ da vila ou terminal fechado no VS Code). Encerrada, ela fica dentro de casa até
 A config `sessionsPerProject` perdeu o uso e saiu.
 **Arquivos:** `web/src/api.ts` (`yardResidents`), `server/src/config.ts`, `server/src/world.ts`, `server/src/index.ts`,
 `web/src/game/TownScene.ts`, `dev-valley.config.json`, `README.md` (seção Configuração).
-**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. Falta conferir na vila (reinício do usuário).
+**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. Conferido na vila pelo usuário em 26/10/2026.
 
 ## 2026-10-25 — Revisão para repositório público
 

@@ -12,7 +12,13 @@ export interface ProgressEntry {
 export interface ProgressSummary {
   entries: number;
   lastDate: string;
+  /** Entregas que ainda dizem "Falta conferir na vila" (sino da praça). */
+  toCheck: { date: string; title: string }[];
 }
+
+// Só as frases-padrão, e não quando aparecem citadas (entre aspas ou crases) no texto da entrega.
+const TO_CHECK = /(?<!["“'`])falta conferir na vila/i;
+const CHECKED = /(?<!["“'`])conferid[oa] na vila/i;
 
 const HEADING = /^##\s+(?:(\d{4}-\d{2}-\d{2})\s*[—–-]\s*)?(.+)$/;
 
@@ -43,5 +49,8 @@ export async function readProgress(dir: string): Promise<ProgressEntry[] | null>
 
 export async function summarizeProgress(dir: string): Promise<ProgressSummary | null> {
   const entries = await readProgress(dir);
-  return entries && { entries: entries.length, lastDate: entries.find((e) => e.date)?.date ?? '' };
+  if (!entries) return null;
+  // A sessão marca a conferência trocando o texto da entrega; a vila só lê.
+  const toCheck = entries.filter((e) => TO_CHECK.test(e.body) && !CHECKED.test(e.body)).map(({ date, title }) => ({ date, title }));
+  return { entries: entries.length, lastDate: entries.find((e) => e.date)?.date ?? '', toCheck };
 }

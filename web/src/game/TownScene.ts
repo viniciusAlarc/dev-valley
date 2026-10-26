@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
-import { urgentPendencias, yardResidents, type Project, type Session, type World } from '../api';
+import { bellCount, urgentPendencias, yardResidents, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, label, makeInteractive, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
 import { generateTextures, hash, mulberry32, ROOFS } from './textures';
+import { villagerTexture } from './villager';
 
 const ROOF_NAMES = Object.keys(ROOFS).filter((r) => r !== 'grey');
 /** Horta à esquerda da casa: um canteiro por fase do `painel.json`, 3 colunas x 3 linhas. */
@@ -39,8 +40,10 @@ export class TownScene extends Phaser.Scene {
   private residents = new Map<string, Resident>();
   private agentNpcs = new Map<string, { npc: AgentNpc; timer?: Phaser.Time.TimerEvent }>();
   private agentArea!: Rect;
-  private world: World = { projects: [], sessions: [], agents: [], usage: null };
+  private world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false } };
   private ready = false;
+  /** Sino da praça: balança de tempos em tempos enquanto há algo para conferir. */
+  private bell?: Phaser.GameObjects.Image;
   private pendingWorld: World | null = null;
   private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT', Phaser.Input.Keyboard.Key>;
 
@@ -106,6 +109,12 @@ export class TownScene extends Phaser.Scene {
     }
     this.syncResidents();
     this.syncAgents();
+  }
+
+  /** Três balanços curtos a cada poucos segundos, só enquanto há entrega a conferir ou reinício pendente. */
+  private ringBell() {
+    if (!this.bell || !this.world || !bellCount(this.world) || this.tweens.isTweening(this.bell)) return;
+    this.tweens.add({ targets: this.bell, angle: { from: -14, to: 14 }, duration: 180, yoyo: true, repeat: 2, onComplete: () => this.bell?.setAngle(0) });
   }
 
   private enterHouse(project: Project, instant = false) {
@@ -240,7 +249,33 @@ export class TownScene extends Phaser.Scene {
       },
       () => ui.openUserPendencias(this.world.projects),
     );
-    this.addSprite('planter', fountain.x + 40, plaza.y + 28);
+    this.addSprite('planter', fountain.x + 34, plaza.y + 28);
+    // Sino entre o canteiro e a árvore do canto (poste de 10px, sobra folga dos dois lados).
+    const post = this.addSprite('bell-post', fountain.x + 52, plaza.y + 30);
+    this.bell = this.add.image(Math.round(fountain.x + 52), plaza.y + 5, 'bell').setOrigin(0.5, 0).setDepth(post.depth + 1);
+    makeInteractive(
+      this.bell,
+      () => {
+        const n = bellCount(this.world);
+        return n ? `Sino — ${n} item(ns) esperando você conferir na vila` : 'Sino — nada esperando conferência';
+      },
+      () => ui.openConferir(this.world),
+    );
+    this.time.addEvent({ delay: 6000, loop: true, callback: () => this.ringBell() });
+
+    // ✦ Administrador da praça (agente permanente), entre o quadro de avisos e o chafariz: explica o sino e o quadro e
+    // registra o que o usuário conferiu. Mesmos fundamentos da bibliotecária (consulta curta, não vira morador).
+    const adminX = fountain.x - 20;
+    const adminY = plaza.y + 34;
+    const admin = this.add.sprite(adminX, adminY, villagerTexture(this, 'administrador-dev-valley'), 0).setOrigin(0.5, 1).setDepth(adminY);
+    makeInteractive(
+      admin,
+      () => '✦ Administrador da praça — agente permanente\n"Dúvida sobre o sino ou o quadro? Já conferiu algo? Fale comigo."',
+      () => ui.openAdministrador(),
+    );
+    const star = this.add.text(adminX + 7, adminY - 34, '✦', { fontFamily: 'serif', fontSize: '10px', color: '#f7d046', resolution: 4 }).setOrigin(0.5).setDepth(100000);
+    star.setStroke('#5e3a1c', 2);
+    this.tweens.add({ targets: star, y: star.y - 3, alpha: 0.6, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut' });
     // Um banco só, à esquerda, e os arbustos juntos à direita: a praça não fica espelhada.
     this.addSprite('bench', fountain.x - 64, fountain.y + 16);
     this.addSprite('bush', fountain.x + 72, fountain.y + 12);

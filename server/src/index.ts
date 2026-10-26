@@ -10,6 +10,7 @@ import { loadConfig, ROOT_DIR } from './config.js';
 import * as gitOps from './git.js';
 import { HookStore } from './hooks.js';
 import { Library } from './library.js';
+import { askAdministrador } from './administrador.js';
 import { askLibrarian } from './librarian.js';
 import { agentInput, Agents } from './agents.js';
 import { Moradores } from './moradores.js';
@@ -22,7 +23,7 @@ const config = loadConfig();
 const HOST = '127.0.0.1';
 const POLL_MS = 3000;
 
-let world: World = { projects: [], sessions: [], agents: [], usage: null };
+let world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false } };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 
@@ -30,7 +31,7 @@ const terminals = new TerminalManager(() => void refreshWorld());
 const hooks = new HookStore();
 const library = new Library(config, () => world.projects);
 const statusLine = new StatusLineStore();
-/** Sessões que a própria vila abre por baixo (consultas à bibliotecária) — não viram moradores. */
+/** Sessões que a própria vila abre por baixo (consultas à bibliotecária e ao administrador) — não viram moradores. */
 const internalSessions = new Set<string>();
 const moradores = new Moradores();
 const agents = new Agents(() => world.projects);
@@ -138,6 +139,31 @@ app.post('/api/librarian/ask', (req, res) => {
     (event) => {
       res.write(JSON.stringify(event) + '\n');
       if (event.type !== 'step') res.end();
+    },
+    internalSessions,
+  );
+  res.on('close', () => {
+    if (!res.writableEnded) cancel();
+  });
+});
+
+// Pergunta ao administrador da praça (sino e quadro de avisos); ele pode registrar conferências nos arquivos de
+// acompanhamento dos projetos. Mesmo formato NDJSON da bibliotecária.
+app.post('/api/administrador/ask', (req, res) => {
+  const question = String(req.body?.question ?? '').trim();
+  if (!question) return res.status(400).json({ error: 'pergunta vazia' });
+  const history = Array.isArray(req.body?.history) ? req.body.history : [];
+  res.setHeader('Content-Type', 'application/x-ndjson');
+  const cancel = askAdministrador(
+    question,
+    history,
+    world.projects,
+    (event) => {
+      res.write(JSON.stringify(event) + '\n');
+      if (event.type !== 'step') {
+        res.end();
+        void refreshWorld();
+      }
     },
     internalSessions,
   );

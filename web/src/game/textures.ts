@@ -342,6 +342,32 @@ function noticeBoard(scene: Phaser.Scene) {
 
 // ---------------- praça ----------------
 
+/** Sino de conferência: entregas esperando o usuário conferir na vila. */
+function bell(scene: Phaser.Scene) {
+  const W = 10;
+  const H = 30;
+  const { c, ctx } = makeCanvas(W, H);
+  // poste e travessa
+  rect(ctx, 4, 4, 2, 26, '#6b4423');
+  rect(ctx, 4, 4, 1, 26, '#8d5f30');
+  rect(ctx, 1, 2, 8, 3, '#8d5f30');
+  rect(ctx, 1, 2, 8, 1, '#b9854a');
+  outline(ctx, W, H);
+  add(scene, 'bell-post', c);
+
+  // o sino é peça separada para poder balançar
+  const b = makeCanvas(10, 11);
+  rect(b.ctx, 4, 0, 2, 1, '#3f464c');
+  rect(b.ctx, 3, 1, 4, 2, '#e8b84a');
+  rect(b.ctx, 2, 3, 6, 4, '#e8b84a');
+  rect(b.ctx, 1, 7, 8, 2, '#e8b84a');
+  rect(b.ctx, 3, 2, 1, 5, '#fff1b8');
+  rect(b.ctx, 6, 3, 2, 6, '#b8862a');
+  rect(b.ctx, 4, 9, 2, 1, '#6b4423');
+  outline(b.ctx, 10, 11);
+  add(scene, 'bell', b.c);
+}
+
 function bench(scene: Phaser.Scene) {
   const W = 38;
   const { c, ctx } = makeCanvas(W, 15);
@@ -487,6 +513,7 @@ export function generateTextures(scene: Phaser.Scene) {
   bin(scene);
   fountain(scene);
   noticeBoard(scene);
+  bell(scene);
   bench(scene);
   lamppost(scene);
   planter(scene);

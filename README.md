@@ -13,8 +13,10 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | Balão "..." / "!" | Sessão trabalhando / pedindo sua permissão (via hooks) |
 | Janela acesa | Alguma sessão do projeto está rodando |
 | Praça | Sessões abertas fora de qualquer projeto |
+| Sino na praça | Entregas do `PROGRESS.md` que ainda dizem "Falta conferir na vila", e o reinício pendente do Dev Valley |
 | Biblioteca | CLAUDE.md, memórias e docs de cada projeto, com leitor, edição e busca |
 | ✦ Bibliotecária | Agente permanente (`~/.claude/agents/bibliotecaria.md`) que acha qualquer conhecimento documentado |
+| ✦ Administrador da praça | Agente permanente ao lado do sino e do quadro: explica os itens e, quando você diz que conferiu, registra nos arquivos de acompanhamento do projeto (só neles) |
 | Painel "Uso do Claude" | Limites do plano (5h e semanal), como no `/usage` — minimizável |
 | Fábrica | Agentes do Claude Code (`~/.claude/agents` e `<projeto>/.claude/agents`): criar, editar e apagar por formulário |
 | ✦ NPC no pátio da Fábrica | Um agente — clique para conversar com ele (`claude --agent`; global na praça, de projeto na casa) |

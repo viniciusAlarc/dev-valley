@@ -37,8 +37,10 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 - `server/` — Node + Express + `ws` + `node-pty`, rodado com `tsx`. Lê projetos e sessões
   (`~/.claude/projects/**/*.jsonl`), roda git, mantém os terminais (`claude --resume`).
   - `src/index.ts` (entrada), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
-    `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `agents.ts` (Fábrica), `install-hooks.ts`.
-  - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`.
+    `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `consulta.ts` (base dos agentes da vila),
+    `administrador.ts` (administrador da praça), `agents.ts` (Fábrica), `reinicio.ts` (sino:
+    reinício pendente), `install-hooks.ts`.
+  - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md`: usado só pela vila.
 - `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
   sessão, rodapé com contexto e uso, nomes dos moradores e `@Nome`. Marketplace local em `.claude-plugin/`.
 - `web/` — Vite + Phaser 3 (vila), xterm.js (chat), Monaco (diff), marked + DOMPurify (leitor de docs).
@@ -72,7 +74,10 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
    backup) só nas entradas do Dev Valley (os hooks de shell de `PermissionRequest` e `Notification`; o mod não vê
    quando o diálogo de permissão abre):** nunca sobrescreve agente do usuário com o mesmo nome, e o
    uninstall remove só o que é do Dev Valley.
-5. **Consultas da bibliotecária usam `claude -p --no-session-persistence`** para não virarem moradores.
+5. **Consultas da bibliotecária e do administrador da praça usam `claude -p --no-session-persistence`** para não
+   virarem moradores (base comum em `server/src/consulta.ts`). **O administrador só edita `PROGRESS.md`,
+   `PENDENCIAS.md`, `docs-dev/painel.json` e `docs-dev/a-codar/` dos projetos da vila**, por regra `Edit(//caminho)`
+   passada na chamada; nunca liberar `Edit` inteiro nem outra ferramenta de escrita para ele.
 6. **Este repositório costuma ser editado de dentro da própria vila.** Reiniciar o servidor (`npm start` de novo,
    `npm run dev`, que reinicia sozinho ao salvar em `server/`) encerra todos os terminais da vila, inclusive a
    sessão que está editando. Nunca reiniciar nem rodar `npm run dev` por conta própria: avisar o usuário e ele
