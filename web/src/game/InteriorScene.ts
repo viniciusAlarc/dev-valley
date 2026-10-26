@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { activityOf, getWorld, onWorld, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { makeInteractive, VillagerView } from './common';
-import { generateInteriorTextures } from './interiorTextures';
+import { generateInteriorTextures, SEED_COLORS } from './interiorTextures';
 
 const W = 288;
 const WALL_H = 40;
@@ -21,6 +21,9 @@ const NOTE_COLS = 5;
 const MAX_NOTES = 15;
 /** Atril do diário (PROGRESS.md), no chão entre a estante e o quadro. */
 const DIARY_X = 53;
+/** Caixa de sementes (docs-dev/a-codar/), no chão entre a janela e a escrivaninha. */
+const SEEDS_X = 184;
+const SEEDS_Y = WALL_H + 16;
 
 interface Placement {
   desks: (Session | null)[];
@@ -40,6 +43,8 @@ export class InteriorScene extends Phaser.Scene {
   private monitors = new Map<string, Phaser.GameObjects.Image>();
   private notes: Phaser.GameObjects.Image[] = [];
   private notesKey = '';
+  private packets: Phaser.GameObjects.Image[] = [];
+  private packetsKey = '';
   private unsubscribe?: () => void;
 
   constructor() {
@@ -116,6 +121,7 @@ export class InteriorScene extends Phaser.Scene {
       this.buildRoom(project, placement);
     }
     this.pinNotes(project);
+    this.fillSeedBox(project);
     for (const s of sessions) this.villagers.get(s.id)?.update(s);
     for (const [id, monitor] of this.monitors) {
       const s = sessions.find((x) => x.id === id);
@@ -133,6 +139,8 @@ export class InteriorScene extends Phaser.Scene {
     this.monitors.clear();
     this.notes = [];
     this.notesKey = '';
+    this.packets = [];
+    this.packetsKey = '';
     this.children.removeAll(true);
     this.time.removeAllEvents();
 
@@ -183,6 +191,18 @@ export class InteriorScene extends Phaser.Scene {
           return p?.entries ? `Diário — ${p.entries} entrega(s)${p.lastDate ? `, a última em ${p.lastDate}` : ''}` : 'Diário — nenhuma entrega ainda';
         },
         () => ui.openDiary(this.project(getWorld()) ?? project),
+      );
+    }
+
+    if (project.sementes) {
+      const box = this.prop('seedBox', SEEDS_X, SEEDS_Y);
+      makeInteractive(
+        box,
+        () => {
+          const n = this.project(getWorld())?.sementes?.length ?? 0;
+          return n ? `Caixa de sementes — ${n} plano(s) decidido(s) e ainda não codado(s)` : 'Caixa de sementes — vazia, nenhum plano esperando código';
+        },
+        () => ui.openSementes(this.project(getWorld()) ?? project),
       );
     }
 
@@ -237,6 +257,21 @@ export class InteriorScene extends Phaser.Scene {
   }
 
   private roomHeight = 0;
+
+  /** Um pacote por plano em `a-codar/` (até 6), saindo da caixa por trás da frente; só redesenha quando muda. */
+  private fillSeedBox(project: Project) {
+    const n = Math.min(project.sementes?.length ?? 0, SEED_COLORS.length);
+    const key = project.sementes ? String(n) : '';
+    if (key === this.packetsKey) return;
+    this.packetsKey = key;
+    for (const p of this.packets) p.destroy();
+    this.packets = Array.from({ length: n }, (_, i) =>
+      this.add
+        .image(SEEDS_X - 9 + i * 3.6, SEEDS_Y - 6 - (i % 2), `seedPacket${i}`)
+        .setOrigin(0.5, 1)
+        .setDepth(SEEDS_Y - 0.5),
+    );
+  }
 
   /** Um bilhete por pendência, as mais graves primeiro; só redesenha quando a lista muda. */
   private pinNotes(project: Project) {

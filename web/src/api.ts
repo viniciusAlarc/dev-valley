@@ -19,6 +19,8 @@ export interface Project {
   progress: { entries: number; lastDate: string; toCheck: { date: string; title: string }[] } | null;
   /** Arquivos de acompanhamento que faltam (casa em obra); vazio = estrutura completa. */
   missingStructure: string[];
+  /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. */
+  sementes: { path: string; title: string }[] | null;
 }
 
 export interface ProgressEntry {

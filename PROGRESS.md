@@ -3,6 +3,21 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — Caixa de sementes dentro da casa
+
+**O que mudou:** passo 3 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor lê os planos em
+`docs-dev/a-codar/` de cada projeto (só o primeiro nível, sem o `README.md`; título = primeiro `# `); só leitura, e
+sem a pasta não há caixa. Dentro da casa, no chão entre a janela e a escrivaninha (decisão do usuário: dentro, para
+não poluir a vila), uma caixa de ripas com um pacotinho de semente colorido por plano (até 6), saindo por trás da
+frente. O tooltip diz quantos planos esperam código; o clique lista os planos, e cada um abre no leitor da biblioteca.
+**Arquivos:** `server/src/sementes.ts` (novo), `server/src/world.ts` (`Project.sementes`), `web/src/api.ts`,
+`web/src/game/interiorTextures.ts` (`seedBox`, `seedPacket0..5`), `web/src/game/InteriorScene.ts` (`fillSeedBox`),
+`web/src/ui/sementes.ts` (novo), `web/src/ui/actions.ts`, `README.md`, `CLAUDE.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
+testado contra os projetos reais (com e sem a pasta, `README.md` fora) e o projeto falso do scratchpad. Posição da
+caixa conferida pelas medidas da janela e da escrivaninha, não renderizada. Conferido na vila pelo usuário em
+26/10/2026.
+
 ## 2026-10-26 — Casa em obra
 
 **O que mudou:** passo 2 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor confere, em cada projeto,

@@ -261,6 +261,35 @@ function lectern(scene: Phaser.Scene) {
   add(scene, 'lectern', c);
 }
 
+/** Caixa de sementes (planos em `docs-dev/a-codar/`): só a frente, para os pacotes aparecerem saindo por trás dela. */
+function seedBox(scene: Phaser.Scene) {
+  const W = 24;
+  const H = 16;
+  const { c, ctx } = makeCanvas(W, H);
+  // frente de ripas
+  rect(ctx, 0, 6, W, 10, '#a0703a');
+  rect(ctx, 0, 6, W, 1, '#c79a5e');
+  rect(ctx, 0, 10, W, 1, '#7a4b20');
+  for (const x of [0, W - 2]) rect(ctx, x, 6, 2, 10, '#7a4b20');
+  // etiqueta
+  rect(ctx, 8, 11, 8, 3, '#f2e6c4');
+  rect(ctx, 9, 12, 6, 1, '#958c7c');
+  outline(ctx, W, H);
+  add(scene, 'seedBox', c);
+}
+
+/** Pacotinho de semente: um plano decidido e não codado. */
+function seedPacket(scene: Phaser.Scene, key: string, color: string) {
+  const { c, ctx } = makeCanvas(5, 8);
+  rect(ctx, 0, 0, 5, 8, '#f2e6c4');
+  rect(ctx, 0, 2, 5, 3, color);
+  rect(ctx, 1, 0, 3, 1, '#d6cebd');
+  outline(ctx, 5, 8);
+  add(scene, key, c);
+}
+
+export const SEED_COLORS = ['#3f8a3a', '#e05a6a', '#f5d142', '#7aa8f0', '#e67e22', '#8e44ad'];
+
 export function generateInteriorTextures(scene: Phaser.Scene) {
   if (scene.textures.exists('floor')) return;
   floor(scene);
@@ -281,6 +310,8 @@ export function generateInteriorTextures(scene: Phaser.Scene) {
   corkBoard(scene);
   lectern(scene);
   for (let p = 1; p <= 4; p++) note(scene, p);
+  seedBox(scene);
+  SEED_COLORS.forEach((color, i) => seedPacket(scene, `seedPacket${i}`, color));
 }
 
 // ---------------- biblioteca ----------------

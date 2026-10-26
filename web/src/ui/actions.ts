@@ -11,6 +11,7 @@ import { openObra } from './obra';
 import { openPainel } from './painel';
 import { openPendencias, openUserPendencias } from './pendencias';
 import { openProject } from './project';
+import { openSementes } from './sementes';
 import { openSessionTerminal, openTerminal } from './terminal';
 
 const tooltip = () => document.getElementById('tooltip')!;
@@ -80,6 +81,10 @@ export const ui = {
   openObra(project: Project) {
     this.hideTooltip();
     openObra(project);
+  },
+  openSementes(project: Project) {
+    this.hideTooltip();
+    openSementes(project);
   },
   openPainel(project: Project) {
     this.hideTooltip();

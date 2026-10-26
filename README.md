@@ -9,6 +9,7 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | Caixa de envio ao lado da casa | `git status` — clique para ver o diff e commitar |
 | Morador | Sessão do Claude Code (`~/.claude/projects/**/*.jsonl`) — clique para abrir o chat. Nome único na vila |
 | Dentro da casa (clique nela) | Todas as sessões do projeto: as ativas trabalham nas mesas, as antigas descansam no sofá |
+| Caixa de sementes (dentro da casa) | Planos em `docs-dev/a-codar/`: decididos e ainda não codados (G7) — clique para listar e abrir no leitor |
 | Escrivaninha | Painel do projeto: branch, remoto, nova sessão, VS Code, caixa de envio |
 | Balão "..." / "!" | Sessão trabalhando / pedindo sua permissão (via hooks) |
 | Janela acesa | Alguma sessão do projeto está rodando |

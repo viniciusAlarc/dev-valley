@@ -39,7 +39,8 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   - `src/index.ts` (entrada), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
     `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `consulta.ts` (base dos agentes da vila),
     `administrador.ts` (administrador da praça), `agents.ts` (Fábrica), `reinicio.ts` (sino:
-    reinício pendente), `estrutura.ts` (casa em obra), `install-hooks.ts`.
+    reinício pendente), `estrutura.ts` (casa em obra), `sementes.ts` (caixa
+    de sementes), `install-hooks.ts`.
   - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md`: usado só pela vila.
 - `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
   sessão, rodapé com contexto e uso, nomes dos moradores e `@Nome`. Marketplace local em `.claude-plugin/`.
