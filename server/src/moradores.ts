@@ -7,7 +7,7 @@ import type { Project, WorldSession } from './world.js';
  * Nomes dos moradores: únicos entre as sessões da vila e fixos enquanto a sessão existir (decisão de 26/10/2026).
  * O cadastro fica fora do repositório, em ~/.claude/dev-valley/:
  * - `nomes.json`: sessão → nome (persistente, para o nome não mudar ao reiniciar a vila);
- * - `moradores.json`: nome → sessão, projeto, título e conversa. É o mapa que o hook `server/hooks/morador.mjs` lê
+ * - `moradores.json`: nome → sessão, projeto, título e conversa. É o mapa que o mod (`mod/hooks/register.ts`) lê
  *   quando o usuário cita `@Nome` numa sessão, sem precisar perguntar nada à vila.
  */
 export const MORADORES_DIR = path.join(os.homedir(), '.claude', 'dev-valley');

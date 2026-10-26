@@ -40,26 +40,30 @@ O servidor escuta só em `127.0.0.1` e recusa WebSockets de outras origens — o
 
 Link direto para dentro de uma casa: `http://localhost:4777/?casa=<nome-do-projeto>`.
 
-### Integração com o Claude Code (hooks, status line e agentes)
+### Integração com o Claude Code (mod e agentes)
 
 ```bash
-npm run hooks:install     # hooks + status line em ~/.claude/settings.json (com backup) e agentes em ~/.claude/agents
+npm run hooks:install     # instala o mod dev-valley, os hooks de permissão e os agentes em ~/.claude/agents
 npm run hooks:uninstall   # remove só o que é do Dev Valley
 ```
 
-O status line só é instalado se você não tiver um próprio, e um agente com o mesmo nome criado por você nunca é sobrescrito.
-O status line manda à vila só a janela de contexto e os limites do plano; o Claude Code preenche os limites a partir da
-primeira resposta da API em cada sessão.
+A integração é um mod do Claude Code, na pasta `mod/` (marketplace local em `.claude-plugin/marketplace.json`). Ele
+avisa a vila dos eventos de cada sessão (abriu, trabalhando, esperando, encerrou) e mostra no rodapé da sessão o
+contexto e os limites do plano (`🌾 ctx 45% · 5h 30% · 7d 12%`), ao lado da entrada de outros mods.
+O mod é lido direto da pasta do repo: editar lá vale na próxima sessão (numa aberta, `/reload-plugins`).
+"Pedindo permissão" é a exceção: nenhum evento de mod diz quando o diálogo de permissão abre, e os eventos de hook
+clássicos de um mod de usuário são pulados por um plugin de segurança do Claude Code. Por isso `PermissionRequest` e
+`Notification` continuam como hooks de shell (`jq` + `curl`) no `~/.claude/settings.json`, marcados com `# dev-valley`.
+O install tira e repõe só essas entradas (com backup). Um agente com o mesmo nome criado por você nunca é sobrescrito.
 
-Os hooks mandam para a vila apenas `session_id`, `cwd`, nome do evento e o tipo de notificação — nunca conteúdo de arquivos ou prompts.
-Se a vila estiver fechada, o hook falha em silêncio em até 1s. Sessões abertas fora da vila (ex.: VS Code) também aparecem,
-e a vila não deixa retomar uma sessão que já está rodando em outro terminal.
+À vila vão apenas `session_id`, `cwd`, nome do evento e o tipo de notificação, mais contexto e limites do plano — nunca
+conteúdo de arquivos ou prompts. Se a vila estiver fechada, o mod desiste em até 1s, em silêncio. Sessões abertas fora da
+vila (ex.: VS Code) também aparecem, e a vila não deixa retomar uma sessão que já está rodando em outro terminal.
 
 **Nomes dos moradores.** Cada sessão tem um nome único na vila, guardado em `~/.claude/dev-valley/nomes.json`. Ao abrir,
-a sessão fica sabendo o próprio nome. Numa mensagem, cite outro morador como `@Nome` (ex.: "vê o que a @Lia fez"): o hook
+a sessão fica sabendo o próprio nome. Numa mensagem, cite outro morador como `@Nome` (ex.: "vê o que a @Lia fez"): o mod
 acha o nome no mapa `~/.claude/dev-valley/moradores.json` (gravado pela vila) e entrega à sessão quem é, de que projeto e
 onde está a conversa, sem busca. O texto da mensagem é lido só na sua máquina; à vila vai apenas o `session_id`.
-O hook roda com o node que rodou o `hooks:install`: trocou a versão do node, rode o install de novo.
 
 ## Configuração
 

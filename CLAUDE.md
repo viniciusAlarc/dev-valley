@@ -39,6 +39,8 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   - `src/index.ts` (entrada), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
     `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `install-hooks.ts`.
   - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`.
+- `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
+  sessão, rodapé com contexto e uso, nomes dos moradores e `@Nome`. Marketplace local em `.claude-plugin/`.
 - `web/` — Vite + Phaser 3 (vila), xterm.js (chat), Monaco (diff), marked + DOMPurify (leitor de docs).
   - `src/game/` cenas Phaser (`TownScene`, `InteriorScene`, `LibraryScene`) e pixel art gerada em código.
   - `src/ui/` painéis HTML sobre o jogo (terminal, commit, biblioteca, uso…).
@@ -51,9 +53,10 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 - Desenvolvimento: `npm run dev` (front com hot reload em http://localhost:5173)
 - Build: `npm run build` (front: `tsc && vite build`)
 - Checagem de tipos do servidor: `npm run typecheck -w server`
-- Testes: não há suíte automatizada ainda (PD-8). Validar com typecheck + build e na vila.
+- Testes: não há suíte automatizada do servidor e do front ainda (PD-8). Validar com typecheck + build e na vila.
+- Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo`
-- Hooks/status line/agentes: `npm run hooks:install` / `npm run hooks:uninstall`
+- Mod e agentes: `npm run hooks:install` / `npm run hooks:uninstall`
 
 ## Regras técnicas deste projeto — invioláveis
 
@@ -62,11 +65,13 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
    `dev-valley.config.local.json`.
 2. **O servidor escuta só em `127.0.0.1` e recusa WebSocket de outra origem:** os terminais rodam comandos de
    verdade. Nunca afrouxar isso.
-3. **Hooks mandam à vila só `session_id`, `cwd`, nome do evento e tipo de notificação.** Nunca conteúdo de
-   arquivo ou prompt. O hook de moradores (`server/hooks/morador.mjs`) lê o prompt **só localmente**, para achar
-   `@Nome` no mapa `~/.claude/dev-valley/moradores.json`; à vila ele manda apenas o `session_id`.
-4. **`hooks:install` mexe em `~/.claude/settings.json` (global, com backup):** só instala status line se não
-   houver um, nunca sobrescreve agente do usuário com o mesmo nome, e o uninstall remove só o que é do Dev Valley.
+3. **O mod (`mod/`) e os hooks de permissão mandam à vila só `session_id`, `cwd`, nome do evento e tipo de
+   notificação** (e contexto/limites no `/api/statusline`). Nunca conteúdo de arquivo ou prompt: o prompt é lido **só localmente**, para achar `@Nome` no
+   mapa `~/.claude/dev-valley/moradores.json`. O teste `mod/tests/dev-valley.test.ts` confere isso.
+4. **`hooks:install` instala o mod (`claude plugin install`) e mexe em `~/.claude/settings.json` (global, com
+   backup) só nas entradas do Dev Valley (os hooks de shell de `PermissionRequest` e `Notification`; o mod não vê
+   quando o diálogo de permissão abre):** nunca sobrescreve agente do usuário com o mesmo nome, e o
+   uninstall remove só o que é do Dev Valley.
 5. **Consultas da bibliotecária usam `claude -p --no-session-persistence`** para não virarem moradores.
 6. **Este repositório costuma ser editado de dentro da própria vila.** Reiniciar o servidor (`npm start` de novo,
    `npm run dev`, que reinicia sozinho ao salvar em `server/`) encerra todos os terminais da vila, inclusive a

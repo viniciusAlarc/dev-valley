@@ -1,0 +1,13 @@
+{
+  "name": "dev-valley",
+  "description": "Mod do Dev Valley (instalado por npm run hooks:install)",
+  "owner": {
+    "name": "Dev Valley"
+  },
+  "plugins": [
+    {
+      "name": "dev-valley",
+      "source": "./mod"
+    }
+  ]
+}

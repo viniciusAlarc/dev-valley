@@ -69,7 +69,7 @@ app.post('/api/hooks', (req, res) => {
   res.json({});
 });
 
-// Hook SessionStart (server/hooks/morador.mjs): a sessão que acabou de abrir pergunta o próprio nome de morador.
+// SessionStart do mod (mod/hooks/register.ts): a sessão que acabou de abrir pergunta o próprio nome de morador.
 // Recebe só o session_id (regra 3); consultas internas da bibliotecária não viram moradores.
 app.post('/api/moradores/nome', async (req, res) => {
   const id = req.body?.session_id;

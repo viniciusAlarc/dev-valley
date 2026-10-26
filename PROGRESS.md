@@ -3,6 +3,35 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — Status line e hooks viram o mod dev-valley, com permissão no shell (PD-11)
+
+**O que mudou:** decisões do usuário (26/10/2026): o `hooks:install`/`uninstall` passa a instalar e remover o mod; a
+bibliotecária fica em `~/.claude/agents`. O mod mora em `mod/` (marketplace local em `.claude-plugin/marketplace.json`,
+mesmo caminho do mod guardrails). A primeira versão usava os eventos `classic.*` (os mesmos dos hooks de shell) e, numa
+sessão real, **todos foram pulados**: o plugin de segurança `cc-plugin-sec-default` roda acima dos mods de usuário e passa
+esses eventos por cima deles; só o rodapé funcionou, e a vila mostrava "trabalhando" por padrão (status vazio).
+Reescrito com eventos nativos: `session.start` (abriu + nome), `prompt.submit` (trabalhando; "você é o morador X"
+junto da primeira mensagem e `@Nome`, ambos pelo campo `context`; pede o nome se a sessão ainda não tem, como depois
+de `/clear`; o `prompt.compose` foi tentado e também é pulado pelo plugin de segurança), `tool.call` (antes e depois da ferramenta), `turn.complete` da conversa
+principal (esperando), `session.end`, `session.measure` + `$.ui.status` (rodapé `🌾 ctx 45% · 5h 30% · 7d 12%`, ao lado do
+`guardrails ✓`). Nenhum evento nativo diz quando o diálogo de permissão abre, então, por decisão do usuário (híbrido),
+`PermissionRequest` e `Notification` continuam como hook de shell (`jq` + `curl`) no `settings.json`. O corpo enviado à
+vila é o mesmo de antes: o servidor não mudou. Cada aviso é esperado dentro do hook com limite de 1s (como o
+`curl -m 1`). Saem o caminho absoluto do node e o `server/hooks/morador.mjs`; a porta vai ao mod por
+`~/.claude/dev-valley/vila.json`, gravado pelo install.
+**Arquivos:** `mod/` (novo: `mod/.claude-plugin/plugin.json`, `mod/hooks/hooks.json`, `mod/hooks/register.ts`,
+`mod/hooks/moradores.ts`, `mod/tests/dev-valley.test.ts`), `.claude-plugin/marketplace.json` (novo),
+`server/src/install-hooks.ts`, `server/src/claude-commands.ts` (`SHELL_EVENTS`), `server/hooks/morador.mjs` (removido),
+comentários em `server/src/index.ts` e `moradores.ts`, `CLAUDE.md` (estrutura, comandos, regras 3 e 4), `README.md`,
+`docs-dev/guias/OPERACAO.md`, `docs-dev/context/hooks-como-mod.md` (plano, movido de `a-codar/`), `RETRABALHO.md` (novo).
+**Testes:** `claude plugin validate mod` ok; `claude plugin test mod` 8/8 com os eventos nativos (citação, rodapé,
+corpo da status line, nome ao abrir via `prompt.compose`, vila fechada, porta do `vila.json`, fim de turno = Stop, e a
+regra 3: o corpo enviado tem só `session_id`, `cwd` e evento, nunca o texto da mensagem); `tsc` do mod;
+`npm run typecheck -w server`; auditor sem achado. Front sem mudança. Conferido pelo usuário numa sessão nova (status ao
+vivo, permissão, `@Nome`); depois disso o "você é o morador X" passou do `prompt.compose` (pulado) para a primeira
+mensagem, testado no `claude plugin test` e a conferir na próxima sessão nova (PD-14). PD-11 e PD-13 fechadas; o plano
+foi para `docs-dev/context/hooks-como-mod.md`.
+
 ## 2026-10-26 — Nomes únicos dos moradores e citação @Nome entre sessões
 
 **O que mudou:** decisões do usuário (26/10/2026): (1) nenhum nome repetido entre moradores; (2) uma sessão sabe a
@@ -46,8 +75,8 @@ navegador; conferido na vila pelo usuário. Com isso o plano fechou: saiu de `do
 **O que mudou:** só acompanhamento, sem código. PD-2: o usuário conferiu numa sessão nova que `guardrails ✓` continua
 na status line junto com a do Dev Valley. PD-3: o usuário rodou `npm run hooks:install` de novo (bibliotecária com a
 descrição não proativa). PD-1: decisão do usuário, hooks e status line vão virar um mod do Claude Code; ainda não
-feito, então entrou como PD-11 com o plano em `docs-dev/a-codar/02-hooks-como-mod.md`.
-**Arquivos:** `PENDENCIAS.md`, `docs-dev/a-codar/02-hooks-como-mod.md` (novo).
+feito, então entrou como PD-11 com o plano em `docs-dev/context/hooks-como-mod.md`.
+**Arquivos:** `PENDENCIAS.md`, `docs-dev/context/hooks-como-mod.md` (novo).
 
 ## 2026-10-25 — Horta das fases no quintal
 

@@ -1,0 +1,8 @@
+{
+  "name": "dev-valley",
+  "version": "0.1.0",
+  "description": "Liga as sessões do Claude Code à vila do Dev Valley: status ao vivo, contexto e uso no rodapé, nomes dos moradores e citação @Nome",
+  "author": {
+    "name": "Dev Valley"
+  }
+}
