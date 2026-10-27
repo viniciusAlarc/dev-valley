@@ -688,6 +688,27 @@ h3 {
   padding: 16px 24px;
 }
 
+/* Quadro negro: o HTML do plano de ação ocupa o leitor inteiro (iframe isolado). */
+.quadro-single {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.quadro-single > .library-reader {
+  flex: 1;
+}
+
+.quadro-frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 3px solid var(--wood-dark);
+  border-radius: 4px;
+  background: #fff;
+}
+
 .reader-status {
   margin: 6px 0 0;
   font-size: 14px;

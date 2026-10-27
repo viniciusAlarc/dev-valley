@@ -24,6 +24,8 @@ const DIARY_X = 53;
 /** Caixa de sementes (docs-dev/a-codar/), no chão entre a janela e a escrivaninha. */
 const SEEDS_X = 184;
 const SEEDS_Y = WALL_H + 16;
+/** Quadro negro (plano de ação da fase em andamento), na parede entre a janela e a escrivaninha. */
+const CHALK_X = 188;
 
 interface Placement {
   desks: (Session | null)[];
@@ -45,6 +47,7 @@ export class InteriorScene extends Phaser.Scene {
   private notesKey = '';
   private packets: Phaser.GameObjects.Image[] = [];
   private packetsKey = '';
+  private chalkboard?: Phaser.GameObjects.Image;
   private unsubscribe?: () => void;
 
   constructor() {
@@ -122,6 +125,7 @@ export class InteriorScene extends Phaser.Scene {
     }
     this.pinNotes(project);
     this.fillSeedBox(project);
+    this.chalkboard?.setTexture(project.quadro.length ? 'chalkboardWritten' : 'chalkboard');
     for (const s of sessions) this.villagers.get(s.id)?.update(s);
     for (const [id, monitor] of this.monitors) {
       const s = sessions.find((x) => x.id === id);
@@ -205,6 +209,18 @@ export class InteriorScene extends Phaser.Scene {
         () => ui.openSementes(this.project(getWorld()) ?? project),
       );
     }
+
+    // Todo projeto tem quadro negro; sem fase em andamento com plano, ele fica limpo.
+    this.chalkboard = this.prop(project.quadro.length ? 'chalkboardWritten' : 'chalkboard', CHALK_X, BOARD_Y);
+    makeInteractive(
+      this.chalkboard,
+      () => {
+        const q = this.project(getWorld())?.quadro ?? [];
+        if (!q.length) return 'Quadro negro — nenhum plano de ação em andamento';
+        return q.length === 1 ? `Quadro negro — plano de ação: ${q[0].fase}` : `Quadro negro — ${q.length} planos de ação em andamento`;
+      },
+      () => ui.openQuadro(this.project(getWorld()) ?? project),
+    );
 
     const mat = this.prop('doormat', W / 2, H + 2);
     makeInteractive(mat, () => 'Sair (Esc)', () => this.leave());

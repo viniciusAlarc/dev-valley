@@ -242,6 +242,36 @@ function note(scene: Phaser.Scene, priority: number) {
   add(scene, `note${priority}`, c);
 }
 
+/** Quadro negro da parede (plano de ação da fase em andamento): `written` = com giz, `false` = limpo, sem plano. */
+function chalkboard(scene: Phaser.Scene, key: string, written: boolean) {
+  const { c, ctx } = makeCanvas(40, 28);
+  rect(ctx, 0, 0, 40, 25, '#7a4b20');
+  rect(ctx, 0, 0, 40, 1, '#a8743c');
+  rect(ctx, 2, 2, 36, 21, '#2f4a3a');
+  rect(ctx, 2, 2, 36, 1, '#3c5a48');
+  // bandeja do giz
+  rect(ctx, 1, 25, 38, 2, '#5e3a1c');
+  rect(ctx, 6, 24, 4, 1, '#f4f1e6');
+  if (written) {
+    // título, três itens com marcação e um "visto"
+    rect(ctx, 5, 5, 16, 1, '#e6ece4');
+    for (const [y, w] of [[10, 22], [14, 18], [18, 24]] as const) {
+      rect(ctx, 5, y, 2, 2, '#e6ece4');
+      rect(ctx, 9, y + 1, w, 1, '#c9d3c8');
+    }
+    rect(ctx, 31, 5, 1, 1, '#e8c252');
+    rect(ctx, 32, 6, 1, 1, '#e8c252');
+    rect(ctx, 33, 5, 1, 1, '#e8c252');
+    rect(ctx, 34, 4, 1, 1, '#e8c252');
+  } else {
+    // restos de giz apagado
+    rect(ctx, 8, 9, 10, 1, '#3e5a49');
+    rect(ctx, 20, 15, 12, 1, '#3e5a49');
+  }
+  outline(ctx, 40, 28);
+  add(scene, key, c);
+}
+
 /** Atril com o diário aberto (o `PROGRESS.md` do projeto). */
 function lectern(scene: Phaser.Scene) {
   const { c, ctx } = makeCanvas(18, 24);
@@ -309,6 +339,8 @@ export function generateInteriorTextures(scene: Phaser.Scene) {
   doormat(scene);
   corkBoard(scene);
   lectern(scene);
+  chalkboard(scene, 'chalkboard', false);
+  chalkboard(scene, 'chalkboardWritten', true);
   for (let p = 1; p <= 4; p++) note(scene, p);
   seedBox(scene);
   SEED_COLORS.forEach((color, i) => seedPacket(scene, `seedPacket${i}`, color));

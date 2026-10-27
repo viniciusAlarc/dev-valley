@@ -14,6 +14,7 @@ import { openPendencias, openUserPendencias } from './pendencias';
 import { openProject } from './project';
 import { openRetrabalho } from './retrabalho';
 import { openSementes } from './sementes';
+import { openQuadro } from './quadro';
 import { openSkills } from './skills';
 import { openSessionTerminal, openTerminal } from './terminal';
 
@@ -96,6 +97,10 @@ export const ui = {
   openSementes(project: Project) {
     this.hideTooltip();
     openSementes(project);
+  },
+  openQuadro(project: Project) {
+    this.hideTooltip();
+    openQuadro(project);
   },
   openPainel(project: Project) {
     this.hideTooltip();

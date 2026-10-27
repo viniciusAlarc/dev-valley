@@ -217,6 +217,16 @@ app.get('/api/progress', async (req, res) => {
   res.json((await readProgress(project.path)) ?? []);
 });
 
+// Quadro negro da casa: o HTML do plano de ação de uma fase em andamento, só os arquivos listados em `quadro`.
+// O HTML vem de um repositório e tem script: `sandbox` sem `allow-same-origin` o deixa numa origem opaca, sem
+// acesso à API nem aos terminais da vila, mesmo aberto numa aba própria.
+app.get('/api/quadro', (req, res) => {
+  const plano = findProject(req.query.project)?.quadro[Number(req.query.i)];
+  if (!plano || plano.kind !== 'html') return res.status(404).json({ error: 'plano não encontrado' });
+  res.set({ 'Content-Security-Policy': 'sandbox allow-scripts', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' });
+  res.type('html').sendFile(plano.path);
+});
+
 app.get('/api/diff', async (req, res) => {
   const project = findProject(req.query.project);
   const file = project && safeRelative(project, req.query.file);

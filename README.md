@@ -11,6 +11,7 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | Dentro da casa (clique nela) | Todas as sessões do projeto: as ativas trabalham nas mesas, as antigas descansam no sofá |
 | Placa embaixo da janela | Vencimento da auditoria das regras (`.claude/auditoria-regras.txt`); amarela quando vencida — rode `/auditar-regras` |
 | Ervas à direita da casa | Uma por linha do `RETRABALHO.md` (G17) — clique para ver a tabela; três da mesma causa pedem `/nova-regra` |
+| Quadro negro (parede da casa) | Plano de ação de cada fase em `andamento` do `docs-dev/painel.json` (campo `doc` da fase). HTML abre isolado num painel (iframe com `sandbox`, sem acesso à vila); `.md` abre no leitor. Sem plano, o quadro fica limpo |
 | Caixa de sementes (dentro da casa) | Planos em `docs-dev/a-codar/`: decididos e ainda não codados (G7) — clique para listar e abrir no leitor |
 | Escrivaninha | Painel do projeto: branch, remoto, nova sessão, VS Code, caixa de envio |
 | Balão "..." / "!" | Sessão trabalhando / pedindo sua permissão (via hooks) |

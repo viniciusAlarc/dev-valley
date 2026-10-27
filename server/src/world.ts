@@ -8,6 +8,7 @@ import { missingStructure, readAuditoria } from './estrutura.js';
 import { readGuardrails, type Guardrails } from './guardrails.js';
 import { readPainel, type Painel } from './painel.js';
 import { readPendencias, type Pendencia } from './pendencias.js';
+import { readQuadro, type PlanoAcao } from './quadro.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
 import { readRetrabalho, type Retrabalho } from './retrabalho.js';
 import { readSementes, type Semente } from './sementes.js';
@@ -29,6 +30,8 @@ export interface Project {
   pendencias: Pendencia[] | null;
   /** `docs-dev/painel.json` (plano e fases); null = o projeto não tem o arquivo. */
   painel: Painel | null;
+  /** Planos de ação das fases em andamento (quadro negro); vazio = quadro sem conteúdo. */
+  quadro: PlanoAcao[];
   /** Resumo do `PROGRESS.md`; null = o projeto não tem o arquivo. */
   progress: ProgressSummary | null;
   /** Arquivos de acompanhamento que faltam (casa em obra); vazio = estrutura completa. */
@@ -137,6 +140,7 @@ async function loadProject(dir: string): Promise<Project> {
     changes: [],
     pendencias,
     painel,
+    quadro: await readQuadro(dir, painel),
     progress,
     missingStructure: missing,
     sementes,

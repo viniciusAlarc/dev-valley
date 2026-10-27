@@ -4,7 +4,12 @@ import path from 'node:path';
 export type PhaseState = 'feito' | 'andamento' | 'a fazer';
 
 export interface Painel {
-  plano: { nome: string; doc: string | null; fases: { nome: string; estado: PhaseState }[] } | null;
+  plano: {
+    nome: string;
+    doc: string | null;
+    /** `doc` da fase: documento do plano de ação dela (campo opcional, fora do exemplo do G14). */
+    fases: { nome: string; estado: PhaseState; doc: string | null }[];
+  } | null;
   entregas: { data: string; o_que: string; como: string }[];
 }
 
@@ -29,7 +34,7 @@ export async function readPainel(dir: string): Promise<Painel | null> {
         ? {
             nome: str(plano.nome),
             doc: str(plano.doc) || null,
-            fases: (Array.isArray(plano.fases) ? plano.fases : []).map((f: any) => ({ nome: str(f?.nome), estado: state(f?.estado) })),
+            fases: (Array.isArray(plano.fases) ? plano.fases : []).map((f: any) => ({ nome: str(f?.nome), estado: state(f?.estado), doc: str(f?.doc) || null })),
           }
         : null,
     entregas: (Array.isArray(data?.entregas) ? data.entregas : []).map((e: any) => ({ data: str(e?.data), o_que: str(e?.o_que), como: str(e?.como) })),

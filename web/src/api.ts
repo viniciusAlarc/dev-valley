@@ -15,6 +15,8 @@ export interface Project {
   pendencias: Pendencia[] | null;
   /** `docs-dev/painel.json` (plano e fases); null = o projeto não tem o arquivo. */
   painel: Painel | null;
+  /** Planos de ação das fases em andamento (quadro negro); vazio = quadro sem conteúdo. */
+  quadro: PlanoAcao[];
   /** Resumo do `PROGRESS.md` (as entregas vêm por `api.progress`); null = o projeto não tem o arquivo. */
   progress: { entries: number; lastDate: string; toCheck: { date: string; title: string }[] } | null;
   /** Arquivos de acompanhamento que faltam (casa em obra); vazio = estrutura completa. */
@@ -37,8 +39,15 @@ export interface ProgressEntry {
 export type PhaseState = 'feito' | 'andamento' | 'a fazer';
 
 export interface Painel {
-  plano: { nome: string; doc: string | null; fases: { nome: string; estado: PhaseState }[] } | null;
+  plano: { nome: string; doc: string | null; fases: { nome: string; estado: PhaseState; doc: string | null }[] } | null;
   entregas: { data: string; o_que: string; como: string }[];
+}
+
+/** Plano de ação de uma fase em andamento: `html` abre isolado no quadro, `md` no leitor da biblioteca. */
+export interface PlanoAcao {
+  fase: string;
+  path: string;
+  kind: 'html' | 'md';
 }
 
 export interface Pendencia {

@@ -3,6 +3,27 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-27 — Quadro negro na casa com o plano de ação da fase em andamento
+
+**O que mudou:** pedido do usuário, fora de plano. Toda casa ganha um quadro negro na parede, entre a janela e a
+escrivaninha. Ele mostra o plano de ação de cada fase em `andamento` do `docs-dev/painel.json` que tem `doc` (campo
+opcional por fase, que o servidor passa a ler). Decisões do usuário (27/10/2026): várias fases em andamento = lista na
+lateral para escolher; `.md` abre no leitor da biblioteca; HTML abre num painel dentro da vila. Sem plano, o quadro
+aparece limpo e o clique diz que não há plano. O HTML é servido por `GET /api/quadro` só se estiver na lista do
+projeto (arquivo existente, dentro da pasta, `.html`/`.htm`/`.md`), com `Content-Security-Policy: sandbox
+allow-scripts`, e o iframe também tem `sandbox="allow-scripts"`. Os scripts do plano rodam, mas numa origem opaca, sem
+acesso à API nem aos terminais (regra 2). Limite: o HTML não carrega arquivo relativo (CSS ou imagem ao lado), só o
+que estiver embutido nele.
+**Arquivos:** `server/src/quadro.ts` (novo), `server/src/painel.ts` (`doc` da fase), `server/src/world.ts`
+(`Project.quadro`), `server/src/index.ts` (`/api/quadro`), `web/src/api.ts`, `web/src/game/interiorTextures.ts`
+(`chalkboard`, limpo e escrito), `web/src/game/InteriorScene.ts`, `web/src/ui/quadro.ts` (novo),
+`web/src/ui/actions.ts`, `web/src/style.css` (`.quadro-frame`), `README.md`, `CLAUDE.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
+testado nos projetos reais: o de exemplo lista as 3 fases em andamento (2 HTML, 1 md), os outros ficam com o quadro
+limpo. Também conferi que caminho com `../`, extensão fora da lista e fase já feita ficam de fora. A posição na parede
+foi conferida pelas medidas da janela, do quadro de cortiça e da escrivaninha, sem renderizar. Conferido na vila pelo
+usuário em 27/10/2026.
+
 ## 2026-10-26 — Encerrar sessão na vila apaga a conversa de vez
 
 **O que mudou:** decisão do usuário (26/10/2026): ao clicar em "Encerrar sessão", a sessão deixa de existir. O botão
