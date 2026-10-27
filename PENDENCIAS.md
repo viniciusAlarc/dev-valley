@@ -26,6 +26,6 @@
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
 | PD-6 | 💻 | Trocar a pixel art gerada em código por um tileset de verdade | 2026-10-24 |
-| PD-7 | 💻 | Lareira na casa liga e desliga o sistema pela tabela "Subir" do `docs-dev/guias/OPERACAO.md` (back e front juntos, terminal da vila, fumaça na chaminé). Plano em `docs-dev/a-codar/lareira-subir-sistema.md`, com 3 pontos em aberto para perguntar antes de codar | 2026-10-25 |
+| PD-7 | 💻 | Lareira na casa liga e desliga o sistema pela tabela "Subir" do `docs-dev/guias/OPERACAO.md` (back e front juntos, terminal da vila, fumaça na chaminé). Plano fechado em `docs-dev/a-codar/lareira-subir-sistema.md` (decisões de 26 e 27/10), pronto para o passo 1 | 2026-10-25 |
 | PD-8 | 💻 | Suíte de testes automatizada (hoje só typecheck + build + validação na vila) | 2026-10-25 |
 | PD-9 | 🖥️ | CI no GitHub rodando `python3 scripts/auditar-referencias.py . --tudo` (o repo ainda não tem CI) | 2026-10-25 |

@@ -6,7 +6,7 @@
 Todo projeto tem, pelo G14, a tabela "Subir" no topo do `docs-dev/guias/OPERACAO.md` (lado, pasta, comando, porta).
 Este plano usa essa tabela para a vila ligar e desligar o sistema do projeto de dentro da casa.
 
-## Decisões (26/10/2026)
+## Decisões (26 e 27/10/2026)
 
 1. **O processo roda num terminal da vila** (opção A): é filho do servidor, criado com `node-pty` como os terminais
    dos moradores (`server/src/terminals.ts`), com o log guardado e reenviado ao reabrir o painel. Descartado o
@@ -21,6 +21,14 @@ Este plano usa essa tabela para a vila ligar e desligar o sistema do projeto de 
    por baixo, e o filho que sobra segura a porta).
 5. **Célula de comando vazia = a vila não liga aquele lado**, como já diz o comentário do template. Projeto sem
    `OPERACAO.md` ou sem nenhum comando na tabela não ganha lareira.
+6. **Clicar na lareira abre o painel dela** (27/10/2026), com cada lado da tabela: pasta, comando, porta e estado,
+   e o botão Acender/Apagar. O comando aparece sempre antes de ligar, sem diálogo extra.
+7. **Ligado fora da vila só avisa** (27/10/2026): porta ocupada por processo que a vila não criou deixa a lareira
+   acesa, e o painel diz "ligado fora da vila" com o PID. Apagar fica desativado: a vila nunca mata processo que não
+   criou.
+8. **Um terminal (xterm) por lado, em abas back/front** (27/10/2026), para cores e barras de progresso saírem certas.
+9. **A lareira fica na sala de estar** (27/10/2026), no chão ao lado do sofá e do tapete: a parede de cima já tem
+   estante, quadro de cortiça, janela e quadro negro.
 
 ## Estados da lareira
 
@@ -30,14 +38,6 @@ Este plano usa essa tabela para a vila ligar e desligar o sistema do projeto de 
 | Acendendo | Processo vivo, mas alguma porta ainda não responde | Fogo pequeno | Fumaça fina |
 | Acesa | Todas as portas com comando respondendo | Fogo | Fumaça |
 | Com erro | Algum lado saiu com código diferente de 0 | Brasa / fumaça preta | Fumaça preta |
-
-## Em aberto (perguntar antes de codar o passo correspondente, G2)
-
-- **Confirmação antes de ligar:** mostrar comando e pasta de cada lado antes do primeiro "ligar" de cada projeto
-  (proposta minha, o comando vem de um arquivo do projeto). Sempre, só na primeira vez, ou nunca?
-- **Ligado fora da vila:** com a porta ocupada por um processo que a vila não criou, a lareira aparece acesa. O clique
-  só avisa ("ligado fora da vila") ou a vila pode encerrar quem está na porta?
-- **Log de dois lados:** um painel com uma aba por lado (back/front), ou os dois logs juntos com prefixo?
 
 ## Passos
 
