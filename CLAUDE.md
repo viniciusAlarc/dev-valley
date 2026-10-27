@@ -41,7 +41,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
     `administrador.ts` (administrador da praça), `agents.ts`/`skills.ts` (Fábrica: agentes e skills), `reinicio.ts` (sino:
     reinício pendente), `estrutura.ts` (casa em obra e
     placa de vistoria), `sementes.ts` (caixa
-    de sementes), `retrabalho.ts` (ervas do quintal), `quadro.ts` (quadro negro), `estante.ts` (estante), `guardrails.ts`
+    de sementes), `retrabalho.ts` (ervas do quintal), `quadro.ts` (quadro negro), `estante.ts` (estante), `pombal.ts` (pombal: sincronização com a branch comum), `guardrails.ts`
     (outdoor), `install-hooks.ts`.
   - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md`: usado só pela vila.
 - `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
@@ -90,6 +90,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
    branca, gravata e óculos escuros; só pele e cor do cabelo variam. É o que separa agente de sessão à primeira vista
    (decisão do usuário, 27/10/2026). Vale para os da Fábrica (automático na `AgentNpc`) e para qualquer agente da
    vila novo: desenhe com `villagerTexture(scene, id, true)`, nunca com a aparência sorteada dos moradores.
+9. **O pombal (`server/src/pombal.ts`) faz push numa branch que outra pessoa usa.** Push só por clique confirmado no
+   painel, nunca `--force`, e o push para a branch comum só como fast-forward. Conflito no merge sempre termina em
+   `merge --abort` (o repositório fica como estava). Os nomes de projeto e de branch ficam só no config local (regra 1).
 
 ## Regras de processo deste projeto
 

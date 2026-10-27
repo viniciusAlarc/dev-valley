@@ -29,6 +29,34 @@ export interface Project {
   retrabalho: { header: string[]; rows: string[][] } | null;
   /** Vencimento da auditoria das regras, `AAAA-MM-DD` (placa de vistoria); null = sem o arquivo. */
   auditoria: string | null;
+  /** Pombal (sincronização com a branch comum do time); null = projeto sem `pombal` no config local. */
+  pombal: Pombal | null;
+}
+
+/** Pombal na fachada: cartas chegando (commits da branch comum) e a levar (commits da minha). */
+export interface Pombal {
+  integracao: string;
+  minha: string;
+  remoto: string;
+  branchErrada: boolean;
+  aReceber: number;
+  aEnviar: number;
+  buscadoEm: number | null;
+  erro: string | null;
+}
+
+export interface Carta {
+  hash: string;
+  autor: string;
+  data: string;
+  assunto: string;
+}
+
+/** Resultado de uma viagem do pombo; `error` = não completou (o repositório ficou como estava). */
+export interface Voo {
+  passos: string[];
+  error?: string;
+  conflitos?: string[];
 }
 
 export interface ProgressEntry {
@@ -289,10 +317,20 @@ export const api = {
   commit: (project: string, message: string, files: string[]) =>
     request<{ output: string }>('POST', '/api/commit', { project, message, files }),
   openVsCode: (project: string, file?: string) => request('POST', '/api/open-vscode', { project, file }),
-  newSession: (project: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project }),
+  /** Sem `project`: sessão avulsa (nasce na home e mora na praça). */
+  newSession: (project?: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project }),
   /** Encerra e apaga a conversa de vez. */
   deleteSession: (id: string) => request('DELETE', `/api/sessions/${id}`),
   progress: (project: string) => request<ProgressEntry[]>('GET', `/api/progress?project=${encodeURIComponent(project)}`),
+  /** Busca o remoto e lista as cartas dos dois sentidos. */
+  cartas: (project: string) => request<{ receber: Carta[]; enviar: Carta[] }>('GET', `/api/pombal?project=${encodeURIComponent(project)}`),
+  /** Não lança no 409: o painel mostra o erro junto com os conflitos e os passos que deram certo. */
+  voar: async (project: string, acao: 'receber' | 'enviar'): Promise<Voo> => {
+    const res = await fetch('/api/pombal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project, acao }) });
+    const data = await res.json();
+    if (!res.ok && res.status !== 409) throw new Error(data.error ?? `HTTP ${res.status}`);
+    return data as Voo;
+  },
 };
 
 export function wsUrl(path: string): string {

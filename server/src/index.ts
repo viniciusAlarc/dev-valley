@@ -15,6 +15,7 @@ import { askLibrarian } from './librarian.js';
 import { agentInput, Agents } from './agents.js';
 import { skillInput, Skills } from './skills.js';
 import { Moradores } from './moradores.js';
+import { buscar, cartas, PombalError, voar } from './pombal.js';
 import { readProgress } from './progress.js';
 import { deleteSessionFiles } from './sessions.js';
 import { StatusLineStore } from './statusline.js';
@@ -24,6 +25,8 @@ import { buildWorld, type Project, type World } from './world.js';
 const config = loadConfig();
 const HOST = '127.0.0.1';
 const POLL_MS = 3000;
+/** De quanto em quanto tempo o pombal busca o remoto (rede); entre uma busca e outra, o estado vem do disco. */
+const POMBAL_FETCH_MS = 5 * 60_000;
 
 let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null };
 let worldJson = '';
@@ -40,6 +43,8 @@ const agents = new Agents(() => world.projects);
 const skills = new Skills(() => world.projects);
 /** Sessões novas de conversa com um agente, esperando o terminal abrir: id → pasta e agente (o front não escolhe). */
 const agentSessions = new Map<string, { cwd: string; agent: string }>();
+/** Sessões avulsas novas (banco da praça), esperando o terminal abrir: nascem na home, fora de qualquer projeto. */
+const avulsaSessions = new Set<string>();
 let lastStatusLine: unknown = null;
 
 async function refreshWorld() {
@@ -229,6 +234,37 @@ function sendIsolatedHtml(res: express.Response, doc: { path: string; kind: stri
 app.get('/api/quadro', (req, res) => sendIsolatedHtml(res, findProject(req.query.project)?.quadro[Number(req.query.i)]));
 app.get('/api/estante', (req, res) => sendIsolatedHtml(res, findProject(req.query.project)?.estante?.[Number(req.query.i)]));
 
+/** Projeto com pombal configurado; a configuração vem do servidor, nunca do front. */
+function pombalOf(id: unknown) {
+  const project = findProject(id);
+  const cfg = project?.isGit ? config.pombal[project.name] : undefined;
+  return project && cfg ? { project, cfg } : null;
+}
+
+// Abrir o pombal busca o remoto na hora e lista as cartas dos dois sentidos.
+app.get('/api/pombal', async (req, res) => {
+  const p = pombalOf(req.query.project);
+  if (!p) return res.status(400).json({ error: 'projeto sem pombal' });
+  await buscar(p.project.path, p.cfg);
+  await refreshWorld();
+  res.json(await cartas(p.project.path, p.cfg));
+});
+
+// Viagem do pombo: `receber` (manhã) ou `enviar` (fim do dia). Push na branch comum só por clique confirmado no painel.
+app.post('/api/pombal', async (req, res) => {
+  const p = pombalOf(req.body.project);
+  const acao = req.body.acao;
+  if (!p || (acao !== 'receber' && acao !== 'enviar')) return res.status(400).json({ error: 'projeto ou ação inválida' });
+  try {
+    res.json({ passos: await voar(p.project.path, p.cfg, acao) });
+  } catch (err) {
+    const e = err as PombalError;
+    res.status(409).json({ error: e.message, conflitos: e.conflitos ?? [], passos: e.passos ?? [] });
+  } finally {
+    await refreshWorld();
+  }
+});
+
 app.get('/api/diff', async (req, res) => {
   const project = findProject(req.query.project);
   const file = project && safeRelative(project, req.query.file);
@@ -318,6 +354,12 @@ app.get('/api/library/search', async (req, res) => {
 });
 
 app.post('/api/sessions', (req, res) => {
+  // Sem projeto: sessão avulsa do banco da praça, sempre na home (decisão do usuário, 27/10/2026).
+  if (req.body.project == null) {
+    const sessionId = randomUUID();
+    avulsaSessions.add(sessionId);
+    return res.json({ sessionId, cwd: os.homedir() });
+  }
   const project = findProject(req.body.project);
   if (!project) return res.status(400).json({ error: 'projeto inválido' });
   res.json({ sessionId: randomUUID(), cwd: project.path });
@@ -383,7 +425,8 @@ server.on('upgrade', (req, socket, head) => {
       const project = findProject(url.searchParams.get('project'));
       const forAgent = known ? undefined : agentSessions.get(sessionId);
       agentSessions.delete(sessionId);
-      const cwd = known?.cwd ?? forAgent?.cwd ?? project?.path;
+      const avulsa = avulsaSessions.delete(sessionId) ? os.homedir() : undefined;
+      const cwd = known?.cwd ?? forAgent?.cwd ?? project?.path ?? avulsa;
       if (!/^[0-9a-f-]{36}$/.test(sessionId) || !cwd) {
         ws.close(1008, 'sessão inválida');
         return;
@@ -407,6 +450,13 @@ setInterval(refreshWorld, POLL_MS);
 // Mantém o catálogo da bibliotecária em dia mesmo sem ninguém abrir a biblioteca.
 void library.sections();
 setInterval(() => void library.sections(), 60_000);
+// Pombal: busca o remoto de tempos em tempos para saber se chegou carta (a primeira, logo ao subir).
+async function buscarPombais() {
+  await Promise.all(world.projects.filter((p) => p.pombal).map((p) => buscar(p.path, config.pombal[p.name])));
+  await refreshWorld();
+}
+void buscarPombais();
+setInterval(() => void buscarPombais(), POMBAL_FETCH_MS);
 
 server.listen(config.port, HOST, () => {
   console.log(`🌾 Dev Valley rodando em http://localhost:${config.port}`);

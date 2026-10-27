@@ -1,4 +1,4 @@
-import { agents, type AgentSummary, type Project, type Session, type World } from '../api';
+import { agents, api, type AgentSummary, type Project, type Session, type World } from '../api';
 import { villagerName } from '../game/names';
 import { openCommit } from './commit';
 import { openConferir } from './conferir';
@@ -15,6 +15,7 @@ import { openProject } from './project';
 import { openRetrabalho } from './retrabalho';
 import { openSementes } from './sementes';
 import { openQuadro } from './quadro';
+import { openPombal } from './pombal';
 import { openEstante } from './estante';
 import { openSkills } from './skills';
 import { openSessionTerminal, openTerminal } from './terminal';
@@ -115,6 +116,10 @@ export const ui = {
     this.hideTooltip();
     openCommit(project);
   },
+  openPombal(project: Project) {
+    this.hideTooltip();
+    openPombal(project);
+  },
   openLibrary(opts: { sectionId?: string; search?: boolean; path?: string } = {}) {
     this.hideTooltip();
     void openLibrary(opts);
@@ -132,6 +137,12 @@ export const ui = {
     this.hideTooltip();
     const { sessionId, projectId, name } = await agents.talk(agent.path);
     openTerminal({ sessionId, projectId, title: `✦ ${name}` });
+  },
+  /** Banco da praça: sessão nova avulsa, na home (decisão do usuário, 27/10/2026). */
+  async newAvulsa() {
+    this.hideTooltip();
+    const { sessionId } = await api.newSession();
+    openTerminal({ sessionId, projectId: null, title: 'Nova sessão avulsa' });
   },
   /** `path`: abre já na edição desse agente. */
   openSkills(path?: string) {

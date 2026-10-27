@@ -9,6 +9,7 @@ import { missingStructure, readAuditoria } from './estrutura.js';
 import { readGuardrails, type Guardrails } from './guardrails.js';
 import { readPainel, type Painel } from './painel.js';
 import { readPendencias, type Pendencia } from './pendencias.js';
+import { readPombal, type Pombal } from './pombal.js';
 import { readQuadro, type PlanoAcao } from './quadro.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
 import { readRetrabalho, type Retrabalho } from './retrabalho.js';
@@ -45,6 +46,8 @@ export interface Project {
   retrabalho: Retrabalho | null;
   /** Vencimento da auditoria das regras, `AAAA-MM-DD` (placa de vistoria); null = sem `.claude/auditoria-regras.txt`. */
   auditoria: string | null;
+  /** Pombal (sincronização com a branch comum do time); null = projeto sem `pombal` no config local. */
+  pombal: Pombal | null;
 }
 
 export interface WorldSession extends SessionInfo {
@@ -122,7 +125,7 @@ async function discoverProjectDirs(config: Config): Promise<string[]> {
   return [...dirs].sort((a, b) => path.basename(a).localeCompare(path.basename(b)));
 }
 
-async function loadProject(dir: string): Promise<Project> {
+async function loadProject(dir: string, config: Config): Promise<Project> {
   const [isGit, pendencias, painel, progress, missing, sementes, estante, retrabalho, auditoria] = await Promise.all([
     gitOps.isGitRepo(dir),
     readPendencias(dir),
@@ -151,6 +154,7 @@ async function loadProject(dir: string): Promise<Project> {
     estante,
     retrabalho,
     auditoria,
+    pombal: null,
   };
   if (!isGit) return base;
   const [branch, remote, changes] = await Promise.all([
@@ -158,7 +162,8 @@ async function loadProject(dir: string): Promise<Project> {
     gitOps.remoteUrl(dir),
     gitOps.changes(dir).catch(() => []),
   ]);
-  return { ...base, branch, remote, changes };
+  const pombalCfg = config.pombal[base.name];
+  return { ...base, branch, remote, changes, pombal: pombalCfg ? await readPombal(dir, pombalCfg, branch) : null };
 }
 
 function ownerOf(session: SessionInfo, projects: Project[]): Project | null {
@@ -188,7 +193,7 @@ export async function buildWorld(
   skills: Skills,
 ): Promise<World> {
   const dirs = await discoverProjectDirs(config);
-  const projects = await Promise.all(dirs.map(loadProject));
+  const projects = await Promise.all(dirs.map((d) => loadProject(d, config)));
   const all = await listSessions(config.sessionMaxAgeDays);
   const known = new Set(all.map((s) => s.id));
   const inTown = new Set(terminals.map((t) => t.id));

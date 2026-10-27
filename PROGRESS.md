@@ -3,6 +3,39 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-27 — Fachada da fábrica mais trabalhada
+
+**O que mudou:** pedido do usuário: manter a identidade da Fábrica de agentes, com mais acabamento. Mesmo tamanho
+(100×96). Tijolo em amarração e pilares de canto; claraboias de vidro no dente-de-serra; chaminé de tijolo na frente
+do telhado, soltando fumaça; janelas industriais em grade 2×2 com verga de tijolo (`factoryWindow`); portão de enrolar
+sob viga de aço; base de pedra. A primeira versão saiu detalhada demais e o usuário pediu para suavizar e tirar o
+símbolo do meio: sem a engrenagem, tijolo num tom só com juntas espaçadas, sem rebites, reflexos e vidraça acesa.
+**Arquivos:** `web/src/game/textures.ts` (`factory`, `factoryWindow`).
+**Testes:** `tsc` + `vite build` (diretório temporário), auditor sem achado. Prévia em PNG do sprite gerada fora do
+navegador. Falta conferir na vila: depende do build/reinício, que é do usuário (regra 6).
+
+## 2026-10-27 — Fachada da biblioteca com cara de biblioteca
+
+**O que mudou:** pedido do usuário: por fora, a biblioteca não parecia uma biblioteca. A fachada foi redesenhada no
+mesmo tamanho (100×90, sem mexer no layout): frontão triangular de pedra com um livro aberto em relevo, arquitrave
+com inscrição e dentículos, colunas com capitel e base, janelas em arco que mostram estantes com lombadas coloridas
+por dentro (`bookWindow`), porta em arco de duas folhas com lampiões dos lados, e escadaria na entrada.
+**Arquivos:** `web/src/game/textures.ts` (`library`, `bookWindow`).
+**Testes:** `tsc` + `vite build` (diretório temporário), auditor sem achado. Prévia em PNG do sprite gerada fora do
+navegador. Falta conferir na vila: depende do build/reinício, que é do usuário (regra 6).
+
+## 2026-10-27 — Banco da praça abre sessão nova avulsa
+
+**O que mudou:** pedido do usuário. Clicar no banco da praça abre um terminal com uma sessão nova do Claude Code
+fora de qualquer projeto; ela mora na praça, como as outras avulsas. Decisões do usuário (27/10/2026): nasce sempre
+na home (`~`), sem perguntar pasta; a peça é o banco que já existia, sem pixel art nova. `POST /api/sessions` sem
+`project` devolve um id novo e o guarda em `avulsaSessions`; o WebSocket do terminal aceita esse id uma vez, com
+a home como pasta (mesmo esquema das conversas com agente da Fábrica).
+**Arquivos:** `server/src/index.ts` (`avulsaSessions`, rota e WebSocket), `web/src/api.ts` (`newSession` sem
+projeto), `web/src/ui/actions.ts` (`newAvulsa`), `web/src/game/TownScene.ts` (banco clicável).
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado.
+Conferido na vila pelo usuário em 27/10/2026.
+
 ## 2026-10-27 — Subfases do painel.json na horta e no quadro negro
 
 **O que mudou:** pedido do usuário, com a estrutura do painel da Fábrica de agentes e o estilo da vila. O servidor
@@ -16,6 +49,35 @@ em andamento abre aberto e o resto fica recolhido (`<details>`). As duas telas u
 **Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
 testado no projeto de exemplo: a fase com 19 subfases sai "0 de 19" e a primeira subfase "1 de 4", como na imagem do
 painel da Fábrica; fases sem etapas continuam como antes. Conferido na vila pelo usuário em 27/10/2026.
+
+## 2026-10-27 — Pombal vira casinha de passarinho no quintal
+
+**O que mudou:** pedido do usuário: o pombal acima da porta ficava pequeno e pouco destacado. Agora é uma casinha de
+passarinho num poste, no quintal à direita da caixa de envio (único espaço livre do lote: a horta fica à esquerda e as
+ervas acima da caixa), com 24×46 px (antes 16×15), parede azul e telhado vermelho. O pombo com carta e as cartas do
+poleiro também cresceram. Estados e cliques iguais.
+**Arquivos:** `web/src/game/textures.ts` (`dovecote`, `pigeonLetter`, `letter`), `web/src/game/TownScene.ts`
+(`POMBAL_DX`, `buildPombal`, `updatePombal`), `README.md`, `docs-dev/context/pombal.md`.
+**Testes:** `npm run build`. Só o front mudou: basta recarregar a página, sem reiniciar o servidor. Conferido na vila pelo usuário em 27/10/2026.
+
+## 2026-10-27 — Pombal: sincronização diária com a branch comum do time
+
+**O que mudou:** decisão do usuário (27/10/2026, registrada em `docs-dev/context/pombal.md`). A casa configurada
+ganha um pombal acima da porta. Pombo dormindo = em dia; pombo no telhado com carta = commits novos na branch comum;
+cartas no poleiro = commits seus a levar; "!" amarelo = outra branch ou viagem que não completou. O painel lista as
+cartas dos dois sentidos e tem as duas viagens: trazer (fetch, merge da comum na sua, push da sua) e levar (o mesmo e,
+no fim, push fast-forward para a comum, com confirmação). Mudança sem commit e branch errada barram antes de sair;
+conflito desfaz o merge e lista os arquivos. A contagem ignora merges. O remoto é buscado ao subir, a cada 5 min e ao
+abrir o painel; o `git()` ganhou o modo `network` (sem pedir senha, 2 min de limite). Config `pombal` só no local.
+Regra 9 nova no `CLAUDE.md` (push só por clique, nunca force, conflito sempre aborta).
+**Arquivos:** `server/src/pombal.ts` (novo), `server/src/git.ts`, `server/src/config.ts`, `server/src/world.ts`,
+`server/src/index.ts` (`GET`/`POST /api/pombal`, fetch periódico), `web/src/api.ts`, `web/src/ui/pombal.ts` (novo),
+`web/src/ui/actions.ts`, `web/src/game/textures.ts` (pombal, pombo com carta, carta), `web/src/game/TownScene.ts`,
+`web/src/style.css`, `README.md`, `CLAUDE.md`, `docs-dev/context/pombal.md` (novo).
+**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. Leitura no projeto real (sem rede e sem
+merge): em dia; branch errada e branch inexistente dão o estado certo. Viagens num repositório de teste com um remoto
+falso e dois clones: pull, push até a comum, recusa com mudança sem commit (não marca o pombal) e conflito (merge
+desfeito, arquivo listado, repositório limpo). Conferido na vila pelo usuário em 27/10/2026.
 
 ## 2026-10-27 — Quadro negro mostra o painel.json inteiro
 

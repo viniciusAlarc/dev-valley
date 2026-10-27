@@ -9,6 +9,7 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | Caixa de envio ao lado da casa | `git status` — clique para ver o diff e commitar |
 | Morador | Sessão do Claude Code (`~/.claude/projects/**/*.jsonl`) — clique para abrir o chat. Nome único na vila |
 | Dentro da casa (clique nela) | Todas as sessões do projeto: as ativas trabalham nas mesas, as antigas descansam no sofá |
+| Pombal: casinha de passarinho no quintal, à direita da caixa de envio (só nas casas configuradas) | Sincroniza a sua branch com a branch comum do time. Pombo no telhado com carta = commits novos na comum (pull de manhã); cartas no poleiro = commits seus que a comum não tem (push no fim do dia); pombo dormindo = em dia; "!" amarelo = casa em outra branch ou última viagem não completou. Conflito desfaz o merge e lista os arquivos |
 | Placa embaixo da janela | Vencimento da auditoria das regras (`.claude/auditoria-regras.txt`); amarela quando vencida — rode `/auditar-regras` |
 | Ervas à direita da casa | Uma por linha do `RETRABALHO.md` (G17) — clique para ver a tabela; três da mesma causa pedem `/nova-regra` |
 | Quadro negro (parede da casa) | O `docs-dev/painel.json` inteiro: plano, todas as fases com o estado, todas as entregas e o JSON como está no arquivo. O `doc` do plano e de cada fase vira botão: HTML abre isolado no painel (iframe com `sandbox`, sem acesso à vila); `.md` abre no leitor. Sem o arquivo, o quadro fica limpo |
@@ -19,6 +20,7 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | Janela acesa | Alguma sessão do projeto está rodando |
 | Andaime na fachada | Falta estrutura de acompanhamento (`CLAUDE.md`, `PENDENCIAS.md`, `PROGRESS.md`, `docs-dev/painel.json`, auditor) — clique para ver como resolver |
 | Praça | Sessões abertas fora de qualquer projeto |
+| Banco da praça | Clique para abrir uma sessão nova avulsa, na home (`~`) |
 | Outdoor atrás da praça | Guardrails: se o plugin está ligado no `settings.json` e, no clique, a lista de regras (configurado no local) |
 | Sino na praça | Entregas do `PROGRESS.md` que ainda dizem "Falta conferir na vila", e o reinício pendente do Dev Valley |
 | Biblioteca | CLAUDE.md, memórias e docs de cada projeto, com leitor, edição e busca |
@@ -86,6 +88,8 @@ onde está a conversa, sem busca. O texto da mensagem é lido só na sua máquin
   por tipo (`guardrail`, `perfil`)
 - `guardrails` (só no local): `{ "plugin": "<nome@marketplace>", "core": "<arquivo com ## G<n> — título>" }` liga o
   outdoor dos guardrails atrás da praça (plugin ligado no `~/.claude/settings.json` e a lista de regras); sem ele, não há outdoor
+- `pombal` (só no local): `{ "<pasta do projeto>": { "integracao": "<branch comum>", "minha": "<sua branch>", "remoto": "origin" } }`
+  põe o pombal na casa; o remoto é buscado ao subir e a cada 5 minutos
 
 ## Estrutura
 

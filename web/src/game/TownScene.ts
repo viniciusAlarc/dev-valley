@@ -21,6 +21,22 @@ function auditoriaVencida(due: string | null): boolean {
 
 const WEEDS_COLS = 3;
 const WEEDS_MAX = 9;
+/** Pombal no quintal, à direita da caixa de envio (a caixa vai até x+60; o lote, até x+96). */
+const POMBAL_DX = 76;
+/** Cartas empilhadas no poleiro do pombal: uma por commit a levar, até este limite. */
+const POMBAL_LETTERS_MAX = 4;
+
+function pombalTooltip(project: Project): string {
+  const p = project.pombal!;
+  if (p.branchErrada) return `Pombal — o pombo não sai: a casa está na ${project.branch ?? '?'}, não na ${p.minha}`;
+  if (p.erro) return `Pombal — a última viagem não completou: ${p.erro}`;
+  const partes = [
+    p.aReceber && `📥 ${p.aReceber} carta(s) chegando da ${p.integracao}`,
+    p.aEnviar && `📤 ${p.aEnviar} carta(s) suas para levar`,
+  ].filter(Boolean);
+  return `Pombal — ${partes.length ? partes.join(' · ') : `em dia com a ${p.integracao}`} — clique para abrir`;
+}
+
 const CROP_TEXTURE = { feito: 'crop-done', andamento: 'crop-growing', 'a fazer': 'crop-todo' } as const;
 const PHASE_TEXT = { feito: 'feito', andamento: 'em andamento', 'a fazer': 'a fazer' } as const;
 /** NPCs ✦ em volta da Fábrica (os demais agentes ficam só no painel). */
@@ -47,6 +63,8 @@ interface HouseView {
   cropsKey: string;
   weeds: Phaser.GameObjects.Image[];
   weedsKey: string;
+  /** Pombal (casinha de passarinho no quintal); só na casa com `pombal` no config local. */
+  pombal?: { box: Phaser.GameObjects.Image; pigeon: Phaser.GameObjects.Image; alert: Phaser.GameObjects.Container; letters: Phaser.GameObjects.Image[]; lettersKey: string };
 }
 
 export class TownScene extends Phaser.Scene {
@@ -325,7 +343,8 @@ export class TownScene extends Phaser.Scene {
     star.setStroke('#5e3a1c', 2);
     this.tweens.add({ targets: star, y: star.y - 3, alpha: 0.6, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut' });
     // Um banco só, à esquerda, e os arbustos juntos à direita: a praça não fica espelhada.
-    this.addSprite('bench', fountain.x - 64, fountain.y + 16);
+    const bench = this.addSprite('bench', fountain.x - 64, fountain.y + 16);
+    makeInteractive(bench, () => 'Banco da praça — sentar um morador novo (sessão avulsa, na home)', () => void ui.newAvulsa());
     this.addSprite('bush', fountain.x + 72, fountain.y + 12);
     this.addSprite('bush', fountain.x + 58, fountain.y + 17);
     for (const side of [-1, 1]) {
@@ -415,6 +434,7 @@ export class TownScene extends Phaser.Scene {
     );
 
     const view: HouseView = { plot, glows, alert, scaffold, plaque, crops: [], cropsKey: '', weeds: [], weedsKey: '' };
+    if (p.pombal) view.pombal = this.buildPombal(plot);
     if (p.isGit) {
       const bin = this.addSprite('bin', plot.bin.x, plot.bin.y);
       makeInteractive(
@@ -434,6 +454,49 @@ export class TownScene extends Phaser.Scene {
       this.tweens.add({ targets: view.badge, y: view.badge.y - 2, yoyo: true, repeat: -1, duration: 600, ease: 'Sine.inOut' });
     }
     this.houses.set(p.id, view);
+  }
+
+  /** Pombal: casinha de passarinho num poste à direita da caixa de envio; o pombo com carta pousa no telhado dela. */
+  private buildPombal(plot: Plot) {
+    const { x, y } = plot.house;
+    const id = plot.project.id;
+    const box = this.addSprite('dovecote-sleep', x + POMBAL_DX, y - 1);
+    const pigeon = this.add.image(box.x, box.y - 42, 'pigeon-letter').setOrigin(0.5, 1).setDepth(box.depth + 0.2).setVisible(false);
+    this.tweens.add({ targets: pigeon, y: pigeon.y - 2, yoyo: true, repeat: -1, duration: 500, ease: 'Sine.inOut' });
+    const bg = this.add.graphics();
+    bg.fillStyle(0x2b1a0e).fillRoundedRect(-4, -6, 8, 11, 2);
+    bg.fillStyle(0xf5d142).fillRoundedRect(-3, -5, 6, 9, 2);
+    const mark = this.add.text(0, 0, '!', { ...TEXT_STYLE, color: '#2b1a0e', fontSize: '8px' }).setOrigin(0.5, 0.55);
+    const alert = this.add.container(box.x + 12, box.y - 52, [bg, mark]).setDepth(box.depth + 0.3).setVisible(false);
+    this.tweens.add({ targets: alert, y: alert.y - 2, yoyo: true, repeat: -1, duration: 700, ease: 'Sine.inOut' });
+    for (const target of [box, pigeon]) {
+      makeInteractive(
+        target,
+        () => pombalTooltip(this.currentProject(id)),
+        () => ui.openPombal(this.currentProject(id)),
+      );
+    }
+    return { box, pigeon, alert, letters: [], lettersKey: '' };
+  }
+
+  /** Estado do pombal: travado ("!"), carta chegando (pombo no telhado), suas cartas no poleiro, ou em dia (dormindo). */
+  private updatePombal(view: NonNullable<HouseView['pombal']>, project: Project) {
+    const p = project.pombal;
+    if (!p) return;
+    const travado = p.branchErrada || !!p.erro;
+    view.alert.setVisible(travado);
+    view.pigeon.setVisible(!travado && p.aReceber > 0);
+    view.box.setTexture(travado || p.aReceber > 0 ? 'dovecote-empty' : p.aEnviar > 0 ? 'dovecote-awake' : 'dovecote-sleep');
+    const n = Math.min(p.aEnviar, POMBAL_LETTERS_MAX);
+    if (String(n) === view.lettersKey) return;
+    view.lettersKey = String(n);
+    for (const l of view.letters) l.destroy();
+    view.letters = Array.from({ length: n }, (_, i) =>
+      this.add
+        .image(view.box.x + 5 + (i % 2), view.box.y - 19 - i * 3, 'letter')
+        .setOrigin(0.5, 1)
+        .setDepth(view.box.depth + 0.1 + i * 0.01),
+    );
   }
 
   private currentProject(id: string): Project {
@@ -490,6 +553,7 @@ export class TownScene extends Phaser.Scene {
     view.plaque.setVisible(!!project.auditoria).setTexture(auditoriaVencida(project.auditoria) ? 'plaque-due' : 'plaque-ok');
     this.plantGarden(view, project);
     this.growWeeds(view, project);
+    if (view.pombal) this.updatePombal(view.pombal, project);
     const lit = this.world.sessions.some((s) => s.projectId === project.id && s.live);
     for (const g of view.glows) {
       this.tweens.killTweensOf(g);

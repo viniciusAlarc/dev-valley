@@ -153,6 +153,68 @@ function plaque(scene: Phaser.Scene, key: string, face: string, lines: string) {
   add(scene, key, c);
 }
 
+/**
+ * Pombal: casinha de passarinho num poste, no quintal à direita da caixa de envio (sincronização com a branch comum
+ * do time). Parede azul e telhado vermelho para destacar do resto do quintal. `pigeon`: buraco vazio (o pombo saiu
+ * ou não pode sair), dormindo (em dia) ou acordado (há cartas suas esperando para ir).
+ */
+function dovecote(scene: Phaser.Scene, key: string, pigeon: 'none' | 'sleep' | 'awake') {
+  const W = 24;
+  const H = 46;
+  const { c, ctx } = makeCanvas(W, H);
+  // poste e base
+  rect(ctx, 10, 28, 4, 16, '#8d5f30');
+  rect(ctx, 10, 28, 1, 16, '#a0703a');
+  rect(ctx, 7, 43, 10, 2, '#6b4423');
+  // casinha
+  rect(ctx, 4, 12, 16, 15, '#6fa8dc');
+  for (const y of [16, 20, 24]) rect(ctx, 4, y, 16, 1, '#5b8fc0');
+  // telhado em duas águas, com beiral escuro
+  for (let i = 0; i < 9; i++) {
+    const w = 4 + i * 2;
+    rect(ctx, 12 - w / 2, 3 + i, w, 1, i === 8 ? '#8e2b20' : i % 3 === 0 ? '#d95a4a' : '#c0392b');
+  }
+  disc(ctx, 12, 18, 3, '#2b1a0e');
+  if (pigeon !== 'none') {
+    disc(ctx, 12, 19, 2, '#b9bcc4');
+    rect(ctx, 14, 19, 1, 1, '#e8892b');
+    if (pigeon === 'sleep') rect(ctx, 11, 18, 2, 1, '#6e7078');
+    else rect(ctx, 12, 18, 1, 1, '#2b1a0e');
+  }
+  // poleiro
+  rect(ctx, 2, 27, 20, 2, '#a0703a');
+  rect(ctx, 2, 28, 20, 1, '#7a4b20');
+  outline(ctx, W, H);
+  add(scene, key, c);
+}
+
+/** Pombo pousado no telhado do pombal com uma carta no bico: chegou coisa nova da branch comum. */
+function pigeonLetter(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(21, 14);
+  rect(ctx, 1, 7, 3, 3, '#8b8e96');
+  disc(ctx, 7, 8, 4, '#b9bcc4');
+  rect(ctx, 5, 7, 4, 1, '#a7aab3');
+  rect(ctx, 9, 6, 3, 2, '#6fa58a');
+  disc(ctx, 11, 4, 3, '#a7aab3');
+  rect(ctx, 12, 3, 1, 1, '#2b1a0e');
+  rect(ctx, 14, 4, 1, 1, '#e8892b');
+  rect(ctx, 15, 3, 5, 4, '#f4efe0');
+  rect(ctx, 17, 4, 1, 2, '#c0392b');
+  for (const x of [6, 9]) rect(ctx, x, 12, 1, 1, '#e8892b');
+  outline(ctx, 21, 14);
+  add(scene, 'pigeon-letter', c);
+}
+
+/** Carta no poleiro do pombal: um commit seu que a branch comum ainda não tem. */
+function letter(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(9, 7);
+  rect(ctx, 1, 1, 7, 5, '#f4efe0');
+  for (const [x, y] of [[1, 1], [7, 1], [2, 2], [6, 2], [3, 3], [5, 3]]) rect(ctx, x, y, 1, 1, '#c9b99a');
+  rect(ctx, 4, 3, 1, 1, '#c0392b');
+  outline(ctx, 9, 7);
+  add(scene, 'letter', c);
+}
+
 /** Andaime na frente da fachada: projeto sem a estrutura de acompanhamento dos guardrails (casa em obra). */
 function scaffold(scene: Phaser.Scene) {
   const W = 26;
@@ -274,55 +336,171 @@ function house(scene: Phaser.Scene, key: string, pal: [string, string, string]) 
   add(scene, key, c);
 }
 
+/** Janela em arco da biblioteca com as estantes de livros aparecendo por dentro. */
+function bookWindow(ctx: Ctx, x: number, y: number, rnd: () => number) {
+  const H = 25;
+  const SPINES = ['#8c2c20', '#2f6db0', '#3c8a48', '#d07a2a', '#7a4aa0', '#e8c252', '#2a8f8a', '#f2e6c4'];
+  rect(ctx, x + 3, y, 6, 1, '#4a2a12');
+  rect(ctx, x + 1, y + 1, 10, 1, '#4a2a12');
+  rect(ctx, x, y + 2, 12, H - 2, '#4a2a12');
+  rect(ctx, x + 3, y + 1, 6, 1, '#3a2010');
+  rect(ctx, x + 1, y + 2, 10, H - 3, '#3a2010');
+  for (let row = 0; row < 3; row++) {
+    const board = y + 9 + row * 7;
+    for (let xx = x + 1; xx < x + 11; ) {
+      const w = rnd() > 0.7 ? 2 : 1;
+      const h = 4 + Math.floor(rnd() * 3);
+      if (rnd() > 0.12) rect(ctx, xx, board - h, Math.min(w, x + 11 - xx), h, SPINES[Math.floor(rnd() * SPINES.length)]);
+      xx += w;
+    }
+    rect(ctx, x + 1, board, 10, 1, '#8d5f30');
+  }
+  rect(ctx, x - 1, y + H, 14, 2, '#c4bca9');
+}
+
+/**
+ * Biblioteca: fachada clássica (frontão com livro aberto, colunas, escadaria) e janelas em arco que deixam ver
+ * as estantes cheias de livros por dentro, para ser reconhecida como biblioteca à primeira vista.
+ */
 function library(scene: Phaser.Scene) {
   const W = 100;
   const H = 90;
   const { c, ctx } = makeCanvas(W, H);
-  rect(ctx, 6, 36, W - 12, 50, '#b3ab9c');
-  for (let y = 40; y < 86; y += 6) {
+  const rnd = mulberry32(11);
+  // parede de pedra
+  rect(ctx, 6, 38, W - 12, 44, '#b3ab9c');
+  for (let y = 42; y < 82; y += 6) {
     rect(ctx, 6, y, W - 12, 1, '#8f877a');
     for (let x = 6 + ((y / 6) % 2) * 6; x < W - 6; x += 12) rect(ctx, x, y - 5, 1, 5, '#8f877a');
   }
-  roof(ctx, 0, W, 4, 40, ['#4b3d7a', '#33295a', '#6656a0']);
-  // colunas
-  for (const x of [20, 36, 60, 76]) {
-    rect(ctx, x, 42, 5, 44, '#e3dccb');
-    rect(ctx, x + 3, 42, 2, 44, '#c4bca9');
+  // telhado em duas águas com o frontão de pedra na frente
+  const pal = ['#4b3d7a', '#33295a', '#6656a0'];
+  for (let i = 0; i < 30; i++) {
+    const hw = 2 + Math.round((i * 46) / 29);
+    rect(ctx, 50 - hw, 4 + i, hw * 2, 1, i % 5 === 4 ? pal[1] : pal[0]);
+    if (i % 5 === 0 && hw > 4) rect(ctx, 50 - hw + 2, 4 + i, hw * 2 - 4, 1, pal[2]);
   }
-  rect(ctx, 41, 56, 18, 30, '#4a2a12');
-  rect(ctx, 42, 57, 8, 29, '#6b3f1f');
-  rect(ctx, 50, 57, 8, 29, '#6b3f1f');
-  // livro no frontão
-  rect(ctx, 42, 20, 16, 11, '#f2e6c4');
-  rect(ctx, 49, 20, 2, 11, '#8c2c20');
+  for (let i = 0; i < 22; i++) {
+    const hw = Math.round((i * 36) / 21);
+    rect(ctx, 50 - hw, 10 + i, hw * 2, 1, i === 21 ? '#c4bca9' : '#e3dccb');
+  }
+  // livro aberto no frontão
+  rect(ctx, 38, 20, 24, 10, '#5a4630');
+  rect(ctx, 39, 22, 10, 6, '#f7f0dc');
+  rect(ctx, 51, 22, 10, 6, '#f7f0dc');
+  rect(ctx, 40, 21, 8, 1, '#f7f0dc');
+  rect(ctx, 52, 21, 8, 1, '#f7f0dc');
+  for (const y of [23, 25]) {
+    rect(ctx, 41, y, 6, 1, '#b8ad90');
+    rect(ctx, 53, y, 6, 1, '#b8ad90');
+  }
+  rect(ctx, 49, 21, 2, 8, '#8c2c20');
+  rect(ctx, 38, 28, 24, 2, '#8c2c20');
+  // arquitrave com a inscrição e os dentículos
+  rect(ctx, 2, 32, W - 4, 6, '#e3dccb');
+  rect(ctx, 2, 32, W - 4, 1, '#efe9db');
+  for (let x = 37; x < 63; x += 3) rect(ctx, x, 34, 2, 2, '#8f877a');
+  for (let x = 4; x < W - 4; x += 4) rect(ctx, x, 37, 2, 2, '#c4bca9');
+  // colunas
+  for (const x of [6, 30, 64, 88]) {
+    rect(ctx, x, 39, 6, 41, '#e3dccb');
+    rect(ctx, x + 4, 39, 2, 41, '#c4bca9');
+    rect(ctx, x + 2, 42, 1, 36, '#d2cab8');
+    rect(ctx, x - 1, 39, 8, 2, '#efe9db');
+    rect(ctx, x - 1, 78, 8, 2, '#c4bca9');
+  }
+  bookWindow(ctx, 15, 46, rnd);
+  bookWindow(ctx, 73, 46, rnd);
+  // porta em arco, de duas folhas
+  rect(ctx, 44, 52, 12, 1, '#4a2a12');
+  rect(ctx, 42, 53, 16, 1, '#4a2a12');
+  rect(ctx, 41, 54, 18, 26, '#4a2a12');
+  rect(ctx, 44, 53, 12, 1, '#6b3f1f');
+  rect(ctx, 42, 54, 16, 26, '#6b3f1f');
+  rect(ctx, 49, 54, 2, 26, '#4a2a12');
+  for (const x of [43, 52]) {
+    rect(ctx, x, 60, 5, 1, '#5e3519');
+    rect(ctx, x, 70, 5, 1, '#5e3519');
+  }
+  rect(ctx, 47, 66, 1, 2, '#e8c252');
+  rect(ctx, 52, 66, 1, 2, '#e8c252');
+  // lampiões dos lados da porta
+  for (const x of [37, 60]) {
+    rect(ctx, x, 55, 3, 1, '#2b1a0e');
+    rect(ctx, x, 56, 3, 4, '#f5d142');
+    rect(ctx, x + 1, 57, 1, 2, '#fff3b0');
+    rect(ctx, x, 60, 3, 1, '#2b1a0e');
+  }
+  // base e escadaria
   rect(ctx, 0, 84, W, 6, '#8a8478');
+  rect(ctx, 2, 80, W - 4, 4, '#cfc7b6');
+  rect(ctx, 2, 80, W - 4, 1, '#e3dccb');
+  rect(ctx, 2, 83, W - 4, 1, '#a39b8b');
+  rect(ctx, 36, 84, 28, 3, '#cfc7b6');
+  rect(ctx, 36, 84, 28, 1, '#e3dccb');
+  rect(ctx, 32, 87, 36, 3, '#bdb4a2');
+  rect(ctx, 32, 87, 36, 1, '#d8d0c0');
   outline(ctx, W, H);
   add(scene, 'library', c);
 }
 
+/** Janela industrial da fábrica: caixilho de aço em grade e verga de tijolo. */
+function factoryWindow(ctx: Ctx, x: number, y: number) {
+  rect(ctx, x - 1, y - 3, 15, 3, '#b45a40');
+  rect(ctx, x, y, 13, 15, '#3f464c');
+  for (const px of [x + 1, x + 7])
+    for (const py of [y + 1, y + 8]) {
+      rect(ctx, px, py, 5, 6, '#8fc8de');
+      rect(ctx, px, py, 2, 1, '#c6e8f2');
+    }
+  rect(ctx, x - 1, y + 15, 15, 2, '#bdb4a2');
+}
+
+/**
+ * Fábrica de agentes: galpão de tijolo com telhado dente-de-serra e claraboias, chaminé soltando fumaça
+ * e portão de enrolar sob uma viga de aço.
+ */
 function factory(scene: Phaser.Scene) {
   const W = 100;
   const H = 96;
   const { c, ctx } = makeCanvas(W, H);
-  rect(ctx, 74, 0, 12, 40, '#7d3a2b');
-  rect(ctx, 72, 0, 16, 4, '#5a281d');
-  rect(ctx, 4, 44, W - 8, 48, '#a24e37');
-  for (let y = 48; y < 92; y += 5) rect(ctx, 4, y, W - 8, 1, '#83402c');
-  // telhado dente-de-serra
+  // telhado dente-de-serra, com claraboia de vidro em cada dente
   for (let i = 0; i < 4; i++) {
     const x0 = 2 + i * 24;
-    for (let y = 0; y < 18; y++) rect(ctx, x0, 26 + y, Math.round((y * 24) / 18), 1, y % 4 === 3 ? '#4c545c' : '#66717b');
-    rect(ctx, x0 + 22, 26, 2, 18, '#9fd0e6');
+    for (let y = 0; y < 20; y++) rect(ctx, x0, 24 + y, Math.round((y * 21) / 19), 1, y % 5 === 4 ? '#56606a' : '#66717b');
+    rect(ctx, x0 + 21, 24, 3, 20, '#3f464c');
+    rect(ctx, x0 + 22, 25, 1, 18, '#9fd0e6');
   }
-  rect(ctx, 0, 42, W, 3, '#3f464c');
-  // portão
-  rect(ctx, 36, 60, 28, 32, '#4c545c');
-  for (let y = 62; y < 92; y += 4) rect(ctx, 37, y, 26, 2, '#66717b');
-  window_(ctx, 12, 56);
-  window_(ctx, 76, 56);
-  // engrenagem
-  disc(ctx, 50, 52, 5, '#e8c252');
-  disc(ctx, 50, 52, 2, '#a24e37');
+  rect(ctx, 0, 44, W, 3, '#3f464c');
+  // parede de tijolo
+  rect(ctx, 4, 47, W - 8, 42, '#a24e37');
+  for (let y = 47; y < 89; y += 5) {
+    rect(ctx, 4, y + 4, W - 8, 1, '#8e4430');
+    const off = ((y - 47) / 5) % 2 === 0 ? 0 : 8;
+    for (let x = 12 + off; x < W - 8; x += 16) rect(ctx, x, y, 1, 4, '#8e4430');
+  }
+  // pilares de canto
+  for (const x of [4, 91]) {
+    rect(ctx, x, 47, 5, 42, '#93463a');
+    rect(ctx, x + 4, 47, 1, 42, '#7d3a2b');
+  }
+  factoryWindow(ctx, 14, 62);
+  factoryWindow(ctx, 73, 62);
+  // viga de aço e portão de enrolar
+  rect(ctx, 32, 58, 36, 4, '#4c545c');
+  rect(ctx, 32, 58, 36, 1, '#66717b');
+  rect(ctx, 34, 62, 32, 27, '#4c545c');
+  for (let y = 64; y < 88; y += 4) rect(ctx, 36, y, 28, 3, '#66717b');
+  // base de pedra
+  rect(ctx, 2, 89, W - 4, 7, '#8a8478');
+  rect(ctx, 2, 89, W - 4, 1, '#a39b8b');
+  // chaminé de tijolo com fumaça
+  rect(ctx, 76, 14, 11, 30, '#7d3a2b');
+  for (let y = 19; y < 44; y += 5) rect(ctx, 76, y, 11, 1, '#6a3124');
+  rect(ctx, 85, 14, 2, 30, '#6a3124');
+  rect(ctx, 74, 10, 15, 4, '#5a281d');
+  disc(ctx, 81, 6, 3, '#d9dcde');
+  disc(ctx, 87, 3, 2, '#e8eaeb');
   outline(ctx, W, H);
   add(scene, 'factory', c);
 }
@@ -577,6 +755,11 @@ export function generateTextures(scene: Phaser.Scene) {
   scaffold(scene);
   plaque(scene, 'plaque-ok', '#f2e6c4', '#958c7c');
   plaque(scene, 'plaque-due', '#f5d142', '#8c5a00');
+  dovecote(scene, 'dovecote-empty', 'none');
+  dovecote(scene, 'dovecote-sleep', 'sleep');
+  dovecote(scene, 'dovecote-awake', 'awake');
+  pigeonLetter(scene);
+  letter(scene);
   weed(scene, 'weed0', false);
   weed(scene, 'weed1', true);
   crop(scene, 'crop-todo', 0);

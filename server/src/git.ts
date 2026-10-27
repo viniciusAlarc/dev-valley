@@ -10,9 +10,14 @@ export interface FileChange {
 
 const MAX_DIFF_BYTES = 1024 * 1024;
 
-export function git(cwd: string, args: string[]): Promise<string> {
+/**
+ * `network`: fetch/push. O git nunca pergunta senha no terminal (a vila não tem um para responder) e desiste em
+ * 2 minutos, em vez de deixar o servidor esperando para sempre.
+ */
+export function git(cwd: string, args: string[], opts: { network?: boolean } = {}): Promise<string> {
+  const net = opts.network ? { timeout: 120_000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } } : {};
   return new Promise((resolve, reject) => {
-    execFile('git', args, { cwd, maxBuffer: 32 * 1024 * 1024 }, (err, stdout, stderr) => {
+    execFile('git', args, { cwd, maxBuffer: 32 * 1024 * 1024, ...net }, (err, stdout, stderr) => {
       if (err) reject(new Error(stderr.trim() || err.message));
       else resolve(stdout);
     });
