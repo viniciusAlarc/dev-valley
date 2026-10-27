@@ -10,8 +10,15 @@ const MODELS: [string, string][] = [
   ['haiku', 'Haiku'],
 ];
 
+/** Grupo da lista: os agentes da vila têm o seu, sempre por último. */
+const VILLAGE = '__vila';
 const where = (projectId: string | null) =>
-  projectId === null ? 'Globais (~/.claude/agents)' : (getWorld().projects.find((p) => p.id === projectId)?.name ?? projectId);
+  projectId === VILLAGE
+    ? 'Agentes da vila (só leitura)'
+    : projectId === null
+      ? 'Globais (~/.claude/agents)'
+      : (getWorld().projects.find((p) => p.id === projectId)?.name ?? projectId);
+const groupOf = (a: AgentSummary) => (a.village ? VILLAGE : a.projectId);
 
 /**
  * Fábrica de agentes (PD-4): lista os agentes globais e de cada projeto e cria, edita ou apaga pelo formulário.
@@ -62,13 +69,13 @@ export async function openFactory(path?: string) {
     selected = current;
     agentsKey = JSON.stringify(getWorld().agents);
     const groups = new Map<string | null, AgentSummary[]>();
-    for (const a of getWorld().agents) groups.set(a.projectId, [...(groups.get(a.projectId) ?? []), a]);
+    for (const a of getWorld().agents) groups.set(groupOf(a), [...(groups.get(groupOf(a)) ?? []), a]);
     if (!groups.size) {
       tree.innerHTML = '<p class="empty">Nenhum agente ainda.</p>';
       return;
     }
     tree.innerHTML = [...groups]
-      .sort(([a], [b]) => (a === null ? -1 : b === null ? 1 : where(a).localeCompare(where(b))))
+      .sort(([a], [b]) => (a === b ? 0 : a === null || b === VILLAGE ? -1 : b === null || a === VILLAGE ? 1 : where(a).localeCompare(where(b))))
       .map(
         ([projectId, list]) => `
           <details class="shelf" open>
@@ -76,7 +83,7 @@ export async function openFactory(path?: string) {
             ${list
               .map(
                 (a) =>
-                  `<button class="book${a.path === current ? ' active' : ''}" data-path="${escapeHtml(a.path)}" title="${escapeHtml(a.description)}">✦ ${escapeHtml(a.name)}${a.managed ? ' <span class="muted">(Dev Valley)</span>' : ''}</button>`,
+                  `<button class="book${a.path === current ? ' active' : ''}" data-path="${escapeHtml(a.path)}" title="${escapeHtml(a.description)}">✦ ${escapeHtml(a.name)}${a.managed && !a.village ? ' <span class="muted">(Dev Valley)</span>' : ''}</button>`,
               )
               .join('')}
           </details>`,
@@ -102,10 +109,16 @@ export async function openFactory(path?: string) {
     const tools = [...TOOLS, ...(agent?.tools ?? []).filter((t) => !TOOLS.includes(t))];
     const models = agent?.model && !MODELS.some(([v]) => v === agent.model) ? [...MODELS, [agent.model, agent.model] as [string, string]] : MODELS;
     title.innerHTML = agent
-      ? `<b>✦ ${escapeHtml(agent.name)}</b> <span class="muted">· ${escapeHtml(where(agent.projectId))}</span>`
+      ? `<b>✦ ${escapeHtml(agent.name)}</b> <span class="muted">· ${escapeHtml(where(groupOf(agent)))}</span>`
       : '<b>Novo agente</b>';
     form.innerHTML = `
-      ${locked ? '<p class="agent-note">Agente do Dev Valley: só leitura aqui. O original fica em <code>server/agents/</code> no repo e o <code>npm run hooks:install</code> instala de novo.</p>' : ''}
+      ${
+        agent?.village
+          ? '<p class="agent-note">Agente da vila: só leitura. O original fica em <code>server/agents/</code> no repo, e ele roda pela vila, com as permissões dela; converse com ele no lugar dele (a bibliotecária no balcão da biblioteca, o administrador na praça).</p>'
+          : locked
+            ? '<p class="agent-note">Agente do Dev Valley: só leitura aqui. O original fica em <code>server/agents/</code> no repo e o <code>npm run hooks:install</code> instala de novo.</p>'
+            : ''
+      }
       ${
         agent
           ? ''

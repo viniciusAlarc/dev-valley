@@ -57,7 +57,7 @@ export class TownScene extends Phaser.Scene {
   private residents = new Map<string, Resident>();
   private agentNpcs = new Map<string, { npc: AgentNpc; timer?: Phaser.Time.TimerEvent }>();
   private agentArea!: Rect;
-  private world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false }, guardrails: null };
+  private world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null };
   private ready = false;
   /** Outdoor dos guardrails: some sem configuração; o estado muda a cada atualização do mundo. */
   private billboard?: { board: Phaser.GameObjects.Image; title: Phaser.GameObjects.Text; status: Phaser.GameObjects.Text };
@@ -168,7 +168,7 @@ export class TownScene extends Phaser.Scene {
     this.enter('interior', { projectId: project.id }, instant);
   }
 
-  private enter(sceneKey: 'interior' | 'library', data: object, instant = false) {
+  private enter(sceneKey: 'interior' | 'library' | 'factory', data: object, instant = false) {
     ui.hideTooltip();
     const go = () => {
       this.scene.sleep();
@@ -247,8 +247,8 @@ export class TownScene extends Phaser.Scene {
     label(this, layout.library.x, layout.library.y + 10, 'Biblioteca', layout.library.y + 10);
 
     const fac = this.addSprite('factory', layout.factory.x, layout.factory.y);
-    makeInteractive(fac, () => 'Fábrica — criação de agentes', () => ui.openFactory());
-    label(this, layout.factory.x, layout.factory.y + 10, 'Fábrica de Agentes', layout.factory.y + 10);
+    makeInteractive(fac, () => 'Fábrica — agentes e skills — clique para entrar', () => this.enter('factory', {}));
+    label(this, layout.factory.x, layout.factory.y + 10, 'Fábrica', layout.factory.y + 10);
     // Pátio da Fábrica, entre a placa e a rua: onde os agentes passeiam.
     this.agentArea = { x: layout.factory.x - 56, y: layout.factory.y + 18, w: 112, h: 10 };
     this.time.addEvent({

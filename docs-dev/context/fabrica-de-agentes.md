@@ -17,6 +17,11 @@ embaixo, em `~/.claude/agents` (vale em todo lugar) ou em `<projeto>/.claude/age
    na pasta do projeto (vira morador da casa); agente global, sempre na praça (pasta pessoal). Sempre sessão nova; as
    anteriores continuam como moradores. Editar: pelo prédio da Fábrica.
 
+**Atualização (26/10/2026, passo 7 de `context/ambiente-de-ia-na-vila.md`):** clicar na Fábrica entra nela; a bancada
+abre este painel de agentes e a parede de ferramentas abre as skills. Os agentes da vila (bibliotecária e
+administrador) aparecem num grupo próprio, só leitura, lidos de `server/agents/` (a cópia instalada da bibliotecária
+não aparece repetida). Agente da vila nunca abre conversa por `claude --agent`: a rota recusa (regra 5).
+
 ## Padrões assumidos (contestáveis)
 
 - Agente gerado pelo Dev Valley (marca `<!-- dev-valley:`, como a bibliotecária) aparece **só para leitura** e não

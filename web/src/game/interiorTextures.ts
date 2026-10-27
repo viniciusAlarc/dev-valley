@@ -451,3 +451,93 @@ export function generateLibraryTextures(scene: Phaser.Scene) {
   readingTable(scene);
   globe(scene);
 }
+
+// ---------------- fábrica ----------------
+// Mesma paleta da fachada (textures.ts, `factory`): tijolo #a24e37 com rejunte #83402c, aço #3f464c/#4c545c/#66717b.
+
+/** Parede de tijolo aparente, com viga de aço no rodapé (a faixa cinza da fachada). */
+function factoryWall(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(16, 40);
+  rect(ctx, 0, 0, 16, 34, '#a24e37');
+  for (let y = 0; y < 34; y += 5) {
+    rect(ctx, 0, y + 4, 16, 1, '#83402c');
+    // juntas verticais desencontradas linha a linha
+    for (const x of (y / 5) % 2 ? [3, 11] : [7, 15]) rect(ctx, x, y, 1, 4, '#83402c');
+    rect(ctx, (y / 5) % 2 ? 5 : 1, y + 1, 2, 1, '#b45e45');
+  }
+  rect(ctx, 0, 34, 16, 2, '#66717b');
+  rect(ctx, 0, 36, 16, 4, '#3f464c');
+  for (const x of [3, 11]) rect(ctx, x, 37, 1, 1, '#66717b');
+  add(scene, 'factoryWall', c);
+}
+
+/** Piso de chapa de aço com rebites, nos tons do portão. */
+function factoryFloor(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(16, 16);
+  rect(ctx, 0, 0, 16, 16, '#66717b');
+  rect(ctx, 0, 0, 16, 1, '#7d8790');
+  rect(ctx, 0, 15, 16, 1, '#4c545c');
+  rect(ctx, 15, 0, 1, 16, '#4c545c');
+  for (const [x, y] of [[2, 2], [13, 2], [2, 13], [13, 13]]) rect(ctx, x, y, 1, 1, '#9aa3ab');
+  // desenho antiderrapante
+  for (let y = 4; y < 12; y += 4) for (let x = 4; x < 12; x += 4) rect(ctx, x, y, 2, 1, '#5b656e');
+  add(scene, 'factoryFloor', c);
+}
+
+/** Bancada dos agentes: tampo, pés, uma planta (projeto do agente) e uma engrenagem. */
+function workbench(scene: Phaser.Scene) {
+  const W = 56;
+  const H = 30;
+  const { c, ctx } = makeCanvas(W, H);
+  // pés e travessa de aço, como a fachada
+  for (const x of [3, W - 7]) rect(ctx, x, 14, 4, 16, '#4c545c');
+  rect(ctx, 5, 24, W - 10, 2, '#3f464c');
+  rect(ctx, 0, 10, W, 5, '#a0703a');
+  rect(ctx, 0, 10, W, 1, '#c79a5e');
+  rect(ctx, 0, 14, W, 1, '#7a4b20');
+  // planta azul enrolada e a engrenagem em cima do tampo
+  rect(ctx, 6, 4, 22, 7, '#3a6ea8');
+  rect(ctx, 6, 4, 22, 1, '#7fb0e0');
+  for (const y of [6, 8]) rect(ctx, 9, y, 14, 1, '#c6e8f2');
+  disc(ctx, 41, 6, 4, '#7d7f84');
+  disc(ctx, 41, 6, 1, '#3f464c');
+  for (const [dx, dy] of [[0, -5], [0, 5], [-5, 0], [5, 0]]) rect(ctx, 40 + dx, 5 + dy, 2, 2, '#7d7f84');
+  outline(ctx, W, H);
+  add(scene, 'workbench', c);
+}
+
+/** Parede de ferramentas das skills: painel furado com martelo, chave inglesa, chave de fenda e serrote. */
+function pegboard(scene: Phaser.Scene) {
+  const W = 56;
+  const H = 30;
+  const { c, ctx } = makeCanvas(W, H);
+  // moldura de aço
+  rect(ctx, 0, 0, W, H, '#4c545c');
+  rect(ctx, 0, 0, W, 1, '#66717b');
+  rect(ctx, 2, 2, W - 4, H - 4, '#c9a87a');
+  for (let y = 5; y < H - 3; y += 4) for (let x = 5; x < W - 3; x += 4) rect(ctx, x, y, 1, 1, '#9a7d55');
+  // martelo
+  rect(ctx, 8, 6, 2, 16, '#8d5f30');
+  rect(ctx, 5, 5, 8, 4, '#5a636b');
+  // chave inglesa
+  rect(ctx, 19, 8, 2, 14, '#9aa3ab');
+  rect(ctx, 17, 5, 6, 4, '#9aa3ab');
+  rect(ctx, 19, 5, 2, 2, '#c9a87a');
+  // chave de fenda
+  rect(ctx, 29, 5, 3, 7, '#d64545');
+  rect(ctx, 30, 12, 1, 10, '#9aa3ab');
+  // serrote
+  rect(ctx, 37, 6, 5, 5, '#8d5f30');
+  rect(ctx, 38, 11, 12, 6, '#9aa3ab');
+  for (let x = 38; x < 50; x += 2) rect(ctx, x, 17, 1, 1, '#9aa3ab');
+  outline(ctx, W, H);
+  add(scene, 'pegboard', c);
+}
+
+export function generateFactoryTextures(scene: Phaser.Scene) {
+  if (scene.textures.exists('workbench')) return;
+  factoryWall(scene);
+  factoryFloor(scene);
+  workbench(scene);
+  pegboard(scene);
+}

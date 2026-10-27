@@ -11,6 +11,7 @@ import { readPendencias, type Pendencia } from './pendencias.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
 import { readRetrabalho, type Retrabalho } from './retrabalho.js';
 import { readSementes, type Semente } from './sementes.js';
+import type { Skills, SkillSummary } from './skills.js';
 import { restartPending, type RestartPending } from './reinicio.js';
 import type { AgentSummary, Agents } from './agents.js';
 import type { Moradores } from './moradores.js';
@@ -60,6 +61,8 @@ export interface World {
   sessions: WorldSession[];
   /** Agentes globais e dos projetos (Fábrica, PD-4). */
   agents: AgentSummary[];
+  /** Skills globais e dos projetos (Fábrica, parede de ferramentas). */
+  skills: SkillSummary[];
   usage: Usage | null;
   /** Código do Dev Valley mudou depois que a vila subiu (sino da praça). */
   restart: RestartPending;
@@ -173,6 +176,7 @@ export async function buildWorld(
   statusLine: StatusLineStore,
   moradores: Moradores,
   agents: Agents,
+  skills: Skills,
 ): Promise<World> {
   const dirs = await discoverProjectDirs(config);
   const projects = await Promise.all(dirs.map(loadProject));
@@ -203,5 +207,5 @@ export async function buildWorld(
     };
   });
   await moradores.sync(sessions, projects);
-  return { projects, sessions, agents: await agents.list(projects), usage: statusLine.usage, restart: await restartPending(), guardrails: await readGuardrails(config) };
+  return { projects, sessions, agents: await agents.list(projects), skills: await skills.list(projects), usage: statusLine.usage, restart: await restartPending(), guardrails: await readGuardrails(config) };
 }

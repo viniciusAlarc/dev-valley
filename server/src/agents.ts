@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { ROOT_DIR } from './config.js';
 import type { Project } from './world.js';
 
 /**
@@ -8,6 +9,8 @@ import type { Project } from './world.js';
  * Só lê e grava dentro dessas pastas; agente gerado pelo Dev Valley (marca abaixo) é só leitura.
  */
 export const GLOBAL_AGENTS_DIR = path.join(os.homedir(), '.claude', 'agents');
+/** Agentes da vila (bibliotecária, administrador): o original no repo, só leitura na Fábrica (decisão de 26/10/2026). */
+const VILLAGE_AGENTS_DIR = path.join(ROOT_DIR, 'server', 'agents');
 const MANAGED_MARKER = '<!-- dev-valley:';
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,49}$/;
 const KNOWN = ['name', 'description', 'tools', 'model'];
@@ -20,6 +23,8 @@ export interface AgentSummary {
   projectId: string | null;
   /** Gerado pelo Dev Valley (ex.: a bibliotecária): só leitura. */
   managed: boolean;
+  /** Agente da vila, lido de `server/agents/` no repo: só leitura, sem NPC e sem conversa por `--agent`. */
+  village: boolean;
 }
 
 export interface AgentFile extends AgentSummary {
@@ -42,7 +47,7 @@ export interface AgentInput {
 
 const projectDir = (p: Project) => path.join(p.path, '.claude', 'agents');
 
-function unquote(v: string) {
+export function unquote(v: string) {
   const t = v.trim();
   if (t.startsWith('"') && t.endsWith('"')) {
     try {
@@ -56,7 +61,7 @@ function unquote(v: string) {
 }
 
 /** Cabeçalho simples (`chave: valor`, continuação indentada); o que não é dos campos conhecidos vai em `extra`. */
-function parse(raw: string) {
+export function parseFrontmatter(raw: string, known: string[]) {
   const fields: Record<string, string> = {};
   const extra: string[] = [];
   let body = raw;
@@ -66,7 +71,7 @@ function parse(raw: string) {
     let lastKnown: string | null = null;
     for (const line of m[1].split(/\r?\n/)) {
       const kv = line.match(/^([A-Za-z_][\w-]*):\s?(.*)$/);
-      if (kv && KNOWN.includes(kv[1])) {
+      if (kv && known.includes(kv[1])) {
         lastKnown = kv[1];
         fields[kv[1]] = kv[2];
       } else if (kv) {
@@ -83,7 +88,7 @@ function parse(raw: string) {
 }
 
 /** Valor YAML seguro numa linha: entre aspas quando tem `:`, `#` ou começa com caractere especial. */
-function yamlValue(v: string) {
+export function yamlValue(v: string) {
   const one = v.replace(/\s*\n\s*/g, ' ').trim();
   return /[:#]|^[\s"'\[\]{}>|*&!%@`,-]/.test(one) ? JSON.stringify(one) : one;
 }
@@ -104,19 +109,21 @@ export class Agents {
     return [{ dir: GLOBAL_AGENTS_DIR, projectId: null }, ...projects.map((p) => ({ dir: projectDir(p), projectId: p.id }))];
   }
 
-  /** O arquivo, se estiver numa pasta conhecida e tiver nome de agente; senão null. */
-  private locate(file: unknown): { file: string; projectId: string | null } | null {
+  /** O arquivo, se estiver numa pasta conhecida (ou na dos agentes da vila) e tiver nome de agente; senão null. */
+  private locate(file: unknown): { file: string; projectId: string | null; village: boolean } | null {
     if (typeof file !== 'string') return null;
     const resolved = path.resolve(file);
+    if (!NAME_RE.test(path.basename(resolved, '.md')) || !resolved.endsWith('.md')) return null;
+    if (path.dirname(resolved) === VILLAGE_AGENTS_DIR) return { file: resolved, projectId: null, village: true };
     const owner = this.dirs().find((d) => path.dirname(resolved) === d.dir);
-    if (!owner || !NAME_RE.test(path.basename(resolved, '.md')) || !resolved.endsWith('.md')) return null;
-    return { file: resolved, projectId: owner.projectId };
+    return owner ? { file: resolved, projectId: owner.projectId, village: false } : null;
   }
 
   /** `projects`: os do mundo que está sendo montado (o mundo atual ainda não os tem). */
   async list(projects?: Project[]): Promise<AgentSummary[]> {
     const out: AgentSummary[] = [];
-    for (const { dir, projectId } of this.dirs(projects)) {
+    const sources = [...this.dirs(projects).map((d) => ({ ...d, village: false })), { dir: VILLAGE_AGENTS_DIR, projectId: null, village: true }];
+    for (const { dir, projectId, village } of sources) {
       let files: string[];
       try {
         files = (await fs.readdir(dir)).filter((f) => f.endsWith('.md')).sort();
@@ -127,13 +134,17 @@ export class Agents {
         const file = path.join(dir, f);
         try {
           const raw = await fs.readFile(file, 'utf8');
-          const { fields } = parse(raw);
+          const managed = raw.includes(MANAGED_MARKER);
+          // A cópia instalada de um agente da vila (ex.: a bibliotecária em ~/.claude/agents) aparece só pelo original.
+          if (managed && !village) continue;
+          const { fields } = parseFrontmatter(raw, KNOWN);
           out.push({
             path: file,
             name: unquote(fields.name ?? '') || f.replace(/\.md$/, ''),
             description: unquote(fields.description ?? ''),
             projectId,
-            managed: raw.includes(MANAGED_MARKER),
+            managed: managed || village,
+            village,
           });
         } catch {
           // arquivo sumiu entre o readdir e a leitura
@@ -152,7 +163,7 @@ export class Agents {
     } catch {
       return null;
     }
-    const { fields, extra, body } = parse(raw);
+    const { fields, extra, body } = parseFrontmatter(raw, KNOWN);
     const tools = unquote(fields.tools ?? '');
     const model = unquote(fields.model ?? '');
     return {
@@ -160,7 +171,8 @@ export class Agents {
       name: unquote(fields.name ?? '') || path.basename(loc.file, '.md'),
       description: unquote(fields.description ?? ''),
       projectId: loc.projectId,
-      managed: raw.includes(MANAGED_MARKER),
+      managed: raw.includes(MANAGED_MARKER) || loc.village,
+      village: loc.village,
       tools: tools ? tools.split(',').map((t) => t.trim()).filter(Boolean) : null,
       model: model && model !== 'inherit' ? model : null,
       instructions: body.trim(),

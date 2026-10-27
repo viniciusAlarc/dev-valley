@@ -3,9 +3,50 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — Fábrica com o mesmo visual por dentro e por fora; plano "Ambiente de IA na vila" fechado
+
+**O que mudou:** o usuário conferiu a Fábrica e pediu um visual só, com a fachada como referência (por fora tijolo,
+por dentro estava com o papel de parede e o piso de madeira das casas). O interior ganhou parede de tijolo aparente
+(mesmo vermelho e rejunte da fachada) com viga de aço no rodapé e piso de chapa de aço com rebites, nos tons do portão;
+os pés da bancada e a moldura da parede de ferramentas viraram aço. Com o passo 7 conferido, o plano fechou: o
+arquivo foi de `docs-dev/a-codar/` para `docs-dev/context/ambiente-de-ia-na-vila.md` (G7) e as referências foram
+atualizadas.
+**Arquivos:** `web/src/game/interiorTextures.ts` (`factoryWall`, `factoryFloor`, aço na bancada e na parede de
+ferramentas), `web/src/game/FactoryScene.ts`, `docs-dev/context/ambiente-de-ia-na-vila.md` (movido),
+`docs-dev/painel.json`, `docs-dev/context/fabrica-de-agentes.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Visual novo
+não renderizado; falta conferir na vila (reinício do usuário).
+
+## 2026-10-26 — Fábrica por dentro, com skills e os agentes da vila
+
+**O que mudou:** passo 7 (último) do plano `docs-dev/context/ambiente-de-ia-na-vila.md` (decisões do usuário em
+26/10/2026). Clicar na Fábrica entra nela (`FactoryScene`, como a biblioteca): a **bancada** abre o painel de agentes
+de antes e a **parede de ferramentas** abre as **skills**; os NPCs ✦ continuam no pátio. O rótulo na vila virou
+"Fábrica". Skills: pastas com `SKILL.md` em `~/.claude/skills` e `<projeto>/.claude/skills` (pasta sem `SKILL.md`,
+como a `synced` do próprio Claude Code, fica de fora); criar, editar só o `SKILL.md` (campos desconhecidos do cabeçalho,
+como `allowed-tools`, preservados; data do arquivo conferida ao salvar) e apagar a **pasta inteira**, com confirmação
+que lista os arquivos. Skill instalada por link (as do `instalar.sh`) é só leitura e mostra a fonte; o servidor recusa
+salvar e apagar.
+**Por que o administrador não aparecia (pergunta do usuário):** a Fábrica só lia `~/.claude/agents` e
+`<projeto>/.claude/agents`; a bibliotecária aparecia porque o `hooks:install` a copia para lá, e o administrador mora
+só em `server/agents/`, de propósito (instalado, uma sessão poderia chamá-lo como subagente com `Edit` liberado,
+contra a regra 5). Agora a Fábrica lê também `server/agents/` e mostra os **agentes da vila** num grupo só leitura (a
+cópia instalada da bibliotecária não repete), sem NPC no pátio; e a rota de conversa (`/api/agents/session`) **recusa**
+agente da vila, para ninguém rodá-lo por `claude --agent` sem as permissões da vila.
+**Arquivos:** `server/src/skills.ts` (novo), `server/src/agents.ts` (agentes da vila; leitura do cabeçalho exportada),
+`server/src/world.ts` (`World.skills`), `server/src/index.ts` (`/api/skills`, trava em `/api/agents/session`),
+`web/src/api.ts`, `web/src/game/FactoryScene.ts` (novo), `web/src/game/interiorTextures.ts` (`workbench`,
+`pegboard`), `web/src/game/TownScene.ts`, `web/src/main.ts`, `web/src/ui/skills.ts` (novo), `web/src/ui/factory.ts`
+(grupo da vila), `web/src/ui/actions.ts`, `README.md`, `CLAUDE.md`, `docs-dev/context/fabrica-de-agentes.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Skills e
+agentes testados num `HOME` falso no scratchpad (nunca nas skills reais): a `synced` fica de fora; skill por link
+recusada ao salvar e apagar, com a fonte intacta; `allowed-tools` preservado; conflito de data (409); nome repetido e
+`../` recusados; caminho fora das pastas recusado; apagar remove a pasta com o script junto; os dois agentes da vila
+listados. Composição da sala conferida pelas medidas, não renderizada. Conferido na vila pelo usuário em 26/10/2026.
+
 ## 2026-10-26 — Outdoor dos guardrails atrás da praça
 
-**O que mudou:** passo 6 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor lê se o plugin dos
+**O que mudou:** passo 6 do plano `docs-dev/context/ambiente-de-ia-na-vila.md`. O servidor lê se o plugin dos
 guardrails está ligado (`enabledPlugins` no `~/.claude/settings.json`) e a lista de regras (títulos `## G<n> — ...`
 do arquivo de guardrails); só leitura. Plugin e arquivo vêm de uma chave nova, `guardrails`, que fica **só no config
 local** (o caminho é pessoal e o repositório é público); sem ela, não há outdoor. Na vila, um outdoor na faixa atrás
@@ -24,7 +65,7 @@ da biblioteca e da Fábrica, não renderizada. Conferido na vila pelo usuário e
 
 ## 2026-10-26 — Placa de vistoria na fachada
 
-**O que mudou:** passo 5 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor lê a data de vencimento
+**O que mudou:** passo 5 do plano `docs-dev/context/ambiente-de-ia-na-vila.md`. O servidor lê a data de vencimento
 da auditoria de julgamento das regras em `.claude/auditoria-regras.txt` de cada projeto (gravada pelo
 `instalar-projeto.sh`, reagendada pela skill `/auditar-regras`); só leitura, e sem o arquivo não há placa. Na
 fachada, embaixo da janela da esquerda (entre o peitoril e a fundação, do lado oposto ao andaime), uma plaquinha:
@@ -52,7 +93,7 @@ na vila pelo usuário em 26/10/2026.
 
 ## 2026-10-26 — Ervas do retrabalho no quintal
 
-**O que mudou:** passo 4 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor lê o `RETRABALHO.md` de
+**O que mudou:** passo 4 do plano `docs-dev/context/ambiente-de-ia-na-vila.md`. O servidor lê o `RETRABALHO.md` de
 cada projeto (G17) guardando o cabeçalho da tabela e as linhas como estão: os projetos variam o formato (data
 `AAAA-MM-DD` ou `DD/MM`, coluna extra como "Virou regra?"), então nada é reinterpretado. Só leitura; sem o arquivo,
 sem ervas. No quintal, à direita da casa e acima da caixa de envio (espelhando a horta), uma erva daninha por linha
@@ -69,7 +110,7 @@ renderizada. Conferido na vila pelo usuário em 26/10/2026.
 
 ## 2026-10-26 — Caixa de sementes dentro da casa
 
-**O que mudou:** passo 3 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor lê os planos em
+**O que mudou:** passo 3 do plano `docs-dev/context/ambiente-de-ia-na-vila.md`. O servidor lê os planos em
 `docs-dev/a-codar/` de cada projeto (só o primeiro nível, sem o `README.md`; título = primeiro `# `); só leitura, e
 sem a pasta não há caixa. Dentro da casa, no chão entre a janela e a escrivaninha (decisão do usuário: dentro, para
 não poluir a vila), uma caixa de ripas com um pacotinho de semente colorido por plano (até 6), saindo por trás da
@@ -84,7 +125,7 @@ caixa conferida pelas medidas da janela e da escrivaninha, não renderizada. Con
 
 ## 2026-10-26 — Casa em obra
 
-**O que mudou:** passo 2 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md`. O servidor confere, em cada projeto,
+**O que mudou:** passo 2 do plano `docs-dev/context/ambiente-de-ia-na-vila.md`. O servidor confere, em cada projeto,
 a estrutura de acompanhamento dos guardrails: `CLAUDE.md`, `PENDENCIAS.md`, `PROGRESS.md`, `docs-dev/painel.json` e o
 auditor (`scripts/auditar-referencias.py`); só leitura. Faltando qualquer um, a casa ganha um andaime na frente da
 metade direita da fachada (postes, dois pisos de tábua e fita de obra). O tooltip diz o que falta; o clique abre o
@@ -124,7 +165,7 @@ não alterou nenhum arquivo. Regra do sino testada contra os `PROGRESS.md` reais
 
 ## 2026-10-26 — Sino de conferência na praça
 
-**O que mudou:** passo 1 do plano `docs-dev/a-codar/ambiente-de-ia-na-vila.md` (decisões do usuário em 26/10/2026). Na
+**O que mudou:** passo 1 do plano `docs-dev/context/ambiente-de-ia-na-vila.md` (decisões do usuário em 26/10/2026). Na
 praça, entre o canteiro e a árvore do canto, um sino num poste: lista as entregas do `PROGRESS.md` de todos os projetos
 que dizem "Falta conferir" e ainda não dizem "Conferido na vila" (só leitura: a entrega sai quando a sessão troca o
 texto). O sino também avisa o reinício pendente do próprio Dev Valley: `server/src` mais novo que o processo, ou

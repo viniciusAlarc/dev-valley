@@ -38,7 +38,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   (`~/.claude/projects/**/*.jsonl`), roda git, mantém os terminais (`claude --resume`).
   - `src/index.ts` (entrada), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
     `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `consulta.ts` (base dos agentes da vila),
-    `administrador.ts` (administrador da praça), `agents.ts` (Fábrica), `reinicio.ts` (sino:
+    `administrador.ts` (administrador da praça), `agents.ts`/`skills.ts` (Fábrica: agentes e skills), `reinicio.ts` (sino:
     reinício pendente), `estrutura.ts` (casa em obra e
     placa de vistoria), `sementes.ts` (caixa
     de sementes), `retrabalho.ts` (ervas do quintal), `guardrails.ts`

@@ -13,6 +13,7 @@ import { Library } from './library.js';
 import { askAdministrador } from './administrador.js';
 import { askLibrarian } from './librarian.js';
 import { agentInput, Agents } from './agents.js';
+import { skillInput, Skills } from './skills.js';
 import { Moradores } from './moradores.js';
 import { readProgress } from './progress.js';
 import { StatusLineStore } from './statusline.js';
@@ -23,7 +24,7 @@ const config = loadConfig();
 const HOST = '127.0.0.1';
 const POLL_MS = 3000;
 
-let world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false }, guardrails: null };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 
@@ -35,13 +36,14 @@ const statusLine = new StatusLineStore();
 const internalSessions = new Set<string>();
 const moradores = new Moradores();
 const agents = new Agents(() => world.projects);
+const skills = new Skills(() => world.projects);
 /** Sessões novas de conversa com um agente, esperando o terminal abrir: id → pasta e agente (o front não escolhe). */
 const agentSessions = new Map<string, { cwd: string; agent: string }>();
 let lastStatusLine: unknown = null;
 
 async function refreshWorld() {
   try {
-    world = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents);
+    world = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents, skills);
     const json = JSON.stringify(world);
     if (json === worldJson) return;
     worldJson = json;
@@ -114,6 +116,8 @@ app.put('/api/agents', async (req, res) => {
 app.post('/api/agents/session', async (req, res) => {
   const agent = await agents.read(req.body?.path);
   if (!agent) return res.status(404).json({ error: 'Agente não encontrado.' });
+  // Agente da vila só roda pela vila, com as permissões dela (regra 5): nunca por `claude --agent`.
+  if (agent.village) return res.status(403).json({ error: 'Agente da vila: converse com ele no lugar dele (biblioteca ou praça).' });
   const project = agent.projectId ? findProject(agent.projectId) : undefined;
   const sessionId = randomUUID();
   agentSessions.set(sessionId, { cwd: project?.path ?? os.homedir(), agent: Agents.cliName(agent) });
@@ -122,6 +126,39 @@ app.post('/api/agents/session', async (req, res) => {
 
 app.delete('/api/agents', async (req, res) => {
   const result = await agents.remove(req.query.path);
+  if ('error' in result) return res.status(result.status).json({ error: result.error });
+  void refreshWorld();
+  res.json(result);
+});
+
+// ---- Skills na Fábrica (parede de ferramentas): só nas pastas de skills (global e dos projetos) ----
+
+app.get('/api/skills/file', async (req, res) => {
+  const skill = await skills.read(req.query.path);
+  if (!skill) return res.status(404).json({ error: 'Skill não encontrada.' });
+  res.json(skill);
+});
+
+app.post('/api/skills', async (req, res) => {
+  const input = skillInput(req.body);
+  if (!input) return res.status(400).json({ error: 'Preencha a descrição.' });
+  const result = await skills.create(req.body.projectId ?? null, req.body.name, input);
+  if ('error' in result) return res.status(400).json(result);
+  void refreshWorld();
+  res.json(result);
+});
+
+app.put('/api/skills', async (req, res) => {
+  const input = skillInput(req.body);
+  if (!input) return res.status(400).json({ error: 'Preencha a descrição.' });
+  const result = await skills.save(req.body.path, req.body.mtime, input);
+  if ('error' in result) return res.status(result.status).json({ error: result.error });
+  void refreshWorld();
+  res.json(result);
+});
+
+app.delete('/api/skills', async (req, res) => {
+  const result = await skills.remove(req.query.path);
   if ('error' in result) return res.status(result.status).json({ error: result.error });
   void refreshWorld();
   res.json(result);

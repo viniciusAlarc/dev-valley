@@ -2,6 +2,7 @@ import '@fontsource/pixelify-sans/400.css';
 import '@fontsource/pixelify-sans/600.css';
 import Phaser from 'phaser';
 import { connectWorld, onWorld } from './api';
+import { FactoryScene } from './game/FactoryScene';
 import { InteriorScene } from './game/InteriorScene';
 import { LibraryScene } from './game/LibraryScene';
 import { TownScene } from './game/TownScene';
@@ -18,7 +19,7 @@ new Phaser.Game({
   pixelArt: true,
   backgroundColor: '#2f5a26',
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
-  scene: [scene, InteriorScene, LibraryScene],
+  scene: [scene, InteriorScene, LibraryScene, FactoryScene],
 });
 
 mountHud();

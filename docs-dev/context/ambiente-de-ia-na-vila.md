@@ -1,7 +1,7 @@
 # Ambiente de IA na vila
 
-> Plano decidido com o usuário em 26/10/2026 (G7). Ao fechar cada passo: marcar aqui, `PROGRESS.md` e
-> `docs-dev/painel.json`; ao fechar o plano, este arquivo vai para `docs-dev/context/`.
+> Plano decidido com o usuário e implementado em 26/10/2026; saiu de `docs-dev/a-codar/` ao fechar (G7). Fica aqui
+> como registro das decisões.
 
 A vila já mostra `PENDENCIAS.md`, `PROGRESS.md` e `painel.json`. Este plano traz o que mais o ambiente de IA
 (`~/Documents/IA`, guardrails G1–G21) pede de cada projeto e ainda não aparecia.
@@ -36,6 +36,13 @@ A vila já mostra `PENDENCIAS.md`, `PROGRESS.md` e `painel.json`. Este plano tra
 8. **Outdoor dos guardrails:** mostra `guardrails ✓` quando `enabledPlugins["guardrails@ia"]` está ligado no
    `~/.claude/settings.json`; o clique lista os guardrails (títulos `## G..` do `guardrails-core.md`).
 
+**Passo 7, decisões do usuário (26/10/2026):** clicar na Fábrica entra nela (cena própria, como a biblioteca), com uma
+bancada de agentes (o painel atual) e uma parede de ferramentas (skills); os NPCs ✦ continuam no pátio. Skill = pasta
+com `SKILL.md`; o formulário edita só o `SKILL.md` e preserva campos desconhecidos do cabeçalho. **Apagar remove a pasta
+inteira**, com confirmação que lista os arquivos que vão junto. **Agentes da vila** (bibliotecária e administrador)
+aparecem na Fábrica só para leitura, lidos de `server/agents/`, sem NPC no pátio. O administrador continua **não
+instalado** em `~/.claude/agents`: instalado, uma sessão poderia chamá-lo como subagente com `Edit` liberado (regra 5).
+
 **Fora do plano:** aviso de duas sessões no mesmo repositório (o usuário achou desnecessário: os dois moradores já
 aparecem no quintal); `docs-conhecimento` na biblioteca (a pasta ainda não existe, e `~/Documents/IA` já está no
 `libraryRoots` local); tabela "Subir" do `OPERACAO.md` continua como PD-7.
@@ -50,4 +57,4 @@ aparecem no quintal); `docs-conhecimento` na biblioteca (a pasta ainda não exis
 | 4 | Ervas do retrabalho no quintal | feito |
 | 5 | Placa de vistoria | feito |
 | 6 | Outdoor dos guardrails | feito |
-| 7 | Fábrica por dentro, com skills | a fazer |
+| 7 | Fábrica por dentro, com skills | feito |

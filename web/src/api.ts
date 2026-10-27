@@ -116,6 +116,8 @@ export interface World {
   sessions: Session[];
   /** Agentes globais e dos projetos (Fábrica, PD-4). */
   agents: AgentSummary[];
+  /** Skills globais e dos projetos (Fábrica, parede de ferramentas). */
+  skills: SkillSummary[];
   /** Limites do plano, vindos do status line; null até a primeira sessão reportar. */
   usage: { rows: UsageRow[]; updatedAt: number } | null;
   /** Código do Dev Valley mudou depois que a vila subiu: falta o reinício do usuário (sino da praça). */
@@ -161,6 +163,8 @@ export interface AgentSummary {
   projectId: string | null;
   /** Gerado pelo Dev Valley (ex.: a bibliotecária): só leitura. */
   managed: boolean;
+  /** Agente da vila (`server/agents/` no repo): só leitura, sem NPC no pátio e sem conversa por `--agent`. */
+  village: boolean;
 }
 
 export interface AgentFile extends AgentSummary {
@@ -186,6 +190,36 @@ export const agents = {
   remove: (path: string) => request('DELETE', `/api/agents?path=${encodeURIComponent(path)}`),
   /** Conversa nova com o agente (o servidor escolhe a pasta: o projeto dele, ou a praça se for global). */
   talk: (path: string) => request<{ sessionId: string; projectId: string | null; name: string }>('POST', '/api/agents/session', { path }),
+};
+
+export interface SkillSummary {
+  /** Caminho do `SKILL.md`. */
+  path: string;
+  name: string;
+  description: string;
+  /** null = global; senão o projeto onde a skill mora. */
+  projectId: string | null;
+  /** Destino do link quando a skill foi instalada por link (só leitura: edita-se na fonte). */
+  linkedTo: string | null;
+}
+
+export interface SkillFile extends SkillSummary {
+  instructions: string;
+  /** Arquivos da pasta (a confirmação de apagar mostra o que vai junto). */
+  files: string[];
+  mtime: number;
+}
+
+export interface SkillInput {
+  description: string;
+  instructions: string;
+}
+
+export const skills = {
+  read: (path: string) => request<SkillFile>('GET', `/api/skills/file?path=${encodeURIComponent(path)}`),
+  create: (projectId: string | null, name: string, input: SkillInput) => request<{ path: string }>('POST', '/api/skills', { projectId, name, ...input }),
+  save: (path: string, mtime: number, input: SkillInput) => request<{ mtime: number }>('PUT', '/api/skills', { path, mtime, ...input }),
+  remove: (path: string) => request('DELETE', `/api/skills?path=${encodeURIComponent(path)}`),
 };
 
 export type SectionKind = 'global' | 'memory' | 'project' | 'root';
@@ -244,7 +278,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], agents: [], usage: null, restart: { server: false, web: false }, guardrails: null };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

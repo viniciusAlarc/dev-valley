@@ -14,6 +14,7 @@ import { openPendencias, openUserPendencias } from './pendencias';
 import { openProject } from './project';
 import { openRetrabalho } from './retrabalho';
 import { openSementes } from './sementes';
+import { openSkills } from './skills';
 import { openSessionTerminal, openTerminal } from './terminal';
 
 const tooltip = () => document.getElementById('tooltip')!;
@@ -123,6 +124,10 @@ export const ui = {
     openTerminal({ sessionId, projectId, title: `✦ ${name}` });
   },
   /** `path`: abre já na edição desse agente. */
+  openSkills(path?: string) {
+    this.hideTooltip();
+    void openSkills(path);
+  },
   openFactory(path?: string) {
     this.hideTooltip();
     void openFactory(path);
