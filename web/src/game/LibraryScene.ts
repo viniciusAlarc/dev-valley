@@ -119,7 +119,7 @@ export class LibraryScene extends Phaser.Scene {
     // ---- balcão, fichário e mesa de leitura ----
     const counterY = loungeTop + 54;
     const librarian = this.add
-      .sprite(W / 2, counterY - 6, villagerTexture(this, 'bibliotecaria-dev-valley'), 0)
+      .sprite(W / 2, counterY - 6, villagerTexture(this, 'bibliotecaria-dev-valley', true), 0)
       .setOrigin(0.5, 1)
       .setDepth(counterY - 10);
     makeInteractive(

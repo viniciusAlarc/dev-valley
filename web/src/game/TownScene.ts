@@ -315,7 +315,7 @@ export class TownScene extends Phaser.Scene {
     // registra o que o usuário conferiu. Mesmos fundamentos da bibliotecária (consulta curta, não vira morador).
     const adminX = fountain.x - 20;
     const adminY = plaza.y + 34;
-    const admin = this.add.sprite(adminX, adminY, villagerTexture(this, 'administrador-dev-valley'), 0).setOrigin(0.5, 1).setDepth(adminY);
+    const admin = this.add.sprite(adminX, adminY, villagerTexture(this, 'administrador-dev-valley', true), 0).setOrigin(0.5, 1).setDepth(adminY);
     makeInteractive(
       admin,
       () => '✦ Administrador da praça — agente permanente\n"Dúvida sobre o sino ou o quadro? Já conferiu algo? Fale comigo."',

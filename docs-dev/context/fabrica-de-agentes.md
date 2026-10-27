@@ -22,6 +22,9 @@ abre este painel de agentes e a parede de ferramentas abre as skills. Os agentes
 administrador) aparecem num grupo próprio, só leitura, lidos de `server/agents/` (a cópia instalada da bibliotecária
 não aparece repetida). Agente da vila nunca abre conversa por `claude --agent`: a rota recusa (regra 5).
 
+**Atualização (27/10/2026):** todo agente (os NPCs ✦ do pátio, a bibliotecária e o administrador) veste o traje de
+agente secreto, estilo "homens de preto" (`villagerTexture(scene, id, true)`); regra 8 do `CLAUDE.md`.
+
 ## Padrões assumidos (contestáveis)
 
 - Agente gerado pelo Dev Valley (marca `<!-- dev-valley:`, como a bibliotecária) aparece **só para leitura** e não

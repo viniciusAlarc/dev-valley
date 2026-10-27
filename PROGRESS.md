@@ -17,6 +17,21 @@ Sessão fechada fora da vila continua indo para dentro de casa até `sessionMaxA
 **Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado; `deleteSessionFiles` testada num HOME
 falso (apaga a sessão e a pasta dela, não toca nas outras, recusa `..`, vazio, `../x` e `<id>/..`). Falta conferir na vila.
 
+## 2026-10-27 — Agentes com traje de agente secreto
+
+**O que mudou:** decisão do usuário (27/10/2026): todo agente fica nitidamente diferente das sessões, com aparência de
+agente secreto, estilo "homens de preto". O gerador de moradores ganhou a variante agente (`villagerTexture(scene, id,
+true)`): paletó e calça pretos, sapato preto, camisa branca com gravata preta (de frente e de lado), óculos escuros
+com reflexo, cabelo curto em cor natural, sem chapéu e sem cinto à mostra; só pele e cor do cabelo variam por agente.
+Aplicada aos NPCs ✦ do pátio (na `AgentNpc`, então todo agente criado na Fábrica já nasce assim), à bibliotecária e
+ao administrador. A prévia `web/sprites.html` ganhou uma linha de agentes abaixo dos moradores. Virou a regra 8 do
+`CLAUDE.md` (padrão para os próximos agentes, inclusive os da vila).
+**Arquivos:** `web/src/game/villager.ts` (`agentLookFor`, traje no corpo, óculos na cabeça, sapato), `web/src/game/common.ts`
+(`AgentNpc`), `web/src/game/LibraryScene.ts`, `web/src/game/TownScene.ts`, `web/src/sprites.ts`, `CLAUDE.md`,
+`README.md`, `docs-dev/context/fabrica-de-agentes.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Conferido
+na vila pelo usuário em 27/10/2026.
+
 ## 2026-10-26 — Fábrica com o mesmo visual por dentro e por fora; plano "Ambiente de IA na vila" fechado
 
 **O que mudou:** o usuário conferiu a Fábrica e pediu um visual só, com a fachada como referência (por fora tijolo,

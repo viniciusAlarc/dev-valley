@@ -86,6 +86,10 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
    sessão que está editando. Nunca reiniciar nem rodar `npm run dev` por conta própria: avisar o usuário e ele
    reinicia quando as sessões terminarem (G21).
 7. **Pixel art é gerada em código** (`web/src/game/textures.ts`, `interiorTextures.ts`); prévia em `web/sprites.html`.
+8. **Todo agente (NPC ✦) veste o traje de agente secreto**, estilo "homens de preto": paletó e calça pretos, camisa
+   branca, gravata e óculos escuros; só pele e cor do cabelo variam. É o que separa agente de sessão à primeira vista
+   (decisão do usuário, 27/10/2026). Vale para os da Fábrica (automático na `AgentNpc`) e para qualquer agente da
+   vila novo: desenhe com `villagerTexture(scene, id, true)`, nunca com a aparência sorteada dos moradores.
 
 ## Regras de processo deste projeto
 

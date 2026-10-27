@@ -59,6 +59,8 @@ type Outfit = 'plain' | 'overalls' | 'stripes' | 'vest';
 const OUTFITS: Outfit[] = ['plain', 'overalls', 'stripes', 'vest'];
 
 interface Look {
+  /** Agente (NPC ✦): traje de agente secreto, sempre o mesmo; só pele e cabelo variam. */
+  agent: boolean;
   skin: Tone;
   hair: Tone;
   shirt: Tone;
@@ -77,6 +79,7 @@ function lookFor(id: string): Look {
   // Coque e espetado ficariam saindo por cima do chapéu.
   if (hat && (style === 'bun' || style === 'spiky')) style = 'short';
   return {
+    agent: false,
     skin: tone(SKINS[h % SKINS.length]),
     hair: tone(HAIRS[(h >>> 4) % HAIRS.length]),
     shirt: tone(SHIRTS[(h >>> 8) % SHIRTS.length]),
@@ -88,6 +91,30 @@ function lookFor(id: string): Look {
   };
 }
 
+/** Cabelos naturais: o agente não usa as cores de fantasia dos moradores. */
+const AGENT_HAIRS = HAIRS.slice(0, 5);
+const SUIT = tone('#23252b');
+
+/**
+ * Agentes (NPCs ✦) vestem traje de agente secreto, estilo "homens de preto" (decisão do usuário, 27/10/2026):
+ * paletó e calça pretos, camisa branca, gravata preta e óculos escuros, cabelo curto, sem chapéu. Só pele e cor do
+ * cabelo variam, para um agente se distinguir do outro sem deixar de ser nitidamente diferente das sessões.
+ */
+function agentLookFor(id: string): Look {
+  const h = hash(id);
+  return {
+    agent: true,
+    skin: tone(SKINS[h % SKINS.length]),
+    hair: tone(AGENT_HAIRS[(h >>> 4) % AGENT_HAIRS.length]),
+    shirt: SUIT,
+    pants: SUIT,
+    eye: '#000000',
+    style: 'short',
+    outfit: 'plain',
+    hat: false,
+  };
+}
+
 // ---------------- primitivas ----------------
 
 function px(ctx: Ctx, x: number, y: number, w: number, h: number, color: string) {
@@ -95,16 +122,22 @@ function px(ctx: Ctx, x: number, y: number, w: number, h: number, color: string)
   ctx.fillRect(x, y, w, h);
 }
 
-const SHOE = tone('#6b4426');
+const SHOE_DEFAULT = tone('#6b4426');
 const BELT = '#4a2f1a';
 const BUCKLE = '#e8c252';
 const HAT = tone('#e6c46e');
 const HAT_BAND = '#c0392b';
 const SCLERA = '#fbf6ea';
+const AGENT_SHOE = tone('#141418');
+const WHITE_SHIRT = '#f4f1ea';
+const TIE = '#0d0d10';
+const LENS = '#0d0d10';
+const GLINT = '#6f7a88';
 
 /** Pernas e sapatos — comuns às três direções, variando só a passada. */
 function legs(ctx: Ctx, L: Look, facing: Facing, frame: number) {
   const p = L.pants;
+  const SHOE = L.agent ? AGENT_SHOE : SHOE_DEFAULT;
   if (facing === 'side') {
     if (frame % 2 === 0) {
       px(ctx, 6, 26, 4, 3, p.base);
@@ -147,7 +180,8 @@ function body(ctx: Ctx, L: Look, facing: Facing, frame: number, u: number) {
     }
     if (L.outfit === 'stripes') px(ctx, 5, 20 + u, 6, 1, s.dark), px(ctx, 5, 22 + u, 6, 1, s.dark);
     if (L.outfit === 'vest') px(ctx, 9, 17 + u, 2, 7, shade(s.base, 0.5));
-    px(ctx, 5, 24 + u, 6, 1, BELT);
+    if (L.agent) px(ctx, 10, 17 + u, 1, 2, WHITE_SHIRT), px(ctx, 10, 19 + u, 1, 2, TIE);
+    px(ctx, 5, 24 + u, 6, 1, L.agent ? s.base : BELT);
     px(ctx, 5, 25 + u, 6, 1, p.base);
     // braço balançando
     const swing = frame === 1 ? 1 : frame === 3 ? -1 : 0;
@@ -161,7 +195,13 @@ function body(ctx: Ctx, L: Look, facing: Facing, frame: number, u: number) {
   px(ctx, 10, 17 + u, 2, 7, s.dark);
   px(ctx, 4, 23 + u, 8, 1, s.dark);
   px(ctx, 5, 17 + u, 2, 2, s.light);
-  if (facing === 'down') px(ctx, 7, 17 + u, 2, 1, L.skin.dark); // gola em V
+  if (facing === 'down' && !L.agent) px(ctx, 7, 17 + u, 2, 1, L.skin.dark); // gola em V
+  if (facing === 'down' && L.agent) {
+    // camisa branca entre as lapelas e a gravata preta descendo até o cinto
+    px(ctx, 6, 17 + u, 4, 3, WHITE_SHIRT);
+    px(ctx, 7, 17 + u, 2, 6, TIE);
+    px(ctx, 5, 17 + u, 1, 1, s.light);
+  }
 
   if (L.outfit === 'overalls') {
     px(ctx, 5, 20 + u, 6, 4, p.base);
@@ -180,8 +220,9 @@ function body(ctx: Ctx, L: Look, facing: Facing, frame: number, u: number) {
     px(ctx, 10, 17 + u, 2, 7, v);
   }
 
-  px(ctx, 4, 24 + u, 8, 1, BELT);
-  if (facing === 'down') px(ctx, 7, 24 + u, 2, 1, BUCKLE);
+  // o paletó cobre o cinto do agente
+  px(ctx, 4, 24 + u, 8, 1, L.agent ? s.dark : BELT);
+  if (facing === 'down' && !L.agent) px(ctx, 7, 24 + u, 2, 1, BUCKLE);
   px(ctx, 4, 25 + u, 8, 1, p.base);
   px(ctx, 7, 25 + u, 2, 1, p.dark);
 
@@ -222,6 +263,7 @@ function head(ctx: Ctx, L: Look, facing: Facing, u: number) {
     if (L.style === 'long' || L.style === 'bob') px(ctx, 2, y(12), 5, L.style === 'long' ? 8 : 3, h.base), px(ctx, 2, y(12), 1, L.style === 'long' ? 8 : 3, h.dark);
     if (L.style === 'spiky') px(ctx, 6, y(2), 1, 1, h.base), px(ctx, 9, y(1), 2, 2, h.base), px(ctx, 3, y(3), 2, 1, h.base);
     if (L.style === 'bun') px(ctx, 2, y(3), 3, 3, h.base), px(ctx, 2, y(5), 3, 1, h.dark);
+    if (L.agent) px(ctx, 9, y(11), 3, 2, LENS), px(ctx, 6, y(11), 3, 1, LENS), px(ctx, 11, y(11), 1, 1, GLINT);
     return;
   }
 
@@ -243,6 +285,14 @@ function head(ctx: Ctx, L: Look, facing: Facing, u: number) {
     px(ctx, 4, y(13), 1, 1, mix(k.base, '#ff6f6f', 0.35));
     px(ctx, 11, y(13), 1, 1, mix(k.base, '#ff6f6f', 0.35));
     px(ctx, 7, y(14), 2, 1, mix(k.base, '#b34a4a', 0.35)); // boca discreta, sem cara de barba
+    if (L.agent) {
+      // óculos escuros: duas lentes e a ponte
+      px(ctx, 3, y(11), 4, 2, LENS);
+      px(ctx, 9, y(11), 4, 2, LENS);
+      px(ctx, 7, y(11), 2, 1, LENS);
+      px(ctx, 4, y(11), 1, 1, GLINT);
+      px(ctx, 10, y(11), 1, 1, GLINT);
+    }
   }
 
   // cabelo — calota
@@ -350,9 +400,10 @@ function drawFrame(ctx: Ctx, L: Look, facing: Facing, frame: number) {
 }
 
 /** Gera (uma vez por combinação) a folha de sprites de um morador e suas animações. */
-export function villagerTexture(scene: Phaser.Scene, id: string): string {
-  const L = lookFor(id);
-  const key = `villager-${[L.skin.base, L.hair.base, L.shirt.base, L.pants.base, L.eye, L.style, L.outfit, L.hat].join('-')}`;
+/** `agent`: traje de agente secreto, o padrão de todo NPC ✦ (agente), da Fábrica ou da vila. */
+export function villagerTexture(scene: Phaser.Scene, id: string, agent = false): string {
+  const L = agent ? agentLookFor(id) : lookFor(id);
+  const key = `villager-${[L.agent ? 'agent' : 'npc', L.skin.base, L.hair.base, L.shirt.base, L.pants.base, L.eye, L.style, L.outfit, L.hat].join('-')}`;
   if (scene.textures.exists(key)) return key;
 
   const c = document.createElement('canvas');

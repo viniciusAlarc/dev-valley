@@ -158,7 +158,7 @@ export class AgentNpc {
     x: number,
     y: number,
   ) {
-    this.texture = villagerTexture(scene, `agente:${agent.path}`);
+    this.texture = villagerTexture(scene, `agente:${agent.path}`, true);
     this.shadow = scene.add.image(x, y, 'shadow').setOrigin(0.5);
     this.sprite = scene.add.sprite(x, y, this.texture, 0).setOrigin(0.5, 1);
     this.star = scene.add.text(x, y, '✦', { fontFamily: 'serif', fontSize: '10px', color: '#f7d046', resolution: 4 }).setOrigin(0.5);
