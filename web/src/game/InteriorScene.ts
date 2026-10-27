@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { activityOf, getWorld, onWorld, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { makeInteractive, VillagerView } from './common';
-import { generateInteriorTextures, SEED_COLORS } from './interiorTextures';
+import { generateInteriorTextures, SEED_COLORS, SHELF_BOOKS } from './interiorTextures';
 
 const W = 288;
 const WALL_H = 40;
@@ -24,7 +24,10 @@ const DIARY_X = 53;
 /** Caixa de sementes (docs-dev/a-codar/), no chão entre a janela e a escrivaninha. */
 const SEEDS_X = 184;
 const SEEDS_Y = WALL_H + 16;
-/** Quadro negro (plano de ação da fase em andamento), na parede entre a janela e a escrivaninha. */
+/** Estante (`docs-dev/context/`), no canto esquerdo; 34x44, os livros são pregados a partir do canto de cima. */
+const SHELF_X = 26;
+const SHELF_Y = WALL_H + 8;
+/** Quadro negro (o docs-dev/painel.json inteiro), na parede entre a janela e a escrivaninha. */
 const CHALK_X = 188;
 
 interface Placement {
@@ -48,6 +51,8 @@ export class InteriorScene extends Phaser.Scene {
   private packets: Phaser.GameObjects.Image[] = [];
   private packetsKey = '';
   private chalkboard?: Phaser.GameObjects.Image;
+  private books: Phaser.GameObjects.Image[] = [];
+  private booksKey = '';
   private unsubscribe?: () => void;
 
   constructor() {
@@ -125,7 +130,8 @@ export class InteriorScene extends Phaser.Scene {
     }
     this.pinNotes(project);
     this.fillSeedBox(project);
-    this.chalkboard?.setTexture(project.quadro.length ? 'chalkboardWritten' : 'chalkboard');
+    this.fillShelf(project);
+    this.chalkboard?.setTexture(project.painel ? 'chalkboardWritten' : 'chalkboard');
     for (const s of sessions) this.villagers.get(s.id)?.update(s);
     for (const [id, monitor] of this.monitors) {
       const s = sessions.find((x) => x.id === id);
@@ -145,6 +151,8 @@ export class InteriorScene extends Phaser.Scene {
     this.notesKey = '';
     this.packets = [];
     this.packetsKey = '';
+    this.books = [];
+    this.booksKey = '';
     this.children.removeAll(true);
     this.time.removeAllEvents();
 
@@ -161,7 +169,15 @@ export class InteriorScene extends Phaser.Scene {
 
     this.add.image(W / 2, 22, 'wallWindow').setDepth(-18);
     ui.setLocation(project.name);
-    this.prop('bookshelf', 26, WALL_H + 8);
+    const shelf = this.prop('bookshelf', SHELF_X, SHELF_Y);
+    makeInteractive(
+      shelf,
+      () => {
+        const n = this.project(getWorld())?.estante?.length ?? 0;
+        return n ? `Estante — ${n} documento(s) do que já foi construído` : 'Estante — vazia, nada em docs-dev/context/';
+      },
+      () => ui.openEstante(this.project(getWorld()) ?? project),
+    );
     this.prop('plant', W - 14, WALL_H + 10);
 
     const study = this.prop('study', W - 60, WALL_H + 16);
@@ -210,14 +226,17 @@ export class InteriorScene extends Phaser.Scene {
       );
     }
 
-    // Todo projeto tem quadro negro; sem fase em andamento com plano, ele fica limpo.
-    this.chalkboard = this.prop(project.quadro.length ? 'chalkboardWritten' : 'chalkboard', CHALK_X, BOARD_Y);
+    // Todo projeto tem quadro negro com o docs-dev/painel.json inteiro; sem o arquivo, ele fica limpo.
+    this.chalkboard = this.prop(project.painel ? 'chalkboardWritten' : 'chalkboard', CHALK_X, BOARD_Y);
     makeInteractive(
       this.chalkboard,
       () => {
-        const q = this.project(getWorld())?.quadro ?? [];
-        if (!q.length) return 'Quadro negro — nenhum plano de ação em andamento';
-        return q.length === 1 ? `Quadro negro — plano de ação: ${q[0].fase}` : `Quadro negro — ${q.length} planos de ação em andamento`;
+        const painel = this.project(getWorld())?.painel;
+        if (!painel) return 'Quadro negro — sem docs-dev/painel.json';
+        const plano = painel.plano;
+        if (!plano) return `Quadro negro — nenhum plano em andamento, ${painel.entregas.length} entrega(s)`;
+        const done = plano.fases.filter((f) => f.estado === 'feito').length;
+        return `Quadro negro — ${plano.nome}: ${done} de ${plano.fases.length} fase(s) feitas`;
       },
       () => ui.openQuadro(this.project(getWorld()) ?? project),
     );
@@ -286,6 +305,19 @@ export class InteriorScene extends Phaser.Scene {
         .image(SEEDS_X - 9 + i * 3.6, SEEDS_Y - 6 - (i % 2), `seedPacket${i}`)
         .setOrigin(0.5, 1)
         .setDepth(SEEDS_Y - 0.5),
+    );
+  }
+
+  /** Um livro por documento de `docs-dev/context/` (mais do que cabe = estante cheia); só redesenha quando muda. */
+  private fillShelf(project: Project) {
+    const n = Math.min(project.estante?.length ?? 0, SHELF_BOOKS.length);
+    if (String(n) === this.booksKey) return;
+    this.booksKey = String(n);
+    for (const b of this.books) b.destroy();
+    const left = SHELF_X - 17;
+    const top = SHELF_Y - 44;
+    this.books = SHELF_BOOKS.slice(0, n).map((slot, i) =>
+      this.add.image(left + slot.x, top + slot.bottom, `shelfBook${i}`).setOrigin(0, 1).setDepth(SHELF_Y + 0.5),
     );
   }
 

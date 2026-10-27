@@ -688,6 +688,65 @@ h3 {
   padding: 16px 24px;
 }
 
+/* Fases do painel.json com as subfases (horta e quadro negro): cada nível recua; a fase tem barra de progresso. */
+.fase-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fase-tree .fase-tree {
+  padding-left: 28px;
+}
+
+.fase-leaf,
+.fase-node > details > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+}
+
+.fase-node > details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.fase-node > details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fase-node > details > summary:hover {
+  background: var(--parchment-dark);
+}
+
+.fase-node > details > summary::after {
+  content: '▸';
+  color: var(--muted);
+}
+
+.fase-node > details[open] > summary::after {
+  content: '▾';
+}
+
+.fase-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 8px 6px 36px;
+}
+
+.fase-progress .usage-bar {
+  flex: 1;
+  margin: 0;
+}
+
+.fase-progress b {
+  white-space: nowrap;
+  font-size: 15px;
+}
+
 /* Quadro negro: o HTML do plano de ação ocupa o leitor inteiro (iframe isolado). */
 .quadro-single {
   flex: 1;
@@ -698,6 +757,17 @@ h3 {
 
 .quadro-single > .library-reader {
   flex: 1;
+}
+
+/* JSON completo do painel.json, no fim do quadro negro. */
+.quadro-json {
+  overflow: auto;
+  max-height: 50vh;
+  padding: 8px 12px;
+  background: #fffaf0;
+  border: 2px solid var(--wood-dark);
+  border-radius: 4px;
+  font-size: 13px;
 }
 
 .quadro-frame {

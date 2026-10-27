@@ -11,7 +11,8 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | Dentro da casa (clique nela) | Todas as sessões do projeto: as ativas trabalham nas mesas, as antigas descansam no sofá |
 | Placa embaixo da janela | Vencimento da auditoria das regras (`.claude/auditoria-regras.txt`); amarela quando vencida — rode `/auditar-regras` |
 | Ervas à direita da casa | Uma por linha do `RETRABALHO.md` (G17) — clique para ver a tabela; três da mesma causa pedem `/nova-regra` |
-| Quadro negro (parede da casa) | Plano de ação de cada fase em `andamento` do `docs-dev/painel.json` (campo `doc` da fase). HTML abre isolado num painel (iframe com `sandbox`, sem acesso à vila); `.md` abre no leitor. Sem plano, o quadro fica limpo |
+| Quadro negro (parede da casa) | O `docs-dev/painel.json` inteiro: plano, todas as fases com o estado, todas as entregas e o JSON como está no arquivo. O `doc` do plano e de cada fase vira botão: HTML abre isolado no painel (iframe com `sandbox`, sem acesso à vila); `.md` abre no leitor. Sem o arquivo, o quadro fica limpo |
+| Estante (dentro da casa) | O que já foi construído: `docs-dev/context/` (sem o `README.md`), um livro por documento. `.md` abre no leitor; HTML abre isolado, como no quadro negro. Fecha o ciclo do plano: semente → quadro negro → livro |
 | Caixa de sementes (dentro da casa) | Planos em `docs-dev/a-codar/`: decididos e ainda não codados (G7) — clique para listar e abrir no leitor |
 | Escrivaninha | Painel do projeto: branch, remoto, nova sessão, VS Code, caixa de envio |
 | Balão "..." / "!" | Sessão trabalhando / pedindo sua permissão (via hooks) |

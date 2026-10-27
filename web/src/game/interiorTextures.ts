@@ -165,24 +165,37 @@ function sofaFront(scene: Phaser.Scene) {
   add(scene, 'sofaFront', c);
 }
 
-function bookshelf(scene: Phaser.Scene) {
-  const { c, ctx } = makeCanvas(34, 44);
-  rect(ctx, 1, 1, 32, 42, '#6b4220');
-  rect(ctx, 3, 3, 28, 38, '#4a2c14');
+/** Lugares dos livros na estante (coordenadas da textura), de cima para baixo e da esquerda para a direita. */
+export const SHELF_BOOKS = (() => {
   const colors = ['#c0392b', '#2e86c1', '#27ae60', '#d4ac0d', '#8e44ad', '#e67e22', '#ecf0f1'];
   const rnd = mulberry32(3);
+  const slots: { x: number; bottom: number; w: number; h: number; color: string }[] = [];
   for (const y of [3, 16, 29]) {
     let x = 4;
     while (x < 29) {
       const w = 2 + Math.floor(rnd() * 2);
       const h = 7 + Math.floor(rnd() * 4);
-      rect(ctx, x, y + 11 - h, w, h, colors[Math.floor(rnd() * colors.length)]);
+      if (x + w <= 31) slots.push({ x, bottom: y + 11, w, h, color: colors[Math.floor(rnd() * colors.length)] });
       x += w + (rnd() < 0.2 ? 2 : 0);
     }
-    rect(ctx, 3, y + 11, 28, 2, '#8f5f30');
   }
+  return slots;
+})();
+
+/** Estante (`docs-dev/context/`): só a moldura e as prateleiras; os livros são sprites, um por documento. */
+function bookshelf(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(34, 44);
+  rect(ctx, 1, 1, 32, 42, '#6b4220');
+  rect(ctx, 3, 3, 28, 38, '#4a2c14');
+  for (const y of [3, 16, 29]) rect(ctx, 3, y + 11, 28, 2, '#8f5f30');
   outline(ctx, 34, 44);
   add(scene, 'bookshelf', c);
+  SHELF_BOOKS.forEach(({ w, h, color }, i) => {
+    const b = makeCanvas(w, h);
+    rect(b.ctx, 0, 0, w, h, color);
+    rect(b.ctx, 0, 2, w, 1, '#00000033');
+    add(scene, `shelfBook${i}`, b.c);
+  });
 }
 
 function plant(scene: Phaser.Scene) {

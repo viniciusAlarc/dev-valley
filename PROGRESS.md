@@ -3,6 +3,51 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-27 — Subfases do painel.json na horta e no quadro negro
+
+**O que mudou:** pedido do usuário, com a estrutura do painel da Fábrica de agentes e o estilo da vila. O servidor
+passa a ler as `etapas` de cada fase, em qualquer nível (até 6, para se proteger de JSON torto). Decisões do usuário
+(27/10/2026): entra na horta e no quadro negro; só a estrutura, sem os botões "Começar sessão" e copiar. Cada nível
+com etapas mostra "X de Y", contando as etapas diretas como a Fábrica faz (fase = subfases feitas, subfase = itens
+feitos). A fase ganha uma barra de progresso, a mesma da barra de uso, com "X de Y · N%". Cada nível recua; o que está
+em andamento abre aberto e o resto fica recolhido (`<details>`). As duas telas usam um renderizador só (`faseTree`).
+**Arquivos:** `server/src/painel.ts` (`Etapa`, `etapas`), `web/src/api.ts`, `web/src/ui/painel.ts` (`faseTree`),
+`web/src/ui/quadro.ts`, `web/src/style.css` (`.fase-tree`, `.fase-progress`).
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
+testado no projeto de exemplo: a fase com 19 subfases sai "0 de 19" e a primeira subfase "1 de 4", como na imagem do
+painel da Fábrica; fases sem etapas continuam como antes. Conferido na vila pelo usuário em 27/10/2026.
+
+## 2026-10-27 — Quadro negro mostra o painel.json inteiro
+
+**O que mudou:** pedido do usuário, fora de plano. O quadro negro deixa de mostrar só o plano de ação das fases em
+andamento e passa a mostrar o `docs-dev/painel.json` completo: plano (nome e `doc`), todas as fases com o estado,
+todas as entregas e, num bloco recolhível, o JSON como está no arquivo (campos fora do formato inclusive). O `doc` do
+plano e de cada fase, em qualquer estado, vira botão "Abrir plano": HTML abre no mesmo iframe isolado (com "Voltar ao
+quadro"), `.md` no leitor; `doc` que não existe aparece como "não encontrado". O quadro fica escrito sempre que o
+projeto tem `painel.json`, e o texto ao passar o mouse mostra o plano e quantas fases estão feitas.
+**Arquivos:** `server/src/painel.ts` (`Painel.json`), `server/src/quadro.ts` (docs do plano e de todas as fases,
+com o `doc` original), `server/src/world.ts`, `web/src/api.ts`, `web/src/ui/quadro.ts` (reescrito),
+`web/src/ui/painel.ts` (`PHASE` exportado), `web/src/game/InteriorScene.ts`, `web/src/style.css`, `README.md`.
+**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. Conferido na vila pelo usuário em 27/10/2026.
+
+## 2026-10-27 — Estante da casa com o que já foi construído
+
+**O que mudou:** decisão do usuário (27/10/2026, opção B entre três): a estante, que era só decoração, passa a mostrar
+`docs-dev/context/`, a arquitetura já implementada (G7). Fecha o ciclo do plano: semente (`a-codar/`) → quadro negro
+(em andamento) → livro na estante. Mesmos critérios da caixa de sementes: só o primeiro nível, `.md` e `.html`, sem o
+`README.md`; título = primeiro `# ` do Markdown ou `<title>` do HTML. A estante desenha um livro por documento (cabem
+25; acima disso fica cheia) e fica vazia sem a pasta. `.md` abre no leitor da biblioteca; HTML abre no mesmo iframe
+isolado do quadro negro, por `GET /api/estante`. A resposta isolada (CSP `sandbox allow-scripts`) virou uma função só
+para as duas rotas.
+**Arquivos:** `server/src/estante.ts` (novo), `server/src/world.ts` (`Project.estante`), `server/src/index.ts`
+(`sendIsolatedHtml`, `/api/estante`), `web/src/api.ts`, `web/src/game/interiorTextures.ts` (estante vazia +
+`SHELF_BOOKS`, um sprite por livro), `web/src/game/InteriorScene.ts` (`fillShelf`, clique), `web/src/ui/estante.ts`
+(novo), `web/src/ui/actions.ts`, `README.md`, `CLAUDE.md`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
+testado nos projetos reais: 4 livros neste repositório, 13 no de exemplo (2 HTML, todos com título próprio), e os sem
+`docs-dev/context/` ficam com a estante vazia. Os lugares dos livros são os mesmos do desenho antigo, sem
+renderizar. Conferido na vila pelo usuário em 27/10/2026.
+
 ## 2026-10-27 — Quadro negro na casa com o plano de ação da fase em andamento
 
 **O que mudou:** pedido do usuário, fora de plano. Toda casa ganha um quadro negro na parede, entre a janela e a
@@ -36,7 +81,7 @@ Sessão fechada fora da vila continua indo para dentro de casa até `sessionMaxA
 `listSessions` tolera arquivo apagado no meio da leitura), `server/src/terminals.ts` (`kill` espera o processo sair),
 `server/src/hooks.ts` (`forget`), `web/src/ui/terminal.ts` (confirmação), `web/src/api.ts` (`killSession` → `deleteSession`).
 **Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado; `deleteSessionFiles` testada num HOME
-falso (apaga a sessão e a pasta dela, não toca nas outras, recusa `..`, vazio, `../x` e `<id>/..`). Falta conferir na vila.
+falso (apaga a sessão e a pasta dela, não toca nas outras, recusa `..`, vazio, `../x` e `<id>/..`). Conferido na vila pelo usuário em 27/10/2026.
 
 ## 2026-10-27 — Agentes com traje de agente secreto
 
@@ -65,7 +110,7 @@ atualizadas.
 ferramentas), `web/src/game/FactoryScene.ts`, `docs-dev/context/ambiente-de-ia-na-vila.md` (movido),
 `docs-dev/painel.json`, `docs-dev/context/fabrica-de-agentes.md`.
 **Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Visual novo
-não renderizado; falta conferir na vila (reinício do usuário).
+não renderizado. Conferido na vila pelo usuário em 27/10/2026.
 
 ## 2026-10-26 — Fábrica por dentro, com skills e os agentes da vila
 

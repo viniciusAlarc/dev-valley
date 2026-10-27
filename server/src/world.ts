@@ -4,6 +4,7 @@ import type { Config } from './config.js';
 import * as gitOps from './git.js';
 import type { HookState, SessionStatus } from './hooks.js';
 import type { StatusLineStore, Usage } from './statusline.js';
+import { readEstante, type Livro } from './estante.js';
 import { missingStructure, readAuditoria } from './estrutura.js';
 import { readGuardrails, type Guardrails } from './guardrails.js';
 import { readPainel, type Painel } from './painel.js';
@@ -30,7 +31,7 @@ export interface Project {
   pendencias: Pendencia[] | null;
   /** `docs-dev/painel.json` (plano e fases); null = o projeto não tem o arquivo. */
   painel: Painel | null;
-  /** Planos de ação das fases em andamento (quadro negro); vazio = quadro sem conteúdo. */
+  /** Documentos citados no `painel.json` (`doc` do plano e das fases) que o quadro negro abre. */
   quadro: PlanoAcao[];
   /** Resumo do `PROGRESS.md`; null = o projeto não tem o arquivo. */
   progress: ProgressSummary | null;
@@ -38,6 +39,8 @@ export interface Project {
   missingStructure: string[];
   /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. */
   sementes: Semente[] | null;
+  /** `docs-dev/context/` (estante); null = o projeto não tem a pasta. */
+  estante: Livro[] | null;
   /** `RETRABALHO.md` (ervas do quintal); null = o projeto não tem o arquivo. */
   retrabalho: Retrabalho | null;
   /** Vencimento da auditoria das regras, `AAAA-MM-DD` (placa de vistoria); null = sem `.claude/auditoria-regras.txt`. */
@@ -120,13 +123,14 @@ async function discoverProjectDirs(config: Config): Promise<string[]> {
 }
 
 async function loadProject(dir: string): Promise<Project> {
-  const [isGit, pendencias, painel, progress, missing, sementes, retrabalho, auditoria] = await Promise.all([
+  const [isGit, pendencias, painel, progress, missing, sementes, estante, retrabalho, auditoria] = await Promise.all([
     gitOps.isGitRepo(dir),
     readPendencias(dir),
     readPainel(dir),
     summarizeProgress(dir),
     missingStructure(dir),
     readSementes(dir),
+    readEstante(dir),
     readRetrabalho(dir),
     readAuditoria(dir),
   ]);
@@ -144,6 +148,7 @@ async function loadProject(dir: string): Promise<Project> {
     progress,
     missingStructure: missing,
     sementes,
+    estante,
     retrabalho,
     auditoria,
   };

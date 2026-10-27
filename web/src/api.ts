@@ -15,7 +15,7 @@ export interface Project {
   pendencias: Pendencia[] | null;
   /** `docs-dev/painel.json` (plano e fases); null = o projeto não tem o arquivo. */
   painel: Painel | null;
-  /** Planos de ação das fases em andamento (quadro negro); vazio = quadro sem conteúdo. */
+  /** Documentos citados no `painel.json` (`doc` do plano e das fases) que o quadro negro abre. */
   quadro: PlanoAcao[];
   /** Resumo do `PROGRESS.md` (as entregas vêm por `api.progress`); null = o projeto não tem o arquivo. */
   progress: { entries: number; lastDate: string; toCheck: { date: string; title: string }[] } | null;
@@ -23,6 +23,8 @@ export interface Project {
   missingStructure: string[];
   /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. */
   sementes: { path: string; title: string }[] | null;
+  /** `docs-dev/context/` (estante): `html` abre isolado, `md` no leitor; null = o projeto não tem a pasta. */
+  estante: { path: string; title: string; kind: 'html' | 'md' }[] | null;
   /** `RETRABALHO.md` (ervas do quintal): cabeçalho e linhas como estão no arquivo; null = sem o arquivo. */
   retrabalho: { header: string[]; rows: string[][] } | null;
   /** Vencimento da auditoria das regras, `AAAA-MM-DD` (placa de vistoria); null = sem o arquivo. */
@@ -38,14 +40,25 @@ export interface ProgressEntry {
 
 export type PhaseState = 'feito' | 'andamento' | 'a fazer';
 
-export interface Painel {
-  plano: { nome: string; doc: string | null; fases: { nome: string; estado: PhaseState; doc: string | null }[] } | null;
-  entregas: { data: string; o_que: string; como: string }[];
+/** Subfase (`etapas` da fase ou de outra etapa), em quantos níveis o `painel.json` tiver. */
+export interface Etapa {
+  nome: string;
+  estado: PhaseState;
+  etapas: Etapa[];
 }
 
-/** Plano de ação de uma fase em andamento: `html` abre isolado no quadro, `md` no leitor da biblioteca. */
+export interface Painel {
+  plano: { nome: string; doc: string | null; fases: { nome: string; estado: PhaseState; doc: string | null; etapas: Etapa[] }[] } | null;
+  entregas: { data: string; o_que: string; como: string }[];
+  /** O arquivo inteiro como está, campos fora do formato inclusive (quadro negro). */
+  json: string;
+}
+
+/** Documento citado no `painel.json` (`doc` do plano ou de uma fase): `html` abre isolado no quadro, `md` no leitor. */
 export interface PlanoAcao {
   fase: string;
+  /** O `doc` como está no `painel.json`. */
+  doc: string;
   path: string;
   kind: 'html' | 'md';
 }
