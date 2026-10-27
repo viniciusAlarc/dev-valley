@@ -268,7 +268,8 @@ export const api = {
     request<{ output: string }>('POST', '/api/commit', { project, message, files }),
   openVsCode: (project: string, file?: string) => request('POST', '/api/open-vscode', { project, file }),
   newSession: (project: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project }),
-  killSession: (id: string) => request('DELETE', `/api/sessions/${id}`),
+  /** Encerra e apaga a conversa de vez. */
+  deleteSession: (id: string) => request('DELETE', `/api/sessions/${id}`),
   progress: (project: string) => request<ProgressEntry[]>('GET', `/api/progress?project=${encodeURIComponent(project)}`),
 };
 

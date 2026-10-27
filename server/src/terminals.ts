@@ -46,8 +46,21 @@ export class TerminalManager {
     ws.on('close', () => t.clients.delete(ws));
   }
 
-  kill(sessionId: string) {
-    this.terminals.get(sessionId)?.pty.kill();
+  /**
+   * Encerra o processo e só resolve quando ele saiu de vez: quem apaga a conversa depois disso não corre o risco
+   * de o `claude` gravar o `.jsonl` de novo ao fechar. Sem resposta ao SIGHUP em 5s, vai SIGKILL.
+   */
+  kill(sessionId: string): Promise<void> {
+    const t = this.terminals.get(sessionId);
+    if (!t) return Promise.resolve();
+    return new Promise((resolve) => {
+      const force = setTimeout(() => t.pty.kill('SIGKILL'), 5000);
+      t.pty.onExit(() => {
+        clearTimeout(force);
+        resolve();
+      });
+      t.pty.kill();
+    });
   }
 
   killAll() {

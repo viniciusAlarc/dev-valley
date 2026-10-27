@@ -64,6 +64,11 @@ export class HookStore {
     return status !== prev?.status;
   }
 
+  /** Sessão apagada na vila: some do estado ao vivo sem esperar o `SessionEnd`. */
+  forget(id: string) {
+    this.states.delete(id);
+  }
+
   all(): HookState[] {
     const now = Date.now();
     for (const [id, s] of this.states) {

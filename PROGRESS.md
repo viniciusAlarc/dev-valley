@@ -3,6 +3,20 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-26 — Encerrar sessão na vila apaga a conversa de vez
+
+**O que mudou:** decisão do usuário (26/10/2026): ao clicar em "Encerrar sessão", a sessão deixa de existir. O botão
+pede confirmação no rodapé do painel (como o "Apagar" da Fábrica); confirmado, o servidor encerra o processo **e espera
+ele sair** (SIGHUP, SIGKILL depois de 5s) para o `claude` não regravar o arquivo ao fechar, apaga `<id>.jsonl` e a pasta
+`<id>/` (subagentes) em `~/.claude/projects`, tira a sessão do estado dos hooks e atualiza o mundo. O id só passa se
+for UUID (ele vira nome de pasta no `rm` recursivo). Sessão aberta fora da vila responde 409 e não é apagada.
+Sessão fechada fora da vila continua indo para dentro de casa até `sessionMaxAgeDays`.
+**Arquivos:** `server/src/index.ts` (rota `DELETE /api/sessions/:id`), `server/src/sessions.ts` (`deleteSessionFiles`,
+`listSessions` tolera arquivo apagado no meio da leitura), `server/src/terminals.ts` (`kill` espera o processo sair),
+`server/src/hooks.ts` (`forget`), `web/src/ui/terminal.ts` (confirmação), `web/src/api.ts` (`killSession` → `deleteSession`).
+**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado; `deleteSessionFiles` testada num HOME
+falso (apaga a sessão e a pasta dela, não toca nas outras, recusa `..`, vazio, `../x` e `<id>/..`). Falta conferir na vila.
+
 ## 2026-10-26 — Fábrica com o mesmo visual por dentro e por fora; plano "Ambiente de IA na vila" fechado
 
 **O que mudou:** o usuário conferiu a Fábrica e pediu um visual só, com a fachada como referência (por fora tijolo,

@@ -45,12 +45,31 @@ export function openTerminal(opts: { sessionId: string; projectId?: string | nul
       term.dispose();
     },
   });
-  panel.actions.append(
-    button('Encerrar sessão', async () => {
-      await api.killSession(opts.sessionId);
-      panel.close();
-    }, 'danger'),
-  );
+  // Encerrar apaga a conversa de vez (não dá para retomar), então pede confirmação ali mesmo, como na Fábrica.
+  const showEnd = () => panel.actions.replaceChildren(button('Encerrar sessão', confirmEnd, 'danger'));
+  const confirmEnd = () => {
+    const q = document.createElement('span');
+    q.className = 'agent-confirm';
+    q.textContent = 'Apagar esta conversa de vez? Não dá para retomar depois.';
+    panel.actions.replaceChildren(
+      q,
+      button(
+        'Sim, encerrar',
+        async () => {
+          try {
+            await api.deleteSession(opts.sessionId);
+            panel.close();
+          } catch (err) {
+            term.write(`\r\n\x1b[31m[${(err as Error).message ?? err}]\x1b[0m\r\n`);
+            showEnd();
+          }
+        },
+        'danger',
+      ),
+      button('Cancelar', showEnd),
+    );
+  };
+  showEnd();
 
   const host = document.createElement('div');
   host.className = 'terminal-host';

@@ -16,6 +16,7 @@ import { agentInput, Agents } from './agents.js';
 import { skillInput, Skills } from './skills.js';
 import { Moradores } from './moradores.js';
 import { readProgress } from './progress.js';
+import { deleteSessionFiles } from './sessions.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
 import { buildWorld, type Project, type World } from './world.js';
@@ -310,8 +311,23 @@ app.post('/api/sessions', (req, res) => {
   res.json({ sessionId: randomUUID(), cwd: project.path });
 });
 
-app.delete('/api/sessions/:id', (req, res) => {
-  terminals.kill(req.params.id);
+// Encerrar na vila apaga a conversa de vez (decisão do usuário, 26/10/2026): processo, arquivos e estado ao vivo.
+app.delete('/api/sessions/:id', async (req, res) => {
+  const id = req.params.id;
+  const session = world.sessions.find((s) => s.id === id);
+  if (!session) return res.status(404).json({ error: 'Sessão não encontrada.' });
+  // Apagar por baixo de um processo vivo fora da vila (VS Code) deixaria aquele terminal gravando numa conversa sumida.
+  if (session.live && !session.inTown) {
+    return res.status(409).json({ error: 'A sessão está aberta em outro terminal. Feche por lá primeiro.' });
+  }
+  try {
+    await terminals.kill(id);
+    await deleteSessionFiles(id);
+  } catch (err) {
+    return res.status(500).json({ error: String((err as Error).message ?? err) });
+  }
+  hooks.forget(id);
+  await refreshWorld();
   res.json({ ok: true });
 });
 
