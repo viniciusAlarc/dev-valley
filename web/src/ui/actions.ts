@@ -17,6 +17,7 @@ import { openSementes } from './sementes';
 import { openQuadro } from './quadro';
 import { openPombal } from './pombal';
 import { openEstante } from './estante';
+import { openLareira } from './lareira';
 import { openSkills } from './skills';
 import { openSessionTerminal, openTerminal } from './terminal';
 
@@ -99,6 +100,10 @@ export const ui = {
   openSementes(project: Project) {
     this.hideTooltip();
     openSementes(project);
+  },
+  openLareira(project: Project) {
+    this.hideTooltip();
+    openLareira(project);
   },
   openEstante(project: Project) {
     this.hideTooltip();

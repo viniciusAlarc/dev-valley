@@ -3,6 +3,30 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-27 — Lareira, passo 3: lareira na sala e painel com os logs
+
+**O que mudou:** passo 3 do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). Projeto com a tabela "Subir"
+(algum lado com comando) ganha uma lareira encostada no canto de cima à direita (decisão 9). Primeiro ela ficou solta
+no chão ao lado do sofá; o usuário apontou que não fazia sentido, e a parede de cima foi redistribuída: estante,
+atril, quadro de cortiça, janela (saiu do centro), quadro negro com a caixa de sementes embaixo, escrivaninha e
+lareira, com 8px entre as peças. A planta foi para o canto esquerdo da sala de estar. Ela tem 4 texturas, uma
+por estado da tabela do plano: apagada (só lenha), acendendo (fogo pequeno), acesa (dois quadros alternando, para o
+fogo tremer) e erro (brasa e fumaça escura). O estado vem de `estadoLareira` em `web/src/api.ts`. Ele conta só os
+lados com comando e sem problema, e trata como acesa a porta ocupada por fora da vila (decisão 7). O clique abre o
+painel (decisão 6) com cada lado: pasta, porta, comando e situação (apagado, acendendo, aceso pela vila com PID,
+ligado fora da vila, parou com erro, sem comando, problema). Acender e Apagar ficam no cabeçalho; Apagar só fica
+ativo quando a vila ligou algo. Embaixo, uma aba de log por lado (decisão 8): um xterm só leitura por `/ws/lareira`,
+criado quando a aba abre. O painel acompanha o mundo enquanto está aberto. Correção no passo 2: abrir o log de um lado
+nunca ligado criava um registro que aparecia como "saiu"; agora aparece como não ligado.
+**Arquivos:** `web/src/ui/lareira.ts` (novo), `web/src/api.ts` (`estadoLareira`, `acenderLareira`, `apagarLareira`),
+`web/src/game/interiorTextures.ts` (`fireplace`), `web/src/game/InteriorScene.ts` (lareira, `lightFireplace`),
+`web/src/ui/actions.ts`, `web/src/style.css` (comando longo quebra), `server/src/lareira.ts` (`merge`), `README.md`,
+`docs-dev/a-codar/lareira-subir-sistema.md`, `docs-dev/painel.json`.
+**Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado.
+`estadoLareira` testado com os 7 casos da tabela do plano (apagada, acendendo por processo e por porta, acesa com um
+lado de fora, erro, apagado pela vila, lados sem comando e com problema ignorados). As posições da parede foram
+conferidas pelas medidas de cada peça (sem sobreposição), sem renderizar. Conferido na vila pelo usuário em 28/10/2026 (lareira no canto, painel, Acender e Apagar).
+
 ## 2026-10-27 — Lareira, passo 2: servidor liga e apaga os lados
 
 **O que mudou:** passo 2 do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). `Lareiras` em

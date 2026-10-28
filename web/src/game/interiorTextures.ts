@@ -285,6 +285,43 @@ function chalkboard(scene: Phaser.Scene, key: string, written: boolean) {
   add(scene, key, c);
 }
 
+/**
+ * Lareira da sala (PD-7), uma textura por estado: `apagada` (só lenha), `acendendo` (fogo pequeno), `acesa` (dois
+ * quadros, para o fogo tremer) e `erro` (brasa apagando e fumaça escura).
+ */
+function fireplace(scene: Phaser.Scene, key: string, fogo: 'apagada' | 'acendendo' | 'acesa' | 'acesa2' | 'erro') {
+  const { c, ctx } = makeCanvas(32, 30);
+  // pedra
+  rect(ctx, 0, 4, 32, 26, '#8d8a84');
+  for (const [x, y] of [[2, 6], [12, 6], [22, 6], [6, 12], [24, 14], [2, 20], [26, 22]]) rect(ctx, x, y, 6, 3, '#a19e97');
+  // console de madeira
+  rect(ctx, 0, 1, 32, 4, '#7a4b20');
+  rect(ctx, 0, 1, 32, 1, '#a8743c');
+  // boca
+  rect(ctx, 7, 11, 18, 19, '#2a1d14');
+  rect(ctx, 7, 11, 18, 2, '#1a120b');
+  // lenha
+  rect(ctx, 9, 26, 14, 2, '#6b4220');
+  rect(ctx, 11, 24, 10, 2, '#8f5f30');
+  if (fogo === 'acendendo') {
+    rect(ctx, 14, 21, 4, 3, '#e8892b');
+    rect(ctx, 15, 20, 2, 2, '#f5d142');
+  } else if (fogo === 'acesa' || fogo === 'acesa2') {
+    const alt = fogo === 'acesa2';
+    rect(ctx, 10, 18, 12, 6, '#d6402f');
+    rect(ctx, alt ? 11 : 12, alt ? 14 : 15, 4, 5, '#e8892b');
+    rect(ctx, alt ? 17 : 16, alt ? 15 : 14, 4, 5, '#e8892b');
+    rect(ctx, 13, 18, 6, 5, '#f5d142');
+    rect(ctx, alt ? 15 : 14, alt ? 16 : 17, 2, 2, '#fff3b0');
+  } else if (fogo === 'erro') {
+    for (const [x, y] of [[12, 23], [16, 24], [19, 23]]) rect(ctx, x, y, 2, 1, '#c0392b');
+    rect(ctx, 13, 15, 3, 3, '#4a4a4a');
+    rect(ctx, 16, 12, 3, 3, '#3a3a3a');
+  }
+  outline(ctx, 32, 30);
+  add(scene, key, c);
+}
+
 /** Atril com o diário aberto (o `PROGRESS.md` do projeto). */
 function lectern(scene: Phaser.Scene) {
   const { c, ctx } = makeCanvas(18, 24);
@@ -353,6 +390,7 @@ export function generateInteriorTextures(scene: Phaser.Scene) {
   corkBoard(scene);
   lectern(scene);
   chalkboard(scene, 'chalkboard', false);
+  for (const f of ['apagada', 'acendendo', 'acesa', 'acesa2', 'erro'] as const) fireplace(scene, `fireplace-${f}`, f);
   chalkboard(scene, 'chalkboardWritten', true);
   for (let p = 1; p <= 4; p++) note(scene, p);
   seedBox(scene);

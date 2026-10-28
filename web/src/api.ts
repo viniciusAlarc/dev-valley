@@ -107,6 +107,21 @@ export interface Lado {
   vila: { estado: 'rodando'; pid: number } | { estado: 'saiu'; codigo: number } | null;
 }
 
+export type EstadoLareira = 'apagada' | 'acendendo' | 'acesa' | 'erro';
+
+/**
+ * Estado da lareira (tabela do plano `lareira-subir-sistema.md`), contando só os lados que podem ser ligados (com
+ * comando e sem problema). Erro = algum lado ligado pela vila saiu com código diferente de 0. Acesa = todas as portas
+ * ocupadas (pela vila ou por fora dela). Acendendo = parte rodando ou ocupada. Apagada = nada.
+ */
+export function estadoLareira(lareira: { lados: Lado[] }): EstadoLareira {
+  const lados = lareira.lados.filter((l) => l.comando && !l.problema);
+  if (lados.some((l) => l.vila?.estado === 'saiu' && l.vila.codigo !== 0)) return 'erro';
+  if (lados.length && lados.every((l) => l.ocupada)) return 'acesa';
+  if (lados.some((l) => l.ocupada || l.vila?.estado === 'rodando')) return 'acendendo';
+  return 'apagada';
+}
+
 export interface Pendencia {
   id: string;
   /** 1 (crítico) a 4 (baixo). */
@@ -339,6 +354,8 @@ export const api = {
   deleteSession: (id: string) => request('DELETE', `/api/sessions/${id}`),
   progress: (project: string) => request<ProgressEntry[]>('GET', `/api/progress?project=${encodeURIComponent(project)}`),
   /** Busca o remoto e lista as cartas dos dois sentidos. */
+  acenderLareira: (project: string) => request<{ ligados: string[] }>('POST', '/api/lareira/acender', { project }),
+  apagarLareira: (project: string) => request<{ ok: boolean }>('POST', '/api/lareira/apagar', { project }),
   cartas: (project: string) => request<{ receber: Carta[]; enviar: Carta[] }>('GET', `/api/pombal?project=${encodeURIComponent(project)}`),
   /** Não lança no 409: o painel mostra o erro junto com os conflitos e os passos que deram certo. */
   voar: async (project: string, acao: 'receber' | 'enviar'): Promise<Voo> => {

@@ -151,7 +151,8 @@ export class Lareiras {
     return {
       lados: lareira.lados.map((l) => {
         const f = this.fogos.get(this.key(projectId, l.lado));
-        if (!f) return l;
+        // registro só do log (aba aberta antes de acender): a vila ainda não ligou este lado
+        if (!f || (!f.pty && f.codigo === null)) return l;
         return { ...l, vila: f.pty ? { estado: 'rodando', pid: f.pty.pid } : { estado: 'saiu', codigo: f.codigo ?? 0 } };
       }),
     };

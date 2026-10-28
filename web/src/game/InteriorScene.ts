@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { activityOf, getWorld, onWorld, type Project, type Session, type World } from '../api';
+import { activityOf, estadoLareira, getWorld, onWorld, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { makeInteractive, VillagerView } from './common';
 import { generateInteriorTextures, SEED_COLORS, SHELF_BOOKS } from './interiorTextures';
@@ -21,14 +21,26 @@ const NOTE_COLS = 5;
 const MAX_NOTES = 15;
 /** Atril do diário (PROGRESS.md), no chão entre a estante e o quadro. */
 const DIARY_X = 53;
-/** Caixa de sementes (docs-dev/a-codar/), no chão entre a janela e a escrivaninha. */
-const SEEDS_X = 184;
+/** Caixa de sementes (docs-dev/a-codar/), no chão embaixo do quadro negro. */
+const SEEDS_X = 175;
 const SEEDS_Y = WALL_H + 16;
 /** Estante (`docs-dev/context/`), no canto esquerdo; 34x44, os livros são pregados a partir do canto de cima. */
 const SHELF_X = 26;
 const SHELF_Y = WALL_H + 8;
 /** Quadro negro (o docs-dev/painel.json inteiro), na parede entre a janela e a escrivaninha. */
-const CHALK_X = 188;
+const CHALK_X = 175;
+/** Parede de cima, da esquerda para a direita, 8px entre as peças: janela, quadro negro, escrivaninha e a lareira no canto. */
+const WINDOW_X = 132;
+const STUDY_X = 223;
+const FIREPLACE_X = W - 21;
+const FIREPLACE_Y = WALL_H + 10;
+
+const LAREIRA_TEXTO = {
+  apagada: 'apagada, clique para ver os comandos e acender',
+  acendendo: 'acendendo (ou só parte do sistema no ar)',
+  acesa: 'acesa, sistema no ar',
+  erro: 'com erro, algum lado parou sozinho',
+} as const;
 
 interface Placement {
   desks: (Session | null)[];
@@ -51,6 +63,7 @@ export class InteriorScene extends Phaser.Scene {
   private packets: Phaser.GameObjects.Image[] = [];
   private packetsKey = '';
   private chalkboard?: Phaser.GameObjects.Image;
+  private fireplace?: Phaser.GameObjects.Image;
   private books: Phaser.GameObjects.Image[] = [];
   private booksKey = '';
   private unsubscribe?: () => void;
@@ -132,6 +145,7 @@ export class InteriorScene extends Phaser.Scene {
     this.fillSeedBox(project);
     this.fillShelf(project);
     this.chalkboard?.setTexture(project.painel ? 'chalkboardWritten' : 'chalkboard');
+    this.lightFireplace(project);
     for (const s of sessions) this.villagers.get(s.id)?.update(s);
     for (const [id, monitor] of this.monitors) {
       const s = sessions.find((x) => x.id === id);
@@ -167,7 +181,7 @@ export class InteriorScene extends Phaser.Scene {
     frame.fillStyle(0x3a2412).fillRect(-6, 0, 6, H).fillRect(W, 0, 6, H).fillRect(-6, H, W + 12, 6);
     frame.fillStyle(0x3a2412).fillRect(0, H - 4, W / 2 - 18, 4).fillRect(W / 2 + 18, H - 4, W / 2 - 18, 4);
 
-    this.add.image(W / 2, 22, 'wallWindow').setDepth(-18);
+    this.add.image(WINDOW_X, 22, 'wallWindow').setDepth(-18);
     ui.setLocation(project.name);
     const shelf = this.prop('bookshelf', SHELF_X, SHELF_Y);
     makeInteractive(
@@ -178,9 +192,8 @@ export class InteriorScene extends Phaser.Scene {
       },
       () => ui.openEstante(this.project(getWorld()) ?? project),
     );
-    this.prop('plant', W - 14, WALL_H + 10);
 
-    const study = this.prop('study', W - 60, WALL_H + 16);
+    const study = this.prop('study', STUDY_X, WALL_H + 16);
     makeInteractive(
       study,
       () => `Escrivaninha — ${project.name}${placement.hidden ? ` (+${placement.hidden} moradores antigos)` : ''}`,
@@ -273,6 +286,30 @@ export class InteriorScene extends Phaser.Scene {
 
     // ---- sala de estar ----
     const sofaY = loungeTop + 34;
+    // planta no canto esquerdo da sala (o canto de cima à direita é da lareira)
+    this.prop('plant', 16, sofaY);
+    // Lareira (PD-7), encostada no canto de cima à direita: só para projeto com a tabela "Subir" com algum comando.
+    this.fireplace = undefined;
+    if (project.lareira) {
+      this.fireplace = this.prop('fireplace-apagada', FIREPLACE_X, FIREPLACE_Y);
+      makeInteractive(
+        this.fireplace,
+        () => {
+          const l = this.project(getWorld())?.lareira;
+          return l ? `Lareira — ${LAREIRA_TEXTO[estadoLareira(l)]}` : 'Lareira';
+        },
+        () => ui.openLareira(this.project(getWorld()) ?? project),
+      );
+      // fogo aceso tremendo: alterna os dois quadros
+      this.time.addEvent({
+        delay: 260,
+        loop: true,
+        callback: () => {
+          const key = this.fireplace?.texture.key;
+          if (key === 'fireplace-acesa' || key === 'fireplace-acesa2') this.fireplace!.setTexture(key === 'fireplace-acesa' ? 'fireplace-acesa2' : 'fireplace-acesa');
+        },
+      });
+    }
     this.add.image(W / 2, loungeTop + 58, 'rug').setDepth(-15);
     this.prop('sofa', W / 2, sofaY).setDepth(sofaY - 12);
     this.add.image(W / 2, sofaY, 'sofaFront').setOrigin(0.5, 1).setDepth(sofaY + 1);
@@ -292,6 +329,15 @@ export class InteriorScene extends Phaser.Scene {
   }
 
   private roomHeight = 0;
+
+  /** Troca a textura da lareira pelo estado; acesa mantém o quadro atual (o timer do `buildRoom` faz o fogo tremer). */
+  private lightFireplace(project: Project) {
+    if (!this.fireplace || !project.lareira) return;
+    const estado = estadoLareira(project.lareira);
+    const key = this.fireplace.texture.key;
+    if (estado === 'acesa' && (key === 'fireplace-acesa' || key === 'fireplace-acesa2')) return;
+    this.fireplace.setTexture(`fireplace-${estado}`);
+  }
 
   /** Um pacote por plano em `a-codar/` (até 6), saindo da caixa por trás da frente; só redesenha quando muda. */
   private fillSeedBox(project: Project) {

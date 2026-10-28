@@ -747,6 +747,11 @@ h3 {
   font-size: 15px;
 }
 
+/* Lareira: comando longo (mvnw com perfil e flags) quebra em vez de estourar o painel. */
+.lareira-lados code {
+  word-break: break-all;
+}
+
 /* Quadro negro: o HTML do plano de ação ocupa o leitor inteiro (iframe isolado). */
 .quadro-single {
   flex: 1;
