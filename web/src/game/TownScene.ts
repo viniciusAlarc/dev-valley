@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { bellCount, urgentPendencias, yardResidents, type Project, type Session, type World } from '../api';
+import { bellCount, estadoLareira, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, label, makeInteractive, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
@@ -10,7 +10,7 @@ const ROOF_NAMES = Object.keys(ROOFS).filter((r) => r !== 'grey');
 /** Horta à esquerda da casa: um canteiro por fase do `painel.json`, 3 colunas x 3 linhas. */
 const GARDEN_COLS = 3;
 const GARDEN_MAX = 9;
-/** Ervas à direita da casa, acima da caixa de envio: uma por linha do `RETRABALHO.md`, 3 colunas x 3 linhas. */
+/** Ervas à direita da casa, acima das cartas do pombal: uma por linha do `RETRABALHO.md`, 3 colunas x 3 linhas. */
 /** A data do arquivo é o último dia do prazo; vence no dia seguinte (comparação pela data local). */
 function auditoriaVencida(due: string | null): boolean {
   if (!due) return false;
@@ -21,20 +21,27 @@ function auditoriaVencida(due: string | null): boolean {
 
 const WEEDS_COLS = 3;
 const WEEDS_MAX = 9;
-/** Pombal no quintal, à direita da caixa de envio (a caixa vai até x+60; o lote, até x+96). */
+/** Pombal no quintal, à direita da casa (o lote vai até x+96; acima do chão, à esquerda dele, ficam as ervas). */
 const POMBAL_DX = 76;
-/** Cartas empilhadas no poleiro do pombal: uma por commit a levar, até este limite. */
-const POMBAL_LETTERS_MAX = 4;
+/**
+ * Cartas espalhadas no chão entre a casa e o pombal, uma por arquivo que só você tem (até 12): [dx, dy, ângulo] a
+ * partir do pé do pombal. Lugares fixos, para as cartas não pularem quando a contagem muda.
+ */
+const POMBAL_LETTER_SLOTS: [number, number, number][] = [
+  [-22, 2, -12], [-34, -5, 8], [-12, -3, 15], [-28, 7, 3], [-42, 3, -20], [-16, 8, -6],
+  [-38, -10, 12], [12, 5, -10], [-6, 6, 22], [-24, -9, -15], [16, -3, 6], [-46, -4, 18],
+];
 
 function pombalTooltip(project: Project): string {
   const p = project.pombal!;
-  if (p.branchErrada) return `Pombal — o pombo não sai: a casa está na ${project.branch ?? '?'}, não na ${p.minha}`;
   if (p.erro) return `Pombal — a última viagem não completou: ${p.erro}`;
   const partes = [
-    p.aReceber && `📥 ${p.aReceber} carta(s) chegando da ${p.integracao}`,
-    p.aEnviar && `📤 ${p.aEnviar} carta(s) suas para levar`,
+    p.aReceber && `📥 ${p.aReceber} carta(s) chegando do time`,
+    p.locais && `✉️ ${p.locais} arquivo(s) só seus, por enviar`,
   ].filter(Boolean);
-  return `Pombal — ${partes.length ? partes.join(' · ') : `em dia com a ${p.integracao}`} — clique para abrir`;
+  const emDia = p.upstream ? `em dia com ${p.upstream}` : 'tudo guardado (branch sem upstream)';
+  const busca = p.falhaBusca ? ' (sem conseguir buscar o remoto agora)' : '';
+  return `Pombal — ${partes.length ? partes.join(' · ') : emDia}${busca} — clique para abrir`;
 }
 
 const CROP_TEXTURE = { feito: 'crop-done', andamento: 'crop-growing', 'a fazer': 'crop-todo' } as const;
@@ -51,8 +58,6 @@ interface Resident {
 interface HouseView {
   plot: Plot;
   glows: Phaser.GameObjects.Image[];
-  badge?: Phaser.GameObjects.Container;
-  badgeText?: Phaser.GameObjects.Text;
   /** "!" sobre o telhado quando há pendência P1 aberta. */
   alert: Phaser.GameObjects.Container;
   /** Andaime: falta estrutura de acompanhamento (casa em obra). */
@@ -63,7 +68,10 @@ interface HouseView {
   cropsKey: string;
   weeds: Phaser.GameObjects.Image[];
   weedsKey: string;
-  /** Pombal (casinha de passarinho no quintal); só na casa com `pombal` no config local. */
+  /** Estado da lareira (fumaça na chaminé); null = casa sem lareira. Tempo desde a última baforada. */
+  smoke: EstadoLareira | null;
+  smokeAcc: number;
+  /** Pombal (casinha de passarinho no quintal): a única peça de git da casa; casa sem git não tem. */
   pombal?: { box: Phaser.GameObjects.Image; pigeon: Phaser.GameObjects.Image; alert: Phaser.GameObjects.Container; letters: Phaser.GameObjects.Image[]; lettersKey: string };
 }
 
@@ -72,6 +80,7 @@ export class TownScene extends Phaser.Scene {
   private plazaWalkArea!: Rect;
   private projectKey = '';
   private houses = new Map<string, HouseView>();
+  private smokeTimer?: Phaser.Time.TimerEvent;
   private residents = new Map<string, Resident>();
   private agentNpcs = new Map<string, { npc: AgentNpc; timer?: Phaser.Time.TimerEvent }>();
   private agentArea!: Rect;
@@ -241,6 +250,8 @@ export class TownScene extends Phaser.Scene {
 
     this.buildCivic(layout);
     for (const plot of layout.plots) this.buildHouse(plot, rnd);
+    this.smokeTimer?.remove();
+    this.smokeTimer = this.time.addEvent({ delay: 120, loop: true, callback: () => this.puffSmoke(120) });
 
     const cam = this.cameras.main;
     cam.setBounds(-TILE, -TILE, layout.width + TILE * 2, layout.height + TILE * 2);
@@ -433,30 +444,12 @@ export class TownScene extends Phaser.Scene {
       () => this.enterHouse(this.currentProject(p.id)),
     );
 
-    const view: HouseView = { plot, glows, alert, scaffold, plaque, crops: [], cropsKey: '', weeds: [], weedsKey: '' };
-    if (p.pombal) view.pombal = this.buildPombal(plot);
-    if (p.isGit) {
-      const bin = this.addSprite('bin', plot.bin.x, plot.bin.y);
-      makeInteractive(
-        bin,
-        () => {
-          const n = this.currentProject(p.id).changes.length;
-          return n ? `Caixa de envio — ${n} mudança(s) sem commit` : 'Caixa de envio — vazia';
-        },
-        () => ui.openCommit(this.currentProject(p.id)),
-      );
-      const badgeBg = this.add.graphics();
-      badgeBg.fillStyle(0x2b1a0e).fillCircle(0, 0, 6);
-      badgeBg.fillStyle(0xd6402f).fillCircle(0, 0, 5);
-      const badgeText = this.add.text(0, 0, '', { ...TEXT_STYLE, color: '#ffffff', fontSize: '7px' }).setOrigin(0.5, 0.55);
-      view.badge = this.add.container(plot.bin.x + 11, plot.bin.y - 20, [badgeBg, badgeText]).setDepth(plot.bin.y + 1);
-      view.badgeText = badgeText;
-      this.tweens.add({ targets: view.badge, y: view.badge.y - 2, yoyo: true, repeat: -1, duration: 600, ease: 'Sine.inOut' });
-    }
+    const view: HouseView = { plot, glows, alert, scaffold, plaque, crops: [], cropsKey: '', weeds: [], weedsKey: '', smoke: null, smokeAcc: 0 };
+    if (p.isGit) view.pombal = this.buildPombal(plot);
     this.houses.set(p.id, view);
   }
 
-  /** Pombal: casinha de passarinho num poste à direita da caixa de envio; o pombo com carta pousa no telhado dela. */
+  /** Pombal: casinha de passarinho num poste à direita da casa; o pombo com carta pousa no telhado dela. */
   private buildPombal(plot: Plot) {
     const { x, y } = plot.house;
     const id = plot.project.id;
@@ -479,24 +472,31 @@ export class TownScene extends Phaser.Scene {
     return { box, pigeon, alert, letters: [], lettersKey: '' };
   }
 
-  /** Estado do pombal: travado ("!"), carta chegando (pombo no telhado), suas cartas no poleiro, ou em dia (dormindo). */
+  /**
+   * Dois estágios (decisão de 28/10/2026): local = cartas espalhadas no chão, uma por arquivo que só você tem, e o pombo
+   * acordado; enviado = chão limpo e pombo dormindo. Pombo com carta no telhado = chegou coisa do time; "!" = a última
+   * viagem que você disparou não completou. Sem branch (repositório sem commit), sem pombal.
+   */
   private updatePombal(view: NonNullable<HouseView['pombal']>, project: Project) {
     const p = project.pombal;
-    if (!p) return;
-    const travado = p.branchErrada || !!p.erro;
-    view.alert.setVisible(travado);
-    view.pigeon.setVisible(!travado && p.aReceber > 0);
-    view.box.setTexture(travado || p.aReceber > 0 ? 'dovecote-empty' : p.aEnviar > 0 ? 'dovecote-awake' : 'dovecote-sleep');
-    const n = Math.min(p.aEnviar, POMBAL_LETTERS_MAX);
+    const travado = !!p?.erro;
+    view.box.setVisible(!!p);
+    view.alert.setVisible(!!p && travado);
+    view.pigeon.setVisible(!!p && !travado && p.aReceber > 0);
+    if (p) view.box.setTexture(travado || p.aReceber > 0 ? 'dovecote-empty' : p.locais > 0 ? 'dovecote-awake' : 'dovecote-sleep');
+    const n = Math.min(p?.locais ?? 0, POMBAL_LETTER_SLOTS.length);
     if (String(n) === view.lettersKey) return;
     view.lettersKey = String(n);
     for (const l of view.letters) l.destroy();
-    view.letters = Array.from({ length: n }, (_, i) =>
-      this.add
-        .image(view.box.x + 5 + (i % 2), view.box.y - 19 - i * 3, 'letter')
-        .setOrigin(0.5, 1)
-        .setDepth(view.box.depth + 0.1 + i * 0.01),
-    );
+    view.letters = POMBAL_LETTER_SLOTS.slice(0, n).map(([dx, dy, angle]) => {
+      const letter = this.addSprite('letter', view.box.x + dx, view.box.y + dy).setAngle(angle);
+      makeInteractive(
+        letter,
+        () => pombalTooltip(this.currentProject(project.id)),
+        () => ui.openPombal(this.currentProject(project.id)),
+      );
+      return letter;
+    });
   }
 
   private currentProject(id: string): Project {
@@ -543,13 +543,9 @@ export class TownScene extends Phaser.Scene {
   }
 
   private updateHouse(view: HouseView, project: Project) {
-    if (view.badge && view.badgeText) {
-      const n = project.changes.length;
-      view.badge.setVisible(n > 0);
-      view.badgeText.setText(n > 99 ? '99+' : String(n));
-    }
     view.alert.setVisible(urgentPendencias(project).length > 0);
     view.scaffold.setVisible(project.missingStructure.length > 0);
+    view.smoke = project.lareira ? estadoLareira(project.lareira) : null;
     view.plaque.setVisible(!!project.auditoria).setTexture(auditoriaVencida(project.auditoria) ? 'plaque-due' : 'plaque-ok');
     this.plantGarden(view, project);
     this.growWeeds(view, project);
@@ -558,6 +554,37 @@ export class TownScene extends Phaser.Scene {
     for (const g of view.glows) {
       this.tweens.killTweensOf(g);
       this.tweens.add({ targets: g, alpha: lit ? 0.85 : 0, duration: 500 });
+    }
+  }
+
+  /**
+   * Fumaça na chaminé (passo 4 da lareira): um timer da cena para todas as casas. Apagada não solta nada; acendendo,
+   * baforada fina e espaçada; acesa, contínua; erro, fumaça escura. A boca da chaminé fica em (x+15, y-72) do pé da casa.
+   */
+  private puffSmoke(dt: number) {
+    for (const view of this.houses.values()) {
+      const estado = view.smoke;
+      if (!estado || estado === 'apagada') continue;
+      const every = estado === 'acendendo' ? 1100 : 480;
+      view.smokeAcc += dt;
+      if (view.smokeAcc < every) continue;
+      view.smokeAcc = 0;
+      const { x, y } = view.plot.house;
+      const puff = this.add
+        .image(x + 15 + Math.round(Math.random() * 2 - 1), y - 72, estado === 'erro' ? 'smoke-dark' : 'smoke')
+        .setDepth(y + 2)
+        .setAlpha(estado === 'acendendo' ? 0.5 : 0.85)
+        .setScale(estado === 'acendendo' ? 0.6 : 0.8);
+      this.tweens.add({
+        targets: puff,
+        y: y - 72 - 16 - Math.random() * 6,
+        x: puff.x + 3 + Math.random() * 4,
+        scale: estado === 'acendendo' ? 1 : 1.5,
+        alpha: 0,
+        duration: 1800,
+        ease: 'Sine.out',
+        onComplete: () => puff.destroy(),
+      });
     }
   }
 

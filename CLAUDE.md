@@ -11,7 +11,7 @@
 
 Vila em pixel art (inspirada em Stardew Valley) para organizar projetos e sessões do Claude Code no WSL.
 Uso pessoal, roda local. Casa = projeto (pasta em `projectRoots`), morador = sessão do Claude Code,
-caixa de envio = `git status`/commit, biblioteca = CLAUDE.md, memórias e docs, NPC com ✦ = agente permanente.
+pombal = git (o que é só seu × o que o time já tem), biblioteca = CLAUDE.md, memórias e docs, NPC com ✦ = agente permanente.
 Mapa completo "na vila → por baixo" no `README.md`.
 
 ## Estado atual
@@ -41,9 +41,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
     `administrador.ts` (administrador da praça), `agents.ts`/`skills.ts` (Fábrica: agentes e skills), `reinicio.ts` (sino:
     reinício pendente), `estrutura.ts` (casa em obra e
     placa de vistoria), `sementes.ts` (caixa
-    de sementes), `retrabalho.ts` (ervas do quintal), `quadro.ts` (quadro negro), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: sincronização com a branch comum), `guardrails.ts`
+    de sementes), `retrabalho.ts` (ervas do quintal), `quadro.ts` (quadro negro), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
     (outdoor), `install-hooks.ts`.
-  - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md`: usado só pela vila.
+  - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md` e `agents/escrevente.md`: usados só pela vila.
 - `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
   sessão, rodapé com contexto e uso, nomes dos moradores e `@Nome`. Marketplace local em `.claude-plugin/`.
 - `web/` — Vite + Phaser 3 (vila), xterm.js (chat), Monaco (diff), marked + DOMPurify (leitor de docs).
@@ -77,7 +77,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
    backup) só nas entradas do Dev Valley (os hooks de shell de `PermissionRequest` e `Notification`; o mod não vê
    quando o diálogo de permissão abre):** nunca sobrescreve agente do usuário com o mesmo nome, e o
    uninstall remove só o que é do Dev Valley.
-5. **Consultas da bibliotecária e do administrador da praça usam `claude -p --no-session-persistence`** para não
+5. **Consultas da bibliotecária, do administrador da praça e do escrevente do pombal usam `claude -p --no-session-persistence`** para não
    virarem moradores (base comum em `server/src/consulta.ts`). **O administrador só edita `PROGRESS.md`,
    `PENDENCIAS.md`, `docs-dev/painel.json` e `docs-dev/a-codar/` dos projetos da vila**, por regra `Edit(//caminho)`
    passada na chamada; nunca liberar `Edit` inteiro nem outra ferramenta de escrita para ele.
@@ -90,9 +90,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
    branca, gravata e óculos escuros; só pele e cor do cabelo variam. É o que separa agente de sessão à primeira vista
    (decisão do usuário, 27/10/2026). Vale para os da Fábrica (automático na `AgentNpc`) e para qualquer agente da
    vila novo: desenhe com `villagerTexture(scene, id, true)`, nunca com a aparência sorteada dos moradores.
-9. **O pombal (`server/src/pombal.ts`) faz push numa branch que outra pessoa usa.** Push só por clique confirmado no
-   painel, nunca `--force`, e o push para a branch comum só como fast-forward. Conflito no merge sempre termina em
-   `merge --abort` (o repositório fica como estava). Os nomes de projeto e de branch ficam só no config local (regra 1).
+9. **O pombal (`server/src/pombal.ts`) faz push numa branch que outras pessoas podem usar.** Push só por clique
+   confirmado no painel e só de página local, nunca `--force` (o git só aceita fast-forward). Conflito no rebase sempre
+   termina em `rebase --abort` (o repositório fica como estava).
 
 ## Regras de processo deste projeto
 

@@ -126,6 +126,8 @@ interface Fogo {
   pty: IPty | null;
   /** Código de saída da última vez; null enquanto roda. */
   codigo: number | null;
+  /** A vila mandou apagar: a saída que vier (sinal ou 143 do SIGTERM) não é erro. */
+  apagando: boolean;
   buffer: string;
   clients: Set<WebSocket>;
 }
@@ -176,7 +178,7 @@ export class Lareiras {
         env: { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor' } as Record<string, string>,
       });
       const old = this.fogos.get(k);
-      const fogo: Fogo = { pty: proc, codigo: null, buffer: '', clients: old?.clients ?? new Set() };
+      const fogo: Fogo = { pty: proc, codigo: null, apagando: false, buffer: '', clients: old?.clients ?? new Set() };
       const banner = `\x1b[90m$ ${l.comando}\x1b[0m\r\n`;
       fogo.buffer = banner;
       for (const c of fogo.clients) c.send('\x1bc' + banner);
@@ -186,8 +188,9 @@ export class Lareiras {
       });
       proc.onExit(({ exitCode, signal }) => {
         fogo.pty = null;
-        // Apagado pela vila (sinal) não é erro; saiu sozinho com código diferente de 0 é.
-        fogo.codigo = signal ? 0 : exitCode;
+        // Apagado pela vila não é erro, venha como sinal ou como código 143 (o bash sai assim quando o filho leva
+        // SIGTERM); saiu sozinho com código diferente de 0 é.
+        fogo.codigo = fogo.apagando ? 0 : exitCode;
         const note = `\r\n\x1b[33m[${l.lado} parou — código ${exitCode}${signal ? `, sinal ${signal}` : ''}]\x1b[0m\r\n`;
         fogo.buffer = (fogo.buffer + note).slice(-SCROLLBACK_LIMIT);
         for (const c of fogo.clients) c.send(note);
@@ -208,6 +211,7 @@ export class Lareiras {
 
   private matar(f: Fogo): Promise<void> {
     const proc = f.pty!;
+    f.apagando = true;
     return new Promise((resolve) => {
       const sinal = (s: NodeJS.Signals) => {
         try {
@@ -225,12 +229,15 @@ export class Lareiras {
     });
   }
 
-  /** Log de um lado no painel da lareira: recebe o histórico e depois ao vivo. Só leitura (e redimensionar). */
+  /**
+   * Log de um lado no painel da lareira: recebe o histórico e depois ao vivo. Aceita teclado (28/10/2026): sistema que
+   * pergunta algo ao subir (o `ng serve` pergunta do autocompletar na primeira vez) esperava para sempre.
+   */
   attach(ws: WebSocket, projectId: string, lado: string) {
     const k = this.key(projectId, lado);
     let f = this.fogos.get(k);
     if (!f) {
-      f = { pty: null, codigo: null, buffer: '', clients: new Set() };
+      f = { pty: null, codigo: null, apagando: false, buffer: '', clients: new Set() };
       this.fogos.set(k, f);
     }
     const fogo = f;
@@ -243,6 +250,7 @@ export class Lareiras {
       } catch {
         return;
       }
+      if (msg.t === 'in' && typeof msg.d === 'string') fogo.pty?.write(msg.d);
       if (msg.t === 'resize' && msg.cols > 0 && msg.rows > 0) fogo.pty?.resize(msg.cols, msg.rows);
     });
     ws.on('close', () => fogo.clients.delete(ws));

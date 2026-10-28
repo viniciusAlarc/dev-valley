@@ -17,7 +17,6 @@ export interface Plot {
   project: Project;
   /** Pixel do canto inferior-centro da casa (âncora do sprite). */
   house: { x: number; y: number };
-  bin: { x: number; y: number };
   sign: { x: number; y: number };
   /** Área do quintal onde os moradores passeiam. */
   yard: Rect;
@@ -99,7 +98,6 @@ export function computeLayout(projects: Project[]): Layout {
     return {
       project,
       house: { x: (doorX + 1) * TILE, y: (py + 6) * TILE },
-      bin: { x: (doorX + 4) * TILE, y: (py + 6) * TILE - 2 },
       sign: { x: (doorX - 2) * TILE, y: (py + 7) * TILE },
       yard: { x: (px + 1) * TILE, y: (py + 6) * TILE + 8, w: (PLOT_W - 2) * TILE, h: 2 * TILE },
     };

@@ -16,11 +16,15 @@ function statusOf(change: FileChange) {
   return { code: code === '?' ? 'N' : code, label: STATUS_LABEL[code] ?? change.status };
 }
 
-export function openCommit(project: Project) {
+/**
+ * Enviar para o time, aberto pelo pombal: os arquivos alterados com o diff e a mensagem. O botão faz commit, pull com
+ * rebase e push de uma vez (dois estágios só: local e enviado; decisão de 28/10/2026). Sem upstream, só o commit.
+ */
+export function openEnviar(project: Project, onDone: () => void) {
   let diffEditor: import('monaco-editor').editor.IStandaloneDiffEditor | null = null;
   const panel = openPanel({
-    title: `Caixa de envio — ${project.name}`,
-    subtitle: project.branch ? `branch ${project.branch}` : undefined,
+    title: `Pombal — enviar para o time — ${project.name}`,
+    subtitle: project.pombal?.upstream ? `${project.branch} → ${project.pombal.upstream}` : `${project.branch ?? ''} (sem upstream: só guarda aqui)`,
     size: 'lg',
     onClose: () => {
       const model = diffEditor?.getModel();
@@ -31,7 +35,7 @@ export function openCommit(project: Project) {
   });
 
   if (!project.changes.length) {
-    panel.body.innerHTML = `<p class="empty">A caixa está vazia — nenhuma mudança sem commit em <b>${escapeHtml(project.name)}</b>.</p>`;
+    panel.body.innerHTML = `<p class="empty">Nenhuma alteração por enviar em <b>${escapeHtml(project.name)}</b>.</p>`;
     return;
   }
 
@@ -45,7 +49,7 @@ export function openCommit(project: Project) {
       </aside>
       <section class="diff-host"><p class="empty">Escolha um arquivo para ver o diff.</p></section>
       <footer class="commit-form">
-        <textarea placeholder="Mensagem do commit..." rows="2"></textarea>
+        <textarea placeholder="O que mudou? (mensagem do commit)" rows="2"></textarea>
         <div class="commit-row">
           <span class="commit-result"></span>
         </div>
@@ -105,24 +109,49 @@ export function openCommit(project: Project) {
     old?.modified.dispose();
   }
 
-  const send = button('Enviar 📦', async () => {
+  const send = button(project.pombal?.upstream ? 'Enviar para o time 🕊️' : 'Guardar aqui 🕊️', async () => {
     const files = items.filter((i) => i.checkbox.checked).map((i) => i.change.path);
     const message = textarea.value.trim();
     if (!files.length) return void (result.textContent = 'Selecione ao menos um arquivo.');
-    if (!message) return void (result.textContent = 'Escreva a mensagem do commit.');
+    if (!message) return void (result.textContent = 'Escreva o que mudou.');
     send.disabled = true;
-    result.textContent = 'Enviando...';
+    result.textContent = 'O pombo está levando...';
     try {
       const allSelected = files.length === project.changes.length;
-      const { output } = await api.commit(project.id, message, allSelected ? [] : files);
-      result.textContent = `✔ ${output.split('\n')[0]}`;
-      setTimeout(panel.close, 1200);
+      const voo = await api.voar(project.id, 'enviar', { mensagem: message, arquivos: allSelected ? [] : files });
+      if (voo.error) {
+        result.textContent = `✖ ${voo.error}${voo.conflitos?.length ? ` (${voo.conflitos.join(', ')})` : ''}`;
+        send.disabled = false;
+        return;
+      }
+      result.textContent = `✔ ${voo.passos.at(-1) ?? 'Enviado'}`;
+      setTimeout(() => {
+        panel.close();
+        onDone();
+      }, 1200);
     } catch (err) {
       result.textContent = `✖ ${(err as Error).message}`;
       send.disabled = false;
     }
   }, 'primary');
-  panel.body.querySelector('.commit-row')!.append(send);
+  // Sugerir texto: o escrevente (claude -p, regra 5) lê o diff do que está marcado e escreve como eu escreveria.
+  const sugerir = button('✨ Sugerir texto', async () => {
+    const files = items.filter((i) => i.checkbox.checked).map((i) => i.change.path);
+    if (!files.length) return void (result.textContent = 'Selecione ao menos um arquivo.');
+    sugerir.disabled = true;
+    result.textContent = 'O escrevente está lendo as alterações...';
+    try {
+      const { texto } = await api.sugerirMensagem(project.id, files.length === project.changes.length ? [] : files);
+      textarea.value = texto;
+      result.textContent = texto ? '✔ Sugestão pronta: revise e edite à vontade.' : 'O escrevente não sugeriu nada.';
+      textarea.focus();
+    } catch (err) {
+      result.textContent = `✖ ${(err as Error).message}`;
+    } finally {
+      sugerir.disabled = false;
+    }
+  });
+  panel.body.querySelector('.commit-row')!.append(sugerir, send);
 
   list.querySelector('li')?.dispatchEvent(new MouseEvent('click'));
   textarea.focus();

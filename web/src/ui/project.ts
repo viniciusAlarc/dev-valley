@@ -3,7 +3,6 @@ import { activityOf, api, CONTEXT_CRITICAL, CONTEXT_WARN, getWorld, type Project
 const contextLevel = (pct: number) => (pct >= CONTEXT_CRITICAL ? 'critical' : pct >= CONTEXT_WARN ? 'warning' : 'normal');
 import { villagerName } from '../game/names';
 import { ui } from './actions';
-import { openCommit } from './commit';
 import { button, escapeHtml, openPanel, timeAgo } from './panel';
 import { openTerminal } from './terminal';
 
@@ -44,6 +43,6 @@ export function openProject(project: Project) {
     }, 'primary'),
     button('Abrir no VS Code', () => api.openVsCode(project.id)),
     button('📚 Documentação', () => ui.openLibrary({ sectionId: `project:${project.id}` })),
-    ...(project.isGit ? [button(`Caixa de envio (${project.changes.length})`, () => openCommit(project))] : []),
+    ...(project.pombal ? [button(`🕊️ Pombal (${project.pombal.locais} local)`, () => ui.openPombal(project))] : []),
   );
 }

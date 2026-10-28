@@ -1,6 +1,5 @@
 import { agents, api, type AgentSummary, type Project, type Session, type World } from '../api';
 import { villagerName } from '../game/names';
-import { openCommit } from './commit';
 import { openConferir } from './conferir';
 import { openGuardrails } from './guardrails';
 import { openLibrary } from './library';
@@ -116,10 +115,6 @@ export const ui = {
   openPainel(project: Project) {
     this.hideTooltip();
     openPainel(project);
-  },
-  openCommit(project: Project) {
-    this.hideTooltip();
-    openCommit(project);
   },
   openPombal(project: Project) {
     this.hideTooltip();

@@ -47,7 +47,7 @@ export interface Project {
   retrabalho: Retrabalho | null;
   /** Vencimento da auditoria das regras, `AAAA-MM-DD` (placa de vistoria); null = sem `.claude/auditoria-regras.txt`. */
   auditoria: string | null;
-  /** Pombal (sincronização com a branch comum do time); null = projeto sem `pombal` no config local. */
+  /** Pombal (pull e push da branch com o upstream dela); null = sem git ou branch sem upstream. */
   pombal: Pombal | null;
   /** Tabela "Subir" do `OPERACAO.md` com o estado das portas (lareira); null = sem lado com comando. */
   lareira: Lareira | null;
@@ -167,8 +167,7 @@ async function loadProject(dir: string, config: Config, portas: Map<number, numb
     gitOps.remoteUrl(dir),
     gitOps.changes(dir).catch(() => []),
   ]);
-  const pombalCfg = config.pombal[base.name];
-  return { ...base, branch, remote, changes, pombal: pombalCfg ? await readPombal(dir, pombalCfg, branch) : null };
+  return { ...base, branch, remote, changes, pombal: await readPombal(dir, branch) };
 }
 
 function ownerOf(session: SessionInfo, projects: Project[]): Project | null {

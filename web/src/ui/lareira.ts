@@ -18,7 +18,7 @@ const ligavel = (l: Lado) => !!l.comando && !l.problema && !l.ocupada && l.vila?
 
 /**
  * Painel da lareira (PD-7, decisões 6 a 8): cada lado da tabela "Subir" com pasta, comando, porta e situação, os
- * botões Acender e Apagar, e o log de cada lado numa aba (um xterm por lado, só leitura). Atualiza com o mundo.
+ * botões Acender e Apagar, e o log de cada lado numa aba (um xterm por lado, que aceita teclado). Atualiza com o mundo.
  */
 export function openLareira(project: Project) {
   const tabs = new Map<string, { term: Terminal; fit: FitAddon; ws: WebSocket; host: HTMLElement }>();
@@ -113,8 +113,8 @@ export function openLareira(project: Project) {
       const term = new Terminal({
         fontFamily: '"Cascadia Mono", "Cascadia Code", Consolas, "DejaVu Sans Mono", monospace',
         fontSize: 13,
-        disableStdin: true,
-        theme: { background: '#1f1a14', foreground: '#f1e4c8', selectionBackground: '#6b4a2a' },
+        cursorBlink: true,
+        theme: { background: '#1f1a14', foreground: '#f1e4c8', cursor: '#f5d142', selectionBackground: '#6b4a2a' },
       });
       const fit = new FitAddon();
       term.loadAddon(fit);
@@ -125,6 +125,8 @@ export function openLareira(project: Project) {
       ws.onmessage = (ev) => term.write(ev.data);
       ws.onclose = (ev) => ev.reason && term.write(`\r\n\x1b[31m[${ev.reason}]\x1b[0m\r\n`);
       term.onResize(({ cols, rows }) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ t: 'resize', cols, rows })));
+      // teclado vai para o processo: responde a pergunta de quem sobe (ex.: autocompletar do `ng serve`)
+      term.onData((d) => ws.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ t: 'in', d })));
       tab = { term, fit, ws, host };
       tabs.set(lado, tab);
     }

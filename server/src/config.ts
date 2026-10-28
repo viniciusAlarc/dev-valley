@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { PombalConfig } from './pombal.js';
 
 export interface Config {
   port: number;
@@ -17,11 +16,6 @@ export interface Config {
    * com a lista (`## G<n> — título`). Fica no config local (caminho pessoal); sem ele, não há outdoor.
    */
   guardrails: { plugin: string; core: string } | null;
-  /**
-   * Pombal na fachada: nome da pasta do projeto → branches que ele sincroniza. Fica no config local (nome de branch
-   * de projeto privado); casa fora daqui não tem pombal.
-   */
-  pombal: Record<string, PombalConfig>;
 }
 
 export const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -49,10 +43,5 @@ export function loadConfig(): Config {
     sessionMaxAgeDays: merged.sessionMaxAgeDays ?? 14,
     libraryRoots: (merged.libraryRoots ?? []).map(expandHome),
     guardrails: merged.guardrails?.plugin && merged.guardrails.core ? { plugin: merged.guardrails.plugin, core: expandHome(merged.guardrails.core) } : null,
-    pombal: Object.fromEntries(
-      Object.entries(merged.pombal ?? {})
-        .filter(([, p]) => p?.integracao && p.minha)
-        .map(([nome, p]) => [nome, { integracao: p.integracao, minha: p.minha, remoto: p.remoto || 'origin' }]),
-    ),
   };
 }

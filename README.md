@@ -6,17 +6,16 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | Na vila | Por baixo |
 |---|---|
 | Casa | Pasta em `projectRoots` (geralmente um repo git) |
-| Caixa de envio ao lado da casa | `git status` — clique para ver o diff e commitar |
 | Morador | Sessão do Claude Code (`~/.claude/projects/**/*.jsonl`) — clique para abrir o chat. Nome único na vila |
 | Dentro da casa (clique nela) | Todas as sessões do projeto: as ativas trabalham nas mesas, as antigas descansam no sofá |
-| Pombal: casinha de passarinho no quintal, à direita da caixa de envio (só nas casas configuradas) | Sincroniza a sua branch com a branch comum do time. Pombo no telhado com carta = commits novos na comum (pull de manhã); cartas no poleiro = commits seus que a comum não tem (push no fim do dia); pombo dormindo = em dia; "!" amarelo = casa em outra branch ou última viagem não completou. Conflito desfaz o merge e lista os arquivos |
+| Pombal: casinha de passarinho no quintal, à direita da casa (toda casa com git) | A única peça de git, em dois estágios. **Local**: uma carta espalhada no chão para cada arquivo que só você tem (com ou sem commit), pombo acordado. **Enviado**: chão limpo, pombo dormindo. "Enviar para o time" mostra o diff, pede a mensagem ("✨ Sugerir texto" pede ao escrevente, um agente da vila, a mensagem no estilo do `git log` do projeto) e faz commit, pull com rebase e push de uma vez; "Trazer" é o pull da manhã. Pombo com carta no telhado = chegou coisa do time; "!" amarelo = a última viagem que você disparou não completou (conflito desfaz o rebase e lista os arquivos). Branch sem upstream: só guarda o commit aqui |
 | Placa embaixo da janela | Vencimento da auditoria das regras (`.claude/auditoria-regras.txt`); amarela quando vencida — rode `/auditar-regras` |
 | Ervas à direita da casa | Uma por linha do `RETRABALHO.md` (G17) — clique para ver a tabela; três da mesma causa pedem `/nova-regra` |
 | Quadro negro (parede da casa) | O `docs-dev/painel.json` inteiro: plano, todas as fases com o estado, todas as entregas e o JSON como está no arquivo. O `doc` do plano e de cada fase vira botão: HTML abre isolado no painel (iframe com `sandbox`, sem acesso à vila); `.md` abre no leitor. Sem o arquivo, o quadro fica limpo |
-| Lareira (sala da casa) | Liga e apaga o sistema do projeto pela tabela "Subir" do `docs-dev/guias/OPERACAO.md` (back e front juntos). O painel mostra pasta, comando e porta de cada lado antes de acender, e o log de cada lado numa aba. Fogo = no ar; fogo pequeno = subindo; brasa e fumaça escura = um lado parou com erro. Sistema subido fora da vila aparece aceso, mas a vila não o apaga. Reiniciar a vila derruba o que ela ligou |
+| Lareira (sala da casa) | Liga e apaga o sistema do projeto pela tabela "Subir" do `docs-dev/guias/OPERACAO.md` (back e front juntos). O painel mostra pasta, comando e porta de cada lado antes de acender, e o log de cada lado numa aba. Fogo = no ar; fogo pequeno = subindo; brasa e fumaça escura = um lado parou com erro. Sistema subido fora da vila aparece aceso, mas a vila não o apaga. Na vila, a chaminé da casa solta fumaça: fina = subindo, contínua = no ar, escura = erro. Reiniciar a vila derruba o que ela ligou |
 | Estante (dentro da casa) | O que já foi construído: `docs-dev/context/` (sem o `README.md`), um livro por documento. `.md` abre no leitor; HTML abre isolado, como no quadro negro. Fecha o ciclo do plano: semente → quadro negro → livro |
 | Caixa de sementes (dentro da casa) | Planos em `docs-dev/a-codar/`: decididos e ainda não codados (G7) — clique para listar e abrir no leitor |
-| Escrivaninha | Painel do projeto: branch, remoto, nova sessão, VS Code, caixa de envio |
+| Escrivaninha | Painel do projeto: branch, remoto, nova sessão, VS Code, pombal |
 | Balão "..." / "!" | Sessão trabalhando / pedindo sua permissão (via hooks) |
 | Janela acesa | Alguma sessão do projeto está rodando |
 | Andaime na fachada | Falta estrutura de acompanhamento (`CLAUDE.md`, `PENDENCIAS.md`, `PROGRESS.md`, `docs-dev/painel.json`, auditor) — clique para ver como resolver |
@@ -89,8 +88,6 @@ onde está a conversa, sem busca. O texto da mensagem é lido só na sua máquin
   por tipo (`guardrail`, `perfil`)
 - `guardrails` (só no local): `{ "plugin": "<nome@marketplace>", "core": "<arquivo com ## G<n> — título>" }` liga o
   outdoor dos guardrails atrás da praça (plugin ligado no `~/.claude/settings.json` e a lista de regras); sem ele, não há outdoor
-- `pombal` (só no local): `{ "<pasta do projeto>": { "integracao": "<branch comum>", "minha": "<sua branch>", "remoto": "origin" } }`
-  põe o pombal na casa; o remoto é buscado ao subir e a cada 5 minutos
 
 ## Estrutura
 

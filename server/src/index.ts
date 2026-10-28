@@ -16,6 +16,7 @@ import { askLibrarian } from './librarian.js';
 import { agentInput, Agents } from './agents.js';
 import { skillInput, Skills } from './skills.js';
 import { Moradores } from './moradores.js';
+import { sugerirMensagem } from './escrevente.js';
 import { buscar, cartas, PombalError, voar } from './pombal.js';
 import { readProgress } from './progress.js';
 import { deleteSessionFiles } from './sessions.js';
@@ -237,29 +238,50 @@ function sendIsolatedHtml(res: express.Response, doc: { path: string; kind: stri
 app.get('/api/quadro', (req, res) => sendIsolatedHtml(res, findProject(req.query.project)?.quadro[Number(req.query.i)]));
 app.get('/api/estante', (req, res) => sendIsolatedHtml(res, findProject(req.query.project)?.estante?.[Number(req.query.i)]));
 
-/** Projeto com pombal configurado; a configuração vem do servidor, nunca do front. */
-function pombalOf(id: unknown) {
-  const project = findProject(id);
-  const cfg = project?.isGit ? config.pombal[project.name] : undefined;
-  return project && cfg ? { project, cfg } : null;
-}
+// "Sugerir texto" na tela de enviar: o escrevente lê o diff dos arquivos escolhidos (vazio = todos) e devolve a
+// mensagem de commit. Gasta uma consulta ao Claude: só pedido de página local.
+app.post('/api/pombal/sugerir', async (req, res) => {
+  if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+  const project = findProject(req.body?.project);
+  if (!project?.pombal) return res.status(400).json({ error: 'projeto sem pombal' });
+  const arquivos: string[] = [];
+  for (const f of req.body.arquivos ?? []) {
+    const rel = safeRelative(project, f);
+    if (!rel) return res.status(400).json({ error: `arquivo inválido: ${f}` });
+    arquivos.push(rel);
+  }
+  try {
+    res.json({ texto: await sugerirMensagem(project.path, arquivos, internalSessions) });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+});
 
 // Abrir o pombal busca o remoto na hora e lista as cartas dos dois sentidos.
 app.get('/api/pombal', async (req, res) => {
-  const p = pombalOf(req.query.project);
-  if (!p) return res.status(400).json({ error: 'projeto sem pombal' });
-  await buscar(p.project.path, p.cfg);
+  const project = findProject(req.query.project);
+  if (!project?.pombal) return res.status(400).json({ error: 'projeto sem pombal' });
+  await buscar(project.path);
   await refreshWorld();
-  res.json(await cartas(p.project.path, p.cfg));
+  res.json(await cartas(project.path));
 });
 
-// Viagem do pombo: `receber` (manhã) ou `enviar` (fim do dia). Push na branch comum só por clique confirmado no painel.
+// Viagem do pombo: `receber` (manhã) ou `enviar` (fim do dia). Faz push numa branch que outra pessoa usa (regra 9):
+// só pedido de página local, como a lareira, e só por clique confirmado no painel.
 app.post('/api/pombal', async (req, res) => {
-  const p = pombalOf(req.body.project);
-  const acao = req.body.acao;
-  if (!p || (acao !== 'receber' && acao !== 'enviar')) return res.status(400).json({ error: 'projeto ou ação inválida' });
+  if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+  const project = findProject(req.body?.project);
+  const acao = req.body?.acao;
+  if (!project?.pombal || (acao !== 'receber' && acao !== 'enviar')) return res.status(400).json({ error: 'projeto ou ação inválida' });
+  // Arquivos escolhidos para ir (vazio = todos); só caminhos dentro do projeto.
+  const arquivos: string[] = [];
+  for (const f of req.body.arquivos ?? []) {
+    const rel = safeRelative(project, f);
+    if (!rel) return res.status(400).json({ error: `arquivo inválido: ${f}` });
+    arquivos.push(rel);
+  }
   try {
-    res.json({ passos: await voar(p.project.path, p.cfg, acao) });
+    res.json({ passos: await voar(project.path, acao, { mensagem: String(req.body.mensagem ?? ''), arquivos }) });
   } catch (err) {
     const e = err as PombalError;
     res.status(409).json({ error: e.message, conflitos: e.conflitos ?? [], passos: e.passos ?? [] });
@@ -290,26 +312,6 @@ app.get('/api/diff', async (req, res) => {
   const file = project && safeRelative(project, req.query.file);
   if (!project || !file) return res.status(400).json({ error: 'projeto ou arquivo inválido' });
   res.json(await gitOps.fileDiff(project.path, file));
-});
-
-app.post('/api/commit', async (req, res) => {
-  const project = findProject(req.body.project);
-  const message = String(req.body.message ?? '').trim();
-  if (!project?.isGit) return res.status(400).json({ error: 'projeto inválido' });
-  if (!message) return res.status(400).json({ error: 'mensagem de commit vazia' });
-  const files: string[] = [];
-  for (const f of req.body.files ?? []) {
-    const rel = safeRelative(project, f);
-    if (!rel) return res.status(400).json({ error: `arquivo inválido: ${f}` });
-    files.push(rel);
-  }
-  try {
-    const output = await gitOps.commit(project.path, message, files);
-    await refreshWorld();
-    res.json({ output });
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
 });
 
 app.post('/api/open-vscode', (req, res) => {
@@ -482,7 +484,7 @@ void library.sections();
 setInterval(() => void library.sections(), 60_000);
 // Pombal: busca o remoto de tempos em tempos para saber se chegou carta (a primeira, logo ao subir).
 async function buscarPombais() {
-  await Promise.all(world.projects.filter((p) => p.pombal).map((p) => buscar(p.path, config.pombal[p.name])));
+  await Promise.all(world.projects.filter((p) => p.pombal).map((p) => buscar(p.path)));
   await refreshWorld();
 }
 void buscarPombais();

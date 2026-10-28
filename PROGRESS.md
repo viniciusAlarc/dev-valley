@@ -3,6 +3,41 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-28 — Lareira: correções do primeiro uso de verdade
+
+**O que mudou:** o usuário acendeu a lareira de um projeto com back e front; ela não terminava de subir e soltava
+fumaça preta. Três causas, achadas reproduzindo cada lado como a lareira roda (pty, `bash -c`, o ambiente do servidor):
+1. **Front preso em "acendendo":** o `ng serve`, num terminal, pergunta se quer ativar o autocompletar e espera para
+   sempre; o log da lareira era só leitura. Decisão do usuário (28/10/2026): **as abas de log aceitam teclado**
+   (`t: 'in'` no `/ws/lareira`, como o terminal do morador). Responder uma vez basta, o Angular guarda a resposta.
+2. **Back com erro (a fumaça preta):** o comando da tabela "Subir" daquele projeto fazia `source .env`, e o
+   `backend/.env` não existe nesta máquina (só o `.env.example`). Decisão do usuário: o comando do projeto passa a
+   carregar o `.env` só se ele existir (correção no `OPERACAO.md` do outro projeto, não aqui).
+3. **Apagar virava erro:** o bash sai com código 143 quando o filho leva SIGTERM, e eu só tratava o sinal como
+   "apagado pela vila". Agora o lado é marcado como sendo apagado antes do sinal, e qualquer saída depois disso conta
+   como código 0.
+**Arquivos:** `server/src/lareira.ts` (`apagando`, teclado no `attach`), `web/src/ui/lareira.ts` (xterm aceita
+teclado), `docs-dev/a-codar/lareira-subir-sistema.md` (decisão 8), `RETRABALHO.md`.
+**Testes:** `npm run typecheck -w server` e `tsc` do front. O back do projeto rodado pela classe `Lareiras`: porta
+aberta em 30s, nenhuma linha de erro no log, e depois de apagar a porta ficou livre com código 0 (sem fumaça preta) e
+sem processo sobrando. O front reproduzido mostrou a pergunta do autocompletar parada esperando resposta. Falta
+conferir na vila (precisa do reinício): acender, responder `n` na aba do front e ver a lareira acesa; apagar e ver a
+fumaça parar.
+
+## 2026-10-28 — Lareira, passo 4: fumaça na chaminé da fachada
+
+**O que mudou:** último passo do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). A chaminé de cada casa
+com lareira solta baforadas pelo estado (`estadoLareira`, o mesmo da sala): apagada, nada; acendendo, fumaça fina e
+espaçada; acesa, fumaça clara contínua; erro, fumaça escura. Cada baforada sobe uns 20px, se espalha e some em 1,8s.
+Um timer só da cena (120ms) cuida de todas as casas e é recriado junto com a vila, para não acumular. A boca da
+chaminé fica em (x+15, y-72) do pé da casa, pela textura `house` (chaminé nos pixels 43 a 52 de 64).
+**Arquivos:** `web/src/game/TownScene.ts` (`HouseView.smoke`, `puffSmoke`, `smokeTimer`), `web/src/game/textures.ts`
+(`smokePuff`: `smoke` e `smoke-dark`), `README.md`, `docs-dev/a-codar/lareira-subir-sistema.md`, `docs-dev/painel.json`.
+**Testes:** `tsc` + `vite build` (diretório temporário), auditor sem achado. Posição da fumaça calculada pela textura
+da casa, sem renderizar. Falta conferir na vila (precisa do reinício): a casa do dev-valley deve soltar fumaça clara
+(a 4777 é a própria vila, conta como acesa); acender o sistema de outra casa deve mostrar fumaça fina e depois
+contínua. Com a conferência, o plano fecha: vai para `docs-dev/context/` e a PD-7 sai do `PENDENCIAS.md`.
+
 ## 2026-10-27 — Lareira, passo 3: lareira na sala e painel com os logs
 
 **O que mudou:** passo 3 do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). Projeto com a tabela "Subir"
@@ -113,6 +148,57 @@ em andamento abre aberto e o resto fica recolhido (`<details>`). As duas telas u
 **Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado. Leitor
 testado no projeto de exemplo: a fase com 19 subfases sai "0 de 19" e a primeira subfase "1 de 4", como na imagem do
 painel da Fábrica; fases sem etapas continuam como antes. Conferido na vila pelo usuário em 27/10/2026.
+
+## 2026-10-28 — Pombal: botão "Sugerir texto" para a mensagem do commit
+
+**O que mudou:** pedido do usuário: na hora de escrever a mensagem, ficava a dúvida do que digitar. A tela de enviar
+ganhou "✨ Sugerir texto": o escrevente, agente novo da vila (`server/agents/escrevente.md`, aparece só leitura na
+Fábrica, sem NPC), recebe a regra de commit do `CLAUDE.md` do projeto, as últimas 15 mensagens do `git log`, os 5
+títulos mais recentes do `PROGRESS.md` e o diff dos arquivos marcados, e devolve uma linha que preenche a caixa de
+texto. Usa a base comum (`consulta.ts`, `claude -p --no-session-persistence`, só `Read`; regra 5 do `CLAUDE.md`
+atualizada). `POST /api/pombal/sugerir` só aceita página local.
+**Arquivos:** `server/agents/escrevente.md` (novo), `server/src/escrevente.ts` (novo), `server/src/index.ts`,
+`web/src/api.ts`, `web/src/ui/commit.ts`, `README.md`, `CLAUDE.md`, `docs-dev/context/pombal.md`.
+**Testes:** `npm run typecheck -w server`, `npm run build`, auditor. Sugestão real neste repositório, com os arquivos
+do pombal: em 4 s veio "Pombal passa a ser a única peça de git da casa: enviar para o time faz commit, rebase e push
+de uma vez, e a caixa de envio saiu", no estilo do `git log`. Falta conferir na vila (precisa do reinício do servidor).
+
+## 2026-10-28 — Pombal absorve a caixa de envio: dois estágios, local e enviado
+
+**O que mudou:** decisão do usuário (28/10/2026): a caixa de envio era redundante, e o caminho até desenvolvimento não
+pede burocracia (homologação fica fora da vila). Dois estágios só: **local** (o que só você tem, com ou sem commit) e
+**enviado** (o time já tem). Na vila, a caixa de envio e a bolinha vermelha saíram; no lugar, uma carta espalhada no
+chão entre a casa e o pombal para cada arquivo local (até 12, lugares fixos), e o pombo acordado. "Enviar para o time"
+abre a tela de diff e mensagem (a antiga caixa, agora `openEnviar`) e faz commit, rebase e push numa viagem; só
+commits prontos, confirma no próprio painel. "Trazer" usa `--autostash` (alteração sem commit não impede o pull; se
+o autostash conflitar, fica no stash e o "!" avisa). Arquivos locais contam a partir do merge-base com o upstream.
+Toda casa com git tem pombal; sem upstream, enviar só guarda o commit. Rota `/api/commit` e `api.commit` removidas;
+botão da escrivaninha vira "Pombal".
+**Arquivos:** `server/src/pombal.ts` (reescrito), `server/src/index.ts`, `web/src/api.ts`, `web/src/ui/pombal.ts`
+(reescrito), `web/src/ui/commit.ts` (`openEnviar`), `web/src/ui/actions.ts`, `web/src/ui/project.ts`,
+`web/src/game/TownScene.ts` (só caixa e pombal), `web/src/game/textures.ts` (sem `bin`), `web/src/game/layout.ts`
+(sem `bin`), `web/src/style.css`, `README.md`, `CLAUDE.md`, `docs-dev/context/pombal.md`.
+**Testes:** `npm run typecheck -w server`, `npm run build`. Repositório de teste com remoto falso e dois clones na
+mesma branch: arquivos locais sem contar o que veio do outro, enviar sem mensagem recusado, trazer com alteração sem
+commit (autostash), enviar = commit + rebase + push (chão limpo depois), branch sem upstream só commita. Falta
+conferir na vila (precisa do reinício do servidor).
+
+## 2026-10-28 — Pombal em toda casa: pull e push da branch com o upstream
+
+**O que mudou:** decisão do usuário (28/10/2026): o time passa a trabalhar direto na branch comum, e o pombal vira a
+peça oficial de pull e push de toda casa (caixa de envio = commit; pombal = troca com o remoto). Sai o `pombal` do
+config local (branch pessoal + branch comum): agora é a branch atual e o upstream dela, e só tem pombal quem tem
+upstream. Pull com rebase em vez de merge (histórico em linha, decisão do usuário); conflito termina em
+`rebase --abort`. Falha do fetch automático vai para `falhaBusca` (só no texto); o "!" fica para falha de viagem
+disparada e some quando o HEAD muda (conflito resolvido por fora). O `POST /api/pombal` passou a recusar origem que
+não seja local, como a lareira. Regra 9 do `CLAUDE.md` reescrita.
+**Arquivos:** `server/src/pombal.ts` (reescrito), `server/src/config.ts` (sem `pombal`), `server/src/world.ts`,
+`server/src/index.ts`, `web/src/api.ts`, `web/src/ui/pombal.ts`, `web/src/game/TownScene.ts` (só o pombal),
+`README.md`, `CLAUDE.md`, `docs-dev/context/pombal.md`; `pombal` removido do `dev-valley.config.local.json`.
+**Testes:** `npm run typecheck -w server`, `npm run build`. Repositório de teste com remoto falso e dois clones na
+mesma branch: pull com commit dos dois lados (rebase em linha), push, conflito (rebase desfeito, arquivo listado,
+repositório limpo), fetch falho sem "!", "!" que some depois de resolver por fora, branch sem upstream sem pombal.
+Falta conferir na vila (precisa do reinício do servidor).
 
 ## 2026-10-27 — Pombal vira casinha de passarinho no quintal
 

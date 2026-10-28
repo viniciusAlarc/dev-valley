@@ -29,21 +29,25 @@ export interface Project {
   retrabalho: { header: string[]; rows: string[][] } | null;
   /** Vencimento da auditoria das regras, `AAAA-MM-DD` (placa de vistoria); null = sem o arquivo. */
   auditoria: string | null;
-  /** Pombal (sincronização com a branch comum do time); null = projeto sem `pombal` no config local. */
+  /** Pombal (pull e push da branch com o upstream dela); null = sem git ou branch sem upstream. */
   pombal: Pombal | null;
   /** Tabela "Subir" do `OPERACAO.md` com o estado das portas (lareira); null = sem lado com comando. */
   lareira: { lados: Lado[] } | null;
 }
 
-/** Pombal na fachada: cartas chegando (commits da branch comum) e a levar (commits da minha). */
+/** Pombal no quintal, em dois estágios: local (cartas no chão) e enviado (o time já tem). */
 export interface Pombal {
-  integracao: string;
-  minha: string;
-  remoto: string;
-  branchErrada: boolean;
+  branch: string;
+  /** `origin/desenv`, `origin/main`...; null = branch sem upstream (só guarda o commit aqui). */
+  upstream: string | null;
+  /** Arquivos que só você tem, com e sem commit: uma carta no chão para cada. */
+  locais: number;
+  /** Commits do upstream que a branch ainda não tem (pombo com carta no telhado). */
   aReceber: number;
-  aEnviar: number;
   buscadoEm: number | null;
+  /** Falha do fetch automático: só no texto, sem "!". */
+  falhaBusca: string | null;
+  /** Falha da última viagem disparada: acende o "!". */
   erro: string | null;
 }
 
@@ -345,8 +349,6 @@ export const api = {
       'GET',
       `/api/diff?project=${encodeURIComponent(project)}&file=${encodeURIComponent(file)}`,
     ),
-  commit: (project: string, message: string, files: string[]) =>
-    request<{ output: string }>('POST', '/api/commit', { project, message, files }),
   openVsCode: (project: string, file?: string) => request('POST', '/api/open-vscode', { project, file }),
   /** Sem `project`: sessão avulsa (nasce na home e mora na praça). */
   newSession: (project?: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project }),
@@ -356,10 +358,12 @@ export const api = {
   /** Busca o remoto e lista as cartas dos dois sentidos. */
   acenderLareira: (project: string) => request<{ ligados: string[] }>('POST', '/api/lareira/acender', { project }),
   apagarLareira: (project: string) => request<{ ok: boolean }>('POST', '/api/lareira/apagar', { project }),
-  cartas: (project: string) => request<{ receber: Carta[]; enviar: Carta[] }>('GET', `/api/pombal?project=${encodeURIComponent(project)}`),
+  cartas: (project: string) => request<{ receber: Carta[]; enviar: Carta[]; arquivos: string[] }>('GET', `/api/pombal?project=${encodeURIComponent(project)}`),
+  /** O escrevente sugere a mensagem de commit dos arquivos escolhidos (vazio = todos). */
+  sugerirMensagem: (project: string, arquivos: string[]) => request<{ texto: string }>('POST', '/api/pombal/sugerir', { project, arquivos }),
   /** Não lança no 409: o painel mostra o erro junto com os conflitos e os passos que deram certo. */
-  voar: async (project: string, acao: 'receber' | 'enviar'): Promise<Voo> => {
-    const res = await fetch('/api/pombal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project, acao }) });
+  voar: async (project: string, acao: 'receber' | 'enviar', opts: { mensagem?: string; arquivos?: string[] } = {}): Promise<Voo> => {
+    const res = await fetch('/api/pombal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project, acao, ...opts }) });
     const data = await res.json();
     if (!res.ok && res.status !== 409) throw new Error(data.error ?? `HTTP ${res.status}`);
     return data as Voo;

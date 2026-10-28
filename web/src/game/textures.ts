@@ -154,8 +154,8 @@ function plaque(scene: Phaser.Scene, key: string, face: string, lines: string) {
 }
 
 /**
- * Pombal: casinha de passarinho num poste, no quintal à direita da caixa de envio (sincronização com a branch comum
- * do time). Parede azul e telhado vermelho para destacar do resto do quintal. `pigeon`: buraco vazio (o pombo saiu
+ * Pombal: casinha de passarinho num poste, no quintal à direita da casa (a única peça de git da casa: o que é só seu
+ * e o que o time já tem). Parede azul e telhado vermelho para destacar do resto do quintal. `pigeon`: buraco vazio (o pombo saiu
  * ou não pode sair), dormindo (em dia) ou acordado (há cartas suas esperando para ir).
  */
 function dovecote(scene: Phaser.Scene, key: string, pigeon: 'none' | 'sleep' | 'awake') {
@@ -505,19 +505,6 @@ function factory(scene: Phaser.Scene) {
   add(scene, 'factory', c);
 }
 
-function bin(scene: Phaser.Scene) {
-  const { c, ctx } = makeCanvas(24, 20);
-  rect(ctx, 1, 7, 22, 13, '#a0662e');
-  for (let x = 6; x < 22; x += 5) rect(ctx, x, 8, 1, 12, '#7a4b20');
-  rect(ctx, 1, 7, 2, 13, '#6f6f6f');
-  rect(ctx, 21, 7, 2, 13, '#6f6f6f');
-  rect(ctx, 0, 2, 24, 6, '#b87838');
-  rect(ctx, 0, 6, 24, 2, '#8a5524');
-  rect(ctx, 2, 3, 20, 1, '#d09050');
-  outline(ctx, 24, 20);
-  add(scene, 'bin', c);
-}
-
 function fountain(scene: Phaser.Scene) {
   const W = 56;
   const H = 40;
@@ -638,6 +625,14 @@ function bench(scene: Phaser.Scene) {
   }
   outline(ctx, W, 15);
   add(scene, 'bench', c);
+}
+
+/** Baforada de fumaça da chaminé (lareira da casa, PD-7): clara quando o sistema está no ar, escura quando deu erro. */
+function smokePuff(scene: Phaser.Scene, key: string, color: string, shade: string) {
+  const { c, ctx } = makeCanvas(8, 8);
+  disc(ctx, 4, 4, 3.5, shade);
+  disc(ctx, 3.5, 3.5, 2.8, color);
+  add(scene, key, c);
 }
 
 function lamppost(scene: Phaser.Scene) {
@@ -771,13 +766,14 @@ export function generateTextures(scene: Phaser.Scene) {
   for (const [name, pal] of Object.entries(ROOFS)) house(scene, `house-${name}`, pal);
   library(scene);
   factory(scene);
-  bin(scene);
   fountain(scene);
   noticeBoard(scene);
   billboard(scene);
   bell(scene);
   bench(scene);
   lamppost(scene);
+  smokePuff(scene, 'smoke', '#eeeae2', '#c9c4ba');
+  smokePuff(scene, 'smoke-dark', '#4a4642', '#2e2b28');
   planter(scene);
   plazaRing(scene);
   signBoard(scene);

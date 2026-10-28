@@ -27,6 +27,8 @@ Este plano usa essa tabela para a vila ligar e desligar o sistema do projeto de 
    acesa, e o painel diz "ligado fora da vila" com o PID. Apagar fica desativado: a vila nunca mata processo que não
    criou.
 8. **Um terminal (xterm) por lado, em abas back/front** (27/10/2026), para cores e barras de progresso saírem certas.
+   O terminal aceita teclado (28/10/2026): o `ng serve` pergunta do autocompletar na primeira vez e, só leitura, a
+   lareira ficava presa em "acendendo".
 9. **A lareira fica encostada na parede, no canto de cima à direita** (27/10/2026; antes estava solta no chão ao
    lado do sofá, o que não fazia sentido). A parede de cima foi redistribuída, com 8px entre as peças: estante, atril,
    quadro de cortiça, janela (saiu do centro), quadro negro (com a caixa de sementes no chão, embaixo), escrivaninha e
@@ -48,4 +50,4 @@ Este plano usa essa tabela para a vila ligar e desligar o sistema do projeto de 
 | 1 | Servidor: ler a tabela "Subir" de cada projeto e checar as portas | feito (27/10/2026, `server/src/lareira.ts`) |
 | 2 | Servidor: ligar e desligar os lados (pty, árvore de processos, estado e log) | feito (27/10/2026, `Lareiras` em `server/src/lareira.ts`) |
 | 3 | Casa: lareira com os estados e o painel do log | feito (27/10/2026, `web/src/ui/lareira.ts`) |
-| 4 | Vila: fumaça na chaminé da fachada | a fazer |
+| 4 | Vila: fumaça na chaminé da fachada | feito (28/10/2026, `puffSmoke` em `web/src/game/TownScene.ts`) |

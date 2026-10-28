@@ -1,17 +1,18 @@
 import { api, getWorld, type Carta, type Project, type Voo } from '../api';
-import { ui } from './actions';
+import { openEnviar } from './commit';
 import { button, escapeHtml, openPanel, timeAgo } from './panel';
 
+type Cartas = { receber: Carta[]; enviar: Carta[]; arquivos: string[] };
+
 /**
- * Pombal da casa (decisão de 27/10/2026): de manhã o pombo traz as cartas da branch comum do time (pull), no fim
- * do dia leva as suas (push). Abrir busca o remoto na hora. Enviar pede confirmação com a lista do que vai,
- * porque é push numa branch que outra pessoa usa.
+ * Pombal da casa, a única peça de git (decisões de 27 e 28/10/2026), em dois estágios: o que é só seu (local) e o que
+ * o time já tem (enviado). "Trazer" é o pull da manhã (rebase); "Enviar para o time" faz commit, rebase e push de uma
+ * vez. Abrir busca o remoto na hora. Sem upstream, enviar só guarda o commit aqui.
  */
 export function openPombal(project: Project) {
-  const cfg = project.pombal!;
   const panel = openPanel({
     title: `Pombal — ${project.name}`,
-    subtitle: `${cfg.minha} ⇄ ${cfg.integracao} (${cfg.remoto})`,
+    subtitle: project.pombal?.upstream ? `${project.branch} ⇄ ${project.pombal.upstream}` : `${project.branch ?? ''} (sem upstream)`,
     size: 'lg',
     scroll: true,
   });
@@ -27,53 +28,65 @@ export function openPombal(project: Project) {
     }
   }
 
-  function render({ receber, enviar }: { receber: Carta[]; enviar: Carta[] }) {
+  function render(c: Cartas) {
     const cur = getWorld().projects.find((p) => p.id === project.id) ?? project;
-    const pombal = cur.pombal ?? cfg;
-    const semCommit = cur.changes.filter((c) => c.status !== '??').length;
+    const pombal = cur.pombal;
+    if (!pombal) {
+      panel.body.innerHTML = '<p class="empty">Esta casa não tem git.</p>';
+      return;
+    }
+    const time = pombal.upstream ? escapeHtml(pombal.upstream) : '';
     const moradores = getWorld().sessions.filter((s) => s.projectId === project.id && s.live).length;
-
     const avisos = [
-      pombal.branchErrada && `A casa está em outra branch (${escapeHtml(cur.branch ?? '?')}). O pombo só sai da <b>${escapeHtml(pombal.minha)}</b>.`,
-      semCommit && `${semCommit} mudança(s) sem commit. Passe pela caixa de envio antes de mandar o pombo.`,
-      moradores && `${moradores} morador(es) trabalhando nesta casa. Trazer cartas muda arquivos debaixo deles.`,
+      !pombal.upstream && 'A branch não tem upstream: dá para guardar (commit) aqui, mas não há time para onde enviar.',
+      moradores && c.receber.length && `${moradores} morador(es) trabalhando nesta casa. Trazer muda arquivos debaixo deles.`,
       pombal.erro && `Última tentativa: ${escapeHtml(pombal.erro)}`,
+      pombal.falhaBusca && `Busca automática: ${escapeHtml(pombal.falhaBusca)}`,
     ].filter(Boolean);
-    const bloqueado = pombal.branchErrada || semCommit > 0;
 
     panel.body.innerHTML = `
       ${avisos.length ? `<ul class="pombal-avisos">${avisos.map((a) => `<li>⚠️ ${a}</li>`).join('')}</ul>` : ''}
       ${pombal.buscadoEm ? `<p class="muted">Remoto buscado ${timeAgo(pombal.buscadoEm)}.</p>` : ''}
-      <h3>🌅 Chegando da ${escapeHtml(pombal.integracao)} (${receber.length})</h3>
-      ${lista(receber, `Nada novo. A ${escapeHtml(pombal.minha)} já tem tudo da ${escapeHtml(pombal.integracao)}.`)}
-      <div class="pombal-acao" data-acao="receber"></div>
-      <h3>🌇 Suas cartas para a ${escapeHtml(pombal.integracao)} (${enviar.length})</h3>
-      ${lista(enviar, `Nenhuma. A ${escapeHtml(pombal.integracao)} já tem tudo o que você fez.`)}
+      ${
+        pombal.upstream
+          ? `<h3>🌅 Chegando do time (${c.receber.length})</h3>
+             ${lista(c.receber, `Nada novo. Você já tem tudo de ${time}.`)}
+             <div class="pombal-acao" data-acao="receber"></div>`
+          : ''
+      }
+      <h3>✉️ Suas alterações locais (${c.arquivos.length} arquivo(s))</h3>
+      ${
+        c.arquivos.length
+          ? `<ul class="pombal-arquivos">${c.arquivos.map((f) => `<li><code>${escapeHtml(f)}</code></li>`).join('')}</ul>`
+          : `<p class="empty">Nenhuma. ${pombal.upstream ? 'O time já tem tudo o que você fez.' : 'Tudo guardado.'}</p>`
+      }
       <div class="pombal-acao" data-acao="enviar"></div>
       <div class="pombal-resultado"></div>`;
 
-    const receberBox = panel.body.querySelector<HTMLElement>('[data-acao="receber"]')!;
+    const receberBox = panel.body.querySelector<HTMLElement>('[data-acao="receber"]');
     const enviarBox = panel.body.querySelector<HTMLElement>('[data-acao="enviar"]')!;
     const resultado = panel.body.querySelector<HTMLElement>('.pombal-resultado')!;
     if (ultimoVoo) mostrarVoo(resultado, ultimoVoo);
 
-    if (semCommit) receberBox.append(button('Abrir a caixa de envio', () => ui.openCommit(cur)));
-    const btnReceber = button('Trazer as cartas (pull)', () => void voar('receber'), 'primary');
-    btnReceber.disabled = bloqueado;
-    receberBox.append(btnReceber);
+    receberBox?.append(button('Trazer (pull)', () => void voar('receber'), 'primary'));
 
-    const btnEnviar = button(`Mandar o pombo à ${pombal.integracao} (push)`, confirmarEnvio, 'primary');
-    btnEnviar.disabled = bloqueado || !enviar.length;
+    // Com alteração sem commit, a tela de enviar pede a mensagem e mostra o diff; só commits prontos, confirma aqui.
+    const btnEnviar = button(pombal.upstream ? 'Enviar para o time 🕊️' : 'Guardar aqui 🕊️', () => {
+      if (cur.changes.length) return openEnviar(cur, () => openPombal(getWorld().projects.find((p) => p.id === project.id) ?? cur));
+      confirmarEnvio();
+    }, 'primary');
+    btnEnviar.disabled = !cur.changes.length && !c.enviar.length;
     enviarBox.append(btnEnviar);
 
     function confirmarEnvio() {
       enviarBox.replaceChildren();
       const q = document.createElement('span');
       q.className = 'agent-confirm';
-      q.innerHTML = `Vão para a <b>${escapeHtml(pombal.integracao)}</b> ${enviar.length} commit(s)${
-        receber.length ? `, depois de trazer as ${receber.length} carta(s) que chegaram` : ''
-      }. Quem trabalha na ${escapeHtml(pombal.integracao)} recebe isso no próximo pull. Enviar?`;
-      enviarBox.append(q, button('Sim, enviar', () => void voar('enviar'), 'primary'), button('Cancelar', () => render({ receber, enviar })));
+      q.innerHTML = `Vão para <b>${time}</b> ${c.enviar.length} commit(s) já guardado(s): ${c.enviar
+        .slice(0, 3)
+        .map((e) => `"${escapeHtml(e.assunto)}"`)
+        .join(', ')}${c.enviar.length > 3 ? '...' : ''}. Enviar?`;
+      enviarBox.append(q, button('Sim, enviar', () => void voar('enviar'), 'primary'), button('Cancelar', () => render(c)));
     }
 
     async function voar(acao: 'receber' | 'enviar') {
