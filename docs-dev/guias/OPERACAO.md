@@ -34,7 +34,8 @@ ss -ltnp | grep -E ':(4777|5173) '
 
 **Antes de reiniciar:** todo terminal aberto na vila é processo filho do servidor. Reiniciar o servidor encerra
 todas as sessões do Claude Code abertas pela vila, inclusive uma que esteja editando este repositório. Terminar o
-trabalho delas primeiro.
+trabalho delas primeiro. O mesmo vale para os sistemas que a lareira de uma casa ligou: eles também são filhos do
+servidor e param junto.
 
 ```bash
 cd ~/Documents/Desenvolvimento/dev-valley && npm start

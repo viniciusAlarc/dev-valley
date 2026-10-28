@@ -103,6 +103,8 @@ export interface Lado {
   ocupada: boolean;
   pid: number | null;
   problema: string | null;
+  /** O que a vila ligou: `rodando` ou `saiu` (com o código); null = a vila não ligou este lado. */
+  vila: { estado: 'rodando'; pid: number } | { estado: 'saiu'; codigo: number } | null;
 }
 
 export interface Pendencia {

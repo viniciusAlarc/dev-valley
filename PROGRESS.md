@@ -3,6 +3,29 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-27 — Lareira, passo 2: servidor liga e apaga os lados
+
+**O que mudou:** passo 2 do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). `Lareiras` em
+`server/src/lareira.ts` mantém um processo por lado, em pseudo-terminal (`node-pty`, como os moradores), filho do
+servidor: `bash -c "<comando>"` na pasta da tabela. Acender liga só os lados que têm comando, não têm problema, não
+estão rodando pela vila e cuja porta está livre (decisões 2 e 7: a vila nunca mexe em processo que não criou). Apagar
+manda SIGTERM para o **grupo de processos** de cada lado e SIGKILL depois de 5s (decisão 4: o `java` ou o `vite` que
+o `npm` abre vão junto). O mundo ganha o estado de cada lado (`vila`: rodando com o PID, ou saiu com o código).
+Apagado pela vila conta como código 0; saiu sozinho com código diferente de 0 é erro. Log de cada lado por
+`/ws/lareira` (histórico e depois ao vivo, só leitura). `POST /api/lareira/acender` e `/apagar` recebem só o
+projeto: o comando vem da tabela lida pelo servidor. As duas rotas exigem página local, a mesma checagem do WebSocket
+(regra 2), porque executam comando. Servidor saindo (SIGINT/SIGTERM) apaga o que a vila ligou. `OPERACAO.md` avisa que
+reiniciar a vila derruba esses sistemas.
+**Arquivos:** `server/src/lareira.ts` (`Lareiras`, `Lado.vila`), `server/src/index.ts` (rotas, `/ws/lareira`,
+`refreshWorld` junta o estado, desligamento), `web/src/api.ts`, `docs-dev/guias/OPERACAO.md`,
+`docs-dev/a-codar/lareira-subir-sistema.md`, `docs-dev/painel.json`.
+**Testes:** `npm run typecheck -w server` e `tsc` do front, auditor sem achado. Gerenciador testado de verdade, fora
+da vila (sem reiniciar o servidor), num projeto falso no scratchpad com 3 lados: dois servidores HTTP (um deles com um
+`sleep` em segundo plano) e um comando que sai com código 3. Acender ocupou as duas portas e marcou "rodando"; o lado
+com erro ficou "saiu 3"; acender de novo pulou os lados com porta ocupada; apagar liberou as portas, e `ps` não mostrou
+nenhum processo órfão (o `sleep` morreu junto). As rotas e o `/ws/lareira` não foram testados com o servidor rodando
+(precisa do reinício); vão ser exercitados no passo 3, pelo painel.
+
 ## 2026-10-27 — Lareira, passo 1: servidor lê a tabela "Subir" e as portas
 
 **O que mudou:** passo 1 do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). Cada projeto ganha `lareira`:

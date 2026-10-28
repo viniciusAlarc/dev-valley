@@ -9,6 +9,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { loadConfig, ROOT_DIR } from './config.js';
 import * as gitOps from './git.js';
 import { HookStore } from './hooks.js';
+import { Lareiras } from './lareira.js';
 import { Library } from './library.js';
 import { askAdministrador } from './administrador.js';
 import { askLibrarian } from './librarian.js';
@@ -33,6 +34,7 @@ let worldJson = '';
 const eventClients = new Set<WebSocket>();
 
 const terminals = new TerminalManager(() => void refreshWorld());
+const lareiras = new Lareiras(() => void refreshWorld());
 const hooks = new HookStore();
 const library = new Library(config, () => world.projects);
 const statusLine = new StatusLineStore();
@@ -49,7 +51,8 @@ let lastStatusLine: unknown = null;
 
 async function refreshWorld() {
   try {
-    world = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents, skills);
+    const built = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents, skills);
+    world = { ...built, projects: built.projects.map((p) => ({ ...p, lareira: lareiras.merge(p.id, p.lareira) })) };
     const json = JSON.stringify(world);
     if (json === worldJson) return;
     worldJson = json;
@@ -265,6 +268,23 @@ app.post('/api/pombal', async (req, res) => {
   }
 });
 
+// Lareira (PD-7): liga e apaga os lados da tabela "Subir". Roda comando de verdade: só pedido de página local
+// (mesma checagem do WebSocket, regra 2), e só o que está na tabela lida pelo servidor (o front manda só o projeto).
+app.post('/api/lareira/acender', (req, res) => {
+  if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+  const project = findProject(req.body?.project);
+  if (!project?.lareira) return res.status(404).json({ error: 'projeto sem lareira' });
+  res.json({ ligados: lareiras.acender(project.id, project.lareira) });
+});
+
+app.post('/api/lareira/apagar', async (req, res) => {
+  if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+  const project = findProject(req.body?.project);
+  if (!project?.lareira) return res.status(404).json({ error: 'projeto sem lareira' });
+  await lareiras.apagar(project.id);
+  res.json({ ok: true });
+});
+
 app.get('/api/diff', async (req, res) => {
   const project = findProject(req.query.project);
   const file = project && safeRelative(project, req.query.file);
@@ -419,6 +439,16 @@ server.on('upgrade', (req, socket, head) => {
       if (worldJson) ws.send(worldJson);
       return;
     }
+    if (url.pathname === '/ws/lareira') {
+      const project = findProject(url.searchParams.get('project'));
+      const lado = url.searchParams.get('lado') ?? '';
+      if (!project?.lareira?.lados.some((l) => l.lado === lado && l.comando)) {
+        ws.close(1008, 'lado inválido');
+        return;
+      }
+      lareiras.attach(ws, project.id, lado);
+      return;
+    }
     if (url.pathname === '/ws/terminal') {
       const sessionId = url.searchParams.get('session') ?? '';
       const known = world.sessions.find((s) => s.id === sessionId);
@@ -466,6 +496,7 @@ server.listen(config.port, HOST, () => {
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {
   process.on(sig, () => {
     terminals.killAll();
+    lareiras.killAll();
     process.exit(0);
   });
 }

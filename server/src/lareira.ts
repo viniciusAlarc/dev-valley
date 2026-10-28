@@ -1,6 +1,8 @@
 import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import pty, { type IPty } from 'node-pty';
+import type { WebSocket } from 'ws';
 
 /** Uma linha da tabela "Subir" do `docs-dev/guias/OPERACAO.md` (formato do G14), com o estado da porta. */
 export interface Lado {
@@ -18,6 +20,8 @@ export interface Lado {
   pid: number | null;
   /** Por que este lado não pode ser ligado (pasta fora do projeto, inexistente, porta inválida); null = pode. */
   problema: string | null;
+  /** O que a vila ligou: `rodando` (processo vivo) ou `saiu` (com o código de saída); null = a vila não ligou. */
+  vila: { estado: 'rodando'; pid: number } | { estado: 'saiu'; codigo: number } | null;
 }
 
 /** Lareira da casa (PD-7): os lados da tabela "Subir". */
@@ -91,6 +95,7 @@ export async function readLareira(dir: string, portas: Map<number, number | null
         ocupada: porta !== null && portas.has(porta),
         pid: porta !== null ? (portas.get(porta) ?? null) : null,
         problema,
+        vila: null,
       };
     }),
   );
@@ -113,4 +118,144 @@ export function portasOcupadas(): Promise<Map<number, number | null>> {
       resolve(portas);
     });
   });
+}
+
+const SCROLLBACK_LIMIT = 256 * 1024;
+
+interface Fogo {
+  pty: IPty | null;
+  /** Código de saída da última vez; null enquanto roda. */
+  codigo: number | null;
+  buffer: string;
+  clients: Set<WebSocket>;
+}
+
+/**
+ * Os lados que a vila ligou (passo 2 do plano da lareira): um processo por lado, em pseudo-terminal, filho do
+ * servidor. O comando roda em `bash -c` na pasta da tabela. O processo do pty é líder do próprio grupo, então apagar
+ * manda o sinal para o **grupo inteiro** (o `java` ou o `vite` que o `npm` abre por baixo vão junto).
+ * A vila nunca mexe em processo que não criou: porta ocupada por outro só aparece como "ligado fora da vila".
+ */
+export class Lareiras {
+  private fogos = new Map<string, Fogo>();
+
+  constructor(private onChange: () => void) {}
+
+  private key(projectId: string, lado: string) {
+    return `${projectId}\0${lado}`;
+  }
+
+  /** Junta ao que o `readLareira` leu o estado dos lados que a vila ligou. */
+  merge(projectId: string, lareira: Lareira | null): Lareira | null {
+    if (!lareira) return null;
+    return {
+      lados: lareira.lados.map((l) => {
+        const f = this.fogos.get(this.key(projectId, l.lado));
+        if (!f) return l;
+        return { ...l, vila: f.pty ? { estado: 'rodando', pid: f.pty.pid } : { estado: 'saiu', codigo: f.codigo ?? 0 } };
+      }),
+    };
+  }
+
+  /**
+   * Liga os lados que têm comando, não têm problema, não estão rodando pela vila e cuja porta está livre.
+   * Retorna os lados ligados agora.
+   */
+  acender(projectId: string, lareira: Lareira): string[] {
+    const ligados: string[] = [];
+    for (const l of lareira.lados) {
+      if (!l.comando || l.problema || !l.cwd || l.ocupada) continue;
+      const k = this.key(projectId, l.lado);
+      if (this.fogos.get(k)?.pty) continue;
+      const proc = pty.spawn('bash', ['-c', l.comando], {
+        name: 'xterm-256color',
+        cols: 120,
+        rows: 32,
+        cwd: l.cwd,
+        env: { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor' } as Record<string, string>,
+      });
+      const old = this.fogos.get(k);
+      const fogo: Fogo = { pty: proc, codigo: null, buffer: '', clients: old?.clients ?? new Set() };
+      const banner = `\x1b[90m$ ${l.comando}\x1b[0m\r\n`;
+      fogo.buffer = banner;
+      for (const c of fogo.clients) c.send('\x1bc' + banner);
+      proc.onData((data) => {
+        fogo.buffer = (fogo.buffer + data).slice(-SCROLLBACK_LIMIT);
+        for (const c of fogo.clients) c.send(data);
+      });
+      proc.onExit(({ exitCode, signal }) => {
+        fogo.pty = null;
+        // Apagado pela vila (sinal) não é erro; saiu sozinho com código diferente de 0 é.
+        fogo.codigo = signal ? 0 : exitCode;
+        const note = `\r\n\x1b[33m[${l.lado} parou — código ${exitCode}${signal ? `, sinal ${signal}` : ''}]\x1b[0m\r\n`;
+        fogo.buffer = (fogo.buffer + note).slice(-SCROLLBACK_LIMIT);
+        for (const c of fogo.clients) c.send(note);
+        this.onChange();
+      });
+      this.fogos.set(k, fogo);
+      ligados.push(l.lado);
+    }
+    if (ligados.length) this.onChange();
+    return ligados;
+  }
+
+  /** Apaga os lados deste projeto que a vila ligou; resolve quando todos saíram (SIGKILL no grupo depois de 5s). */
+  apagar(projectId: string): Promise<void> {
+    const vivos = [...this.fogos.entries()].filter(([k, f]) => k.startsWith(projectId + '\0') && f.pty).map(([, f]) => f);
+    return Promise.all(vivos.map((f) => this.matar(f))).then(() => undefined);
+  }
+
+  private matar(f: Fogo): Promise<void> {
+    const proc = f.pty!;
+    return new Promise((resolve) => {
+      const sinal = (s: NodeJS.Signals) => {
+        try {
+          process.kill(-proc.pid, s);
+        } catch {
+          // grupo já saiu
+        }
+      };
+      const force = setTimeout(() => sinal('SIGKILL'), 5000);
+      proc.onExit(() => {
+        clearTimeout(force);
+        resolve();
+      });
+      sinal('SIGTERM');
+    });
+  }
+
+  /** Log de um lado no painel da lareira: recebe o histórico e depois ao vivo. Só leitura (e redimensionar). */
+  attach(ws: WebSocket, projectId: string, lado: string) {
+    const k = this.key(projectId, lado);
+    let f = this.fogos.get(k);
+    if (!f) {
+      f = { pty: null, codigo: null, buffer: '', clients: new Set() };
+      this.fogos.set(k, f);
+    }
+    const fogo = f;
+    if (fogo.buffer) ws.send(fogo.buffer);
+    fogo.clients.add(ws);
+    ws.on('message', (raw) => {
+      let msg: any;
+      try {
+        msg = JSON.parse(raw.toString());
+      } catch {
+        return;
+      }
+      if (msg.t === 'resize' && msg.cols > 0 && msg.rows > 0) fogo.pty?.resize(msg.cols, msg.rows);
+    });
+    ws.on('close', () => fogo.clients.delete(ws));
+  }
+
+  /** Servidor saindo: apaga tudo o que a vila ligou (decisão 1: o sistema cai junto com a vila). */
+  killAll() {
+    for (const f of this.fogos.values()) {
+      if (!f.pty) continue;
+      try {
+        process.kill(-f.pty.pid, 'SIGTERM');
+      } catch {
+        // grupo já saiu
+      }
+    }
+  }
 }

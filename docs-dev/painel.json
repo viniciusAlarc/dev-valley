@@ -4,12 +4,13 @@
     "doc": "docs-dev/a-codar/lareira-subir-sistema.md",
     "fases": [
       { "nome": "Ler a tabela Subir e as portas", "estado": "feito" },
-      { "nome": "Ligar e desligar os lados", "estado": "a fazer" },
+      { "nome": "Ligar e desligar os lados", "estado": "feito" },
       { "nome": "Lareira na casa e painel do log", "estado": "a fazer" },
       { "nome": "Fumaça na chaminé", "estado": "a fazer" }
     ]
   },
   "entregas": [
+    { "data": "2026-10-27", "o_que": "Servidor liga e apaga os lados da tabela Subir: um pseudo-terminal por lado, apagar mata o grupo de processos inteiro", "como": "Lareiras em server/src/lareira.ts, POST /api/lareira/acender e /apagar (só origem local), log em /ws/lareira" },
     { "data": "2026-10-27", "o_que": "Servidor lê a tabela Subir do OPERACAO.md de cada projeto e vê quais portas estão ocupadas", "como": "server/src/lareira.ts (readLareira, portasOcupadas com ss -ltnpH), Project.lareira" },
     { "data": "2026-10-26", "o_que": "Fábrica por dentro: bancada de agentes (com os da vila, só leitura) e parede de ferramentas com as skills", "como": "server/src/skills.ts, FactoryScene, web/src/ui/skills.ts" },
     { "data": "2026-10-26", "o_que": "Outdoor dos guardrails atrás da praça: plugin ligado e a lista de regras", "como": "server/src/guardrails.ts; plugin e arquivo no config local (repo público)" },
@@ -18,7 +19,6 @@
     { "data": "2026-10-26", "o_que": "Caixa de sementes dentro da casa com os planos de docs-dev/a-codar/", "como": "server/src/sementes.ts; pacotes na InteriorScene, plano abre no leitor da biblioteca" },
     { "data": "2026-10-26", "o_que": "Casa em obra: andaime no projeto sem a estrutura de acompanhamento", "como": "server/src/estrutura.ts; painel com o que falta e como resolver" },
     { "data": "2026-10-26", "o_que": "✦ Administrador da praça: explica o sino e o quadro e registra o que o usuário conferiu", "como": "server/src/administrador.ts sobre consulta.ts; Edit só nos arquivos de acompanhamento" },
-    { "data": "2026-10-26", "o_que": "Sino na praça com as entregas a conferir e o reinício pendente da vila", "como": "server/src/progress.ts (toCheck), server/src/reinicio.ts, web/src/ui/conferir.ts" },
-    { "data": "2026-10-26", "o_que": "Fábrica de agentes: criar, editar e apagar agentes globais e de projeto; NPCs ✦ no pátio", "como": "server/src/agents.ts, /api/agents, web/src/ui/factory.ts" }
+    { "data": "2026-10-26", "o_que": "Sino na praça com as entregas a conferir e o reinício pendente da vila", "como": "server/src/progress.ts (toCheck), server/src/reinicio.ts, web/src/ui/conferir.ts" }
   ]
 }

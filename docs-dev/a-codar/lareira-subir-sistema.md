@@ -44,6 +44,6 @@ Este plano usa essa tabela para a vila ligar e desligar o sistema do projeto de 
 | # | Entrega | Estado |
 |---|---|---|
 | 1 | Servidor: ler a tabela "Subir" de cada projeto e checar as portas | feito (27/10/2026, `server/src/lareira.ts`) |
-| 2 | Servidor: ligar e desligar os lados (pty, árvore de processos, estado e log) | a fazer |
+| 2 | Servidor: ligar e desligar os lados (pty, árvore de processos, estado e log) | feito (27/10/2026, `Lareiras` em `server/src/lareira.ts`) |
 | 3 | Casa: lareira com os estados e o painel do log | a fazer |
 | 4 | Vila: fumaça na chaminé da fachada | a fazer |
