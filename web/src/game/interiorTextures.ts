@@ -231,8 +231,8 @@ function doormat(scene: Phaser.Scene) {
   add(scene, 'doormat', c);
 }
 
-/** Cor do bilhete por prioridade (P1..P4) — as mesmas do painel de pendências (`.pend-prio` no style.css). */
-export const NOTE_COLORS = ['#d6402f', '#e8892b', '#e8c252', '#f2e6c4'];
+/** Cor do bilhete por prioridade (P1..P6) — as mesmas do painel de pendências (`.pend-prio` no style.css). */
+export const NOTE_COLORS = ['#d6402f', '#e8892b', '#e8c252', '#f2e6c4', '#8fb3d9', '#c4b5d9'];
 
 /** Quadro de cortiça da parede: os bilhetes (pendências) são pregados por cima, um sprite cada. */
 function corkBoard(scene: Phaser.Scene) {
@@ -392,7 +392,7 @@ export function generateInteriorTextures(scene: Phaser.Scene) {
   chalkboard(scene, 'chalkboard', false);
   for (const f of ['apagada', 'acendendo', 'acesa', 'acesa2', 'erro'] as const) fireplace(scene, `fireplace-${f}`, f);
   chalkboard(scene, 'chalkboardWritten', true);
-  for (let p = 1; p <= 4; p++) note(scene, p);
+  for (let p = 1; p <= NOTE_COLORS.length; p++) note(scene, p);
   seedBox(scene);
   SEED_COLORS.forEach((color, i) => seedPacket(scene, `seedPacket${i}`, color));
 }

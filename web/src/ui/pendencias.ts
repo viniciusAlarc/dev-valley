@@ -1,7 +1,7 @@
 import type { Pendencia, Project } from '../api';
 import { escapeHtml, openPanel } from './panel';
 
-const PRIORITY_TITLE = ['', 'P1 — Crítico', 'P2 — Alto', 'P3 — Médio', 'P4 — Baixo / melhoria'];
+const PRIORITY_TITLE = ['', 'P1 — Crítico', 'P2 — Alto', 'P3 — Médio', 'P4 — Baixo / melhoria', 'P5', 'P6'];
 const OWNER = { user: ['👤', 'decisão sua'], code: ['💻', 'código'], infra: ['🖥️', 'servidor/infra'] } as const;
 
 /** Texto da célula com os `trechos de código` do markdown destacados. */

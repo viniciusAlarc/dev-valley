@@ -384,6 +384,8 @@ h3 {
 .pend-prio.p1 { --prio: #d6402f; }
 .pend-prio.p2 { --prio: #e8892b; }
 .pend-prio.p3 { --prio: #e8c252; }
+.pend-prio.p5 { --prio: #8fb3d9; }
+.pend-prio.p6 { --prio: #c4b5d9; }
 
 .pend-list li {
   align-items: baseline;

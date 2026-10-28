@@ -3,6 +3,19 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-28 — Quadro de pendências lê títulos com emoji, P5/P6 e ignora itens fechados
+
+**O que mudou:** o quadro de uma casa da vila ficava vazio porque o `PENDENCIAS.md` daquele projeto usa emoji antes
+do P (`## 🔴 P1 — …`) e vai até P6; a regex só aceitava `## P1`..`## P4`, então toda tabela caía em prioridade 0.
+1. Título aceita uma palavra/emoji entre `##` e `P<n>`, com n de 1 a 6. O formato sem emoji continua igual; seções
+   sem P (auditoria, fechados) seguem zerando a prioridade.
+2. Linha com ID riscado (`~~ID~~`) ou com ✅ no ID é item fechado e não entra. O `**` do ID é removido.
+3. Coluna "Pendência" vale como item (além de "Item").
+4. Front: bilhete, painel e CSS ganham cores para P5 (azul) e P6 (lilás).
+**Conferido:** parser rodado nos dois formatos (o deste repo: 5 itens, como antes; o outro: 38 abertos de P1 a P6,
+nenhum riscado). Typecheck, build e auditor sem achado. Falta conferir na vila (reinício é do usuário).
+**Arquivos:** `server/src/pendencias.ts`, `web/src/ui/pendencias.ts`, `web/src/game/interiorTextures.ts`, `web/src/style.css`.
+
 ## 2026-10-28 — Lareira: correções do primeiro uso de verdade
 
 **O que mudou:** o usuário acendeu a lareira de um projeto com back e front; ela não terminava de subir e soltava

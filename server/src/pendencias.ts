@@ -5,7 +5,7 @@ export type Owner = 'user' | 'code' | 'infra' | null;
 
 export interface Pendencia {
   id: string;
-  /** 1 (crítico) a 4 (baixo), pela seção `## P<n>` onde a linha está. */
+  /** 1 (crítico) a 6, pela seção `## P<n>` onde a linha está (aceita emoji antes do P: `## 🔴 P1 — …`). */
   priority: number;
   owner: Owner;
   item: string;
@@ -37,7 +37,7 @@ export async function readPendencias(dir: string): Promise<Pendencia[] | null> {
   // Posição de cada coluna, lida do cabeçalho da tabela (cai na ordem do template se faltar).
   let col = { id: 0, owner: 1, item: 2, openedAt: 3 };
   for (const line of text.split('\n')) {
-    const heading = line.match(/^##\s+P([1-4])\b/);
+    const heading = line.match(/^##\s+(?:\S+\s+)?P([1-6])\b/);
     if (heading) {
       priority = Number(heading[1]);
       continue;
@@ -54,12 +54,15 @@ export async function readPendencias(dir: string): Promise<Pendencia[] | null> {
         const i = row.findIndex((c) => re.test(c));
         return i >= 0 ? i : fallback;
       };
-      col = { id: find(/^id$/i, 0), owner: find(/^dono$/i, 1), item: find(/^item$/i, 2), openedAt: find(/^aberto/i, 3) };
+      col = { id: find(/^id$/i, 0), owner: find(/^dono$/i, 1), item: find(/^(item|pendência)$/i, 2), openedAt: find(/^aberto/i, 3) };
       continue;
     }
     const item = row[col.item] ?? '';
     if (!item) continue;
-    out.push({ id: row[col.id] ?? '', priority, owner: ownerOf(row[col.owner] ?? ''), item, openedAt: row[col.openedAt] ?? '' });
+    // Item fechado que ficou na tabela: ID riscado (`~~ID~~`) ou marcado com ✅.
+    const id = (row[col.id] ?? '').replace(/\*\*/g, '');
+    if (id.startsWith('~~') || id.includes('✅')) continue;
+    out.push({ id, priority, owner: ownerOf(row[col.owner] ?? ''), item, openedAt: row[col.openedAt] ?? '' });
   }
   return out;
 }
