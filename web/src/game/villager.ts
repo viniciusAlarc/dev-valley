@@ -101,11 +101,11 @@ const SUIT = tone('#23252b');
  * cabelo variam, para um agente se distinguir do outro sem deixar de ser nitidamente diferente das sessões.
  */
 function agentLookFor(id: string): Look {
-  const h = hash(id);
+  const combo = agentCombo(id);
   return {
     agent: true,
-    skin: tone(SKINS[h % SKINS.length]),
-    hair: tone(AGENT_HAIRS[(h >>> 4) % AGENT_HAIRS.length]),
+    skin: tone(SKINS[combo % SKINS.length]),
+    hair: tone(AGENT_HAIRS[Math.floor(combo / SKINS.length)]),
     shirt: SUIT,
     pants: SUIT,
     eye: '#000000',
@@ -114,6 +114,26 @@ function agentLookFor(id: string): Look {
     hat: false,
   };
 }
+
+/**
+ * Combinação pele × cabelo de cada agente: a sorteada pelo id, ou a próxima livre se outro agente já a usa, para dois
+ * agentes nunca saírem iguais (enquanto houver combinação livre). Os agentes da vila reservam a deles primeiro.
+ */
+const agentCombos = new Map<string, number>();
+
+function agentCombo(id: string): number {
+  const known = agentCombos.get(id);
+  if (known !== undefined) return known;
+  const total = SKINS.length * AGENT_HAIRS.length;
+  const h = hash(id);
+  let combo = ((h >>> 4) % AGENT_HAIRS.length) * SKINS.length + (h % SKINS.length);
+  const taken = new Set(agentCombos.values());
+  for (let i = 0; i < total && taken.has(combo); i++) combo = (combo + 1) % total;
+  agentCombos.set(id, combo);
+  return combo;
+}
+
+for (const id of ['administrador-dev-valley', 'bibliotecaria-dev-valley']) agentCombo(id);
 
 // ---------------- primitivas ----------------
 

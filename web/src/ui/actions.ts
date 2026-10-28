@@ -1,4 +1,4 @@
-import { agents, api, type AgentSummary, type Project, type Session, type World } from '../api';
+import { agents, api, getWorld, type AgentSummary, type Project, type Session, type World } from '../api';
 import { villagerName } from '../game/names';
 import { openConferir } from './conferir';
 import { openGuardrails } from './guardrails';
@@ -136,7 +136,10 @@ export const ui = {
   async talkToAgent(agent: AgentSummary) {
     this.hideTooltip();
     const { sessionId, projectId, name } = await agents.talk(agent.path);
-    openTerminal({ sessionId, projectId, title: `✦ ${name}` });
+    const project = getWorld().projects.find((p) => p.id === agent.projectId);
+    const where = project ? `Agente do projeto ${project.name}` : 'Agente global';
+    const description = agent.description.length > 140 ? `${agent.description.slice(0, 139)}…` : agent.description;
+    openTerminal({ sessionId, projectId, title: `✦ ${name}`, agent: { subtitle: description ? `${where}: ${description}` : where } });
   },
   /** Banco da praça: sessão nova avulsa, na home (decisão do usuário, 27/10/2026). */
   async newAvulsa() {

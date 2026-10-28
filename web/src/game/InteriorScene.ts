@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { activityOf, estadoLareira, getWorld, onWorld, type Project, type Session, type World } from '../api';
+import { activityOf, estadoLareira, getWorld, onWorld, type AgentSummary, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
-import { makeInteractive, VillagerView } from './common';
+import { AgentNpc, makeInteractive, VillagerView } from './common';
 import { generateInteriorTextures, SEED_COLORS, SHELF_BOOKS } from './interiorTextures';
 
 const W = 288;
@@ -34,6 +34,8 @@ const WINDOW_X = 132;
 const STUDY_X = 223;
 const FIREPLACE_X = W - 21;
 const FIREPLACE_Y = WALL_H + 10;
+/** Mesinhas dos agentes do projeto na sala de estar: duas à direita do sofá, depois duas à esquerda (o sofá ocupa 116–172). */
+const AGENT_TABLE_X = [246, 210, 48, 84];
 
 const LAREIRA_TEXTO = {
   apagada: 'apagada, clique para ver os comandos e acender',
@@ -47,6 +49,8 @@ interface Placement {
   sofa: Session[];
   wanderers: Session[];
   hidden: number;
+  /** Agentes do projeto (`.claude/agents/`), sentados nas mesinhas da sala esperando um clique. */
+  agents: AgentSummary[];
 }
 
 /**
@@ -123,7 +127,7 @@ export class InteriorScene extends Phaser.Scene {
     const rest = [...extraLive, ...offline];
     const sofa = rest.slice(0, SOFA_SEATS);
     const wanderers = rest.slice(SOFA_SEATS, SOFA_SEATS + MAX_WANDERERS);
-    return { desks, sofa, wanderers, hidden: Math.max(0, rest.length - SOFA_SEATS - MAX_WANDERERS) };
+    return { desks, sofa, wanderers, hidden: Math.max(0, rest.length - SOFA_SEATS - MAX_WANDERERS), agents: [] };
   }
 
   applyWorld(world: World) {
@@ -131,7 +135,9 @@ export class InteriorScene extends Phaser.Scene {
     if (!project) return this.leave();
     const sessions = world.sessions.filter((s) => s.projectId === this.projectId);
     const placement = this.place(sessions);
+    placement.agents = world.agents.filter((a) => a.projectId === this.projectId && !a.managed).slice(0, AGENT_TABLE_X.length);
     const signature = JSON.stringify([
+      placement.agents.map((a) => a.path),
       placement.desks.map((s) => s?.id ?? '-'),
       placement.sofa.map((s) => s.id),
       placement.wanderers.map((s) => s.id),
@@ -316,6 +322,11 @@ export class InteriorScene extends Phaser.Scene {
     placement.sofa.forEach((s, i) => {
       const v = this.addVillager(s, W / 2 + (i - 1) * 16, sofaY - 3);
       v.sit('down');
+    });
+    placement.agents.forEach((agent, i) => {
+      const x = AGENT_TABLE_X[i];
+      new AgentNpc(this, agent, `projeto ${project.name}`, x, sofaY - 3).sit();
+      this.add.image(x, sofaY + 4, 'agentTable').setOrigin(0.5, 1).setDepth(sofaY + 1);
     });
 
     const area = { x: 24, y: loungeTop + 48, w: W - 48, h: 40 };

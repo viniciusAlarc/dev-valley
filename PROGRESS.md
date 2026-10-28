@@ -3,6 +3,34 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-28 — Agente nunca repete a aparência de outro, fica na frente da casa do projeto e abre com cabeçalho de agente
+
+**O que mudou:** um agente de projeto nasceu com a mesma cara do administrador da praça (a aparência sai de 25
+combinações de pele × cabelo, sorteadas pelo id). Pedido do usuário (28/10/2026):
+1. Cada agente pega a combinação sorteada ou, se outro agente já a usa, a próxima livre. Administrador e bibliotecária
+   reservam a deles primeiro. Quem não colidia continua igual; o traje não muda (regra 8).
+2. Agente de projeto fica **parado na frente da casa do projeto**, à direita do caminho da porta (vários lado a lado).
+   Agente global, ou de projeto sem casa, continua passeando no pátio da Fábrica.
+3. Conversa com agente da Fábrica abre com o cabeçalho dos agentes da vila: "✦ Nome" e, embaixo, "Agente do projeto X"
+   (ou "Agente global") com a descrição. Antes saía "Morador novo — ✦ Nome" e o id da sessão, como numa sessão comum.
+   O comportamento não mudou: continua o terminal com `claude --agent` e o botão de encerrar.
+**Arquivos:** `web/src/game/villager.ts` (`agentCombo`), `web/src/game/TownScene.ts` (`agentPost`),
+`web/src/ui/terminal.ts` (`openTerminal`, opção `agent`), `web/src/ui/actions.ts` (`talkToAgent`).
+**Validação:** typecheck do servidor e do front + `vite build` (numa pasta temporária, para não trocar o front servido)
+sem erro; auditor sem achado. Falta conferir na vila (recarregar a página).
+
+## 2026-10-28 — Painel de pendências da casa em linhas curtas que expandem
+
+**O que mudou:** com dezenas de pendências e textos longos (num projeto da vila, mediana de ~390 caracteres por item),
+o painel virava uma parede de texto. Decisão do usuário (28/10/2026): **linha curta + expandir**.
+1. Cada prioridade é uma seção recolhível com a contagem no título; só a mais grave abre sozinha.
+2. Cada item é uma linha: dono, ID e o começo do texto (até o primeiro ponto ou dois-pontos, no máximo 120
+   caracteres, sem markdown). Clicar abre o texto inteiro e a 4ª coluna.
+3. O texto inteiro passa a renderizar **negrito** e ~~riscado~~ (antes saíam os asteriscos); vale também no quadro
+   de avisos da praça, que usa a mesma função.
+Os bilhetes da sala (máximo 15) não mudaram: o usuário escolheu mexer só no painel.
+**Arquivos:** `web/src/ui/pendencias.ts` (`shortText`, `openPendencias`), `web/src/style.css` (`.pend-group`, `.pend-row`).
+
 ## 2026-10-28 — Quadro de pendências lê títulos com emoji, P5/P6 e ignora itens fechados
 
 **O que mudou:** o quadro de uma casa da vila ficava vazio porque o `PENDENCIAS.md` daquele projeto usa emoji antes

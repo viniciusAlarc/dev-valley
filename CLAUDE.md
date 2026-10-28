@@ -89,7 +89,8 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 8. **Todo agente (NPC ✦) veste o traje de agente secreto**, estilo "homens de preto": paletó e calça pretos, camisa
    branca, gravata e óculos escuros; só pele e cor do cabelo variam. É o que separa agente de sessão à primeira vista
    (decisão do usuário, 27/10/2026). Vale para os da Fábrica (automático na `AgentNpc`) e para qualquer agente da
-   vila novo: desenhe com `villagerTexture(scene, id, true)`, nunca com a aparência sorteada dos moradores.
+   vila novo: desenhe com `villagerTexture(scene, id, true)`, nunca com a aparência sorteada dos moradores. Agente da vila
+   novo entra na lista que reserva a combinação de pele × cabelo em `villager.ts`, para nenhum agente sair igual a ele.
 9. **O pombal (`server/src/pombal.ts`) faz push numa branch que outras pessoas podem usar.** Push só por clique
    confirmado no painel e só de página local, nunca `--force` (o git só aceita fast-forward). Conflito no rebase sempre
    termina em `rebase --abort` (o repositório fica como estava).

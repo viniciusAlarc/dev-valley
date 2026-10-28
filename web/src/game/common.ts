@@ -150,6 +150,7 @@ export class AgentNpc {
   facing: Facing = 'down';
   private shadow: Phaser.GameObjects.Image;
   private star: Phaser.GameObjects.Text;
+  private seated = false;
 
   constructor(
     private scene: Phaser.Scene,
@@ -188,11 +189,20 @@ export class AgentNpc {
     this.sprite.setFrame(FACING_ROW[this.facing] * 4);
   }
 
+  /** Sentado como os moradores no sofá: só o tronco aparece, quem cobre as pernas é o móvel da frente. */
+  sit() {
+    this.seated = true;
+    this.face('down');
+    this.sprite.setCrop(0, 0, 16, 26);
+    this.shadow.setVisible(false);
+    this.place();
+  }
+
   place() {
     const { x, y } = this.sprite;
     this.sprite.setDepth(y);
     this.shadow.setPosition(x, y).setDepth(y - 1);
-    this.star.setPosition(x + 6, y - 34).setDepth(y + 1);
+    this.star.setPosition(x + 6, y - (this.seated ? 31 : 34)).setDepth(y + 1);
   }
 
   destroy() {

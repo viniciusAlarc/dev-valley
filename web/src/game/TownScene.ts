@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { bellCount, estadoLareira, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
+import { bellCount, estadoLareira, urgentPendencias, yardResidents, type AgentSummary, type EstadoLareira, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, label, makeInteractive, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
@@ -609,6 +609,11 @@ export class TownScene extends Phaser.Scene {
         continue;
       }
       const where = agent.projectId === null ? 'global' : `projeto ${this.world.projects.find((p) => p.id === agent.projectId)?.name ?? ''}`;
+      const post = this.agentPost(agent, shown);
+      if (post) {
+        this.agentNpcs.set(agent.path, { npc: new AgentNpc(this, agent, where, post.x, post.y) });
+        continue;
+      }
       const rnd = mulberry32(hash(agent.path));
       const area = this.agentArea;
       const entry: { npc: AgentNpc; timer?: Phaser.Time.TimerEvent } = {
@@ -617,6 +622,17 @@ export class TownScene extends Phaser.Scene {
       this.agentNpcs.set(agent.path, entry);
       this.wanderAgent(entry, 800 + rnd() * 3000);
     }
+  }
+
+  /**
+   * Agente de projeto fica parado na frente da casa dele, à direita do caminho da porta (um ao lado do outro, se o
+   * projeto tiver mais de um); agente global, ou de projeto sem casa na vila, passeia no pátio da Fábrica.
+   */
+  private agentPost(agent: AgentSummary, shown: AgentSummary[]): { x: number; y: number } | null {
+    const plot = agent.projectId === null ? undefined : this.layout?.plots.find((p) => p.project.id === agent.projectId);
+    if (!plot) return null;
+    const index = shown.filter((a) => a.projectId === agent.projectId).indexOf(agent);
+    return { x: plot.house.x + 22 + index * 18, y: plot.house.y + 20 };
   }
 
   /** Passeio do agente: só na horizontal, pelo pátio da Fábrica. */

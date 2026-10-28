@@ -401,6 +401,73 @@ h3 {
   min-width: 0;
 }
 
+/* Painel da casa: seção recolhível por prioridade e item em linha curta que expande (mesmo jeito do .fase-node). */
+.pend-group > summary,
+.pend-row > details > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 4px;
+}
+
+.pend-group > summary {
+  padding: 6px 4px;
+  margin-top: 8px;
+  font-weight: 600;
+  border-bottom: 2px solid var(--parchment-dark);
+}
+
+.pend-group > summary::-webkit-details-marker,
+.pend-row > details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.pend-group > summary::before {
+  content: '▸';
+  color: var(--muted);
+}
+
+.pend-group[open] > summary::before {
+  content: '▾';
+}
+
+.pend-list li.pend-row {
+  display: block;
+  padding: 0;
+}
+
+.pend-row > details > summary {
+  padding: 6px 8px;
+}
+
+.pend-row > details > summary::after {
+  content: '›';
+  color: var(--muted);
+}
+
+.pend-row > details[open] > summary::after {
+  content: '⌄';
+}
+
+.pend-short {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pend-full {
+  padding: 2px 8px 10px 34px;
+  line-height: 1.45;
+}
+
+.pend-full p {
+  margin: 6px 0 0;
+}
+
 /* ---------- terminal ---------- */
 
 .terminal-host {

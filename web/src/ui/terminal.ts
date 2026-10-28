@@ -10,7 +10,8 @@ import { button, openPanel } from './panel';
  * Abre o chat de uma sessão: um terminal de verdade rodando `claude --resume <id>` no WSL.
  * Fechar o painel só desconecta — a sessão continua viva no servidor.
  */
-export function openTerminal(opts: { sessionId: string; projectId?: string | null; title: string }) {
+/** `agent`: conversa com agente da Fábrica, com o cabeçalho dos agentes da vila ("✦ Nome" e o que ele faz), sem o nome de morador. */
+export function openTerminal(opts: { sessionId: string; projectId?: string | null; title: string; agent?: { subtitle: string } }) {
   let ws: WebSocket | null = null;
   const term = new Terminal({
     fontFamily: '"Cascadia Mono", "Cascadia Code", Consolas, "DejaVu Sans Mono", monospace',
@@ -36,8 +37,8 @@ export function openTerminal(opts: { sessionId: string; projectId?: string | nul
   });
 
   const panel = openPanel({
-    title: `${villagerName(opts.sessionId)} — ${opts.title}`,
-    subtitle: `sessão ${opts.sessionId.slice(0, 8)}`,
+    title: opts.agent ? opts.title : `${villagerName(opts.sessionId)} — ${opts.title}`,
+    subtitle: opts.agent ? opts.agent.subtitle : `sessão ${opts.sessionId.slice(0, 8)}`,
     size: 'lg',
     onClose: () => {
       resizeObserver.disconnect();

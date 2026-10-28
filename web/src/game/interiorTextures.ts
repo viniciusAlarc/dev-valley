@@ -211,6 +211,25 @@ function plant(scene: Phaser.Scene) {
   add(scene, 'plant', c);
 }
 
+/** Mesinha do agente do projeto, vista de frente: o tampo cobre as pernas de quem senta atrás; dossiê e caneca em cima. */
+function agentTable(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(26, 16);
+  rect(ctx, 0, 4, 26, 4, '#8f5f30');
+  rect(ctx, 0, 4, 26, 1, '#c9955a');
+  rect(ctx, 1, 8, 24, 3, '#6e4522');
+  rect(ctx, 2, 11, 3, 5, '#5e3a1c');
+  rect(ctx, 21, 11, 3, 5, '#5e3a1c');
+  // dossiê fechado com a etiqueta e a caneca
+  rect(ctx, 4, 2, 10, 3, '#2a2d34');
+  rect(ctx, 4, 2, 10, 1, '#3d414b');
+  rect(ctx, 7, 3, 4, 1, '#e8c252');
+  rect(ctx, 18, 0, 4, 5, '#e8e2d2');
+  rect(ctx, 22, 1, 1, 2, '#e8e2d2');
+  rect(ctx, 19, 0, 2, 1, '#6b3f1f');
+  outline(ctx, 26, 16);
+  add(scene, 'agentTable', c);
+}
+
 function rug(scene: Phaser.Scene) {
   const { c, ctx } = makeCanvas(72, 40);
   rect(ctx, 2, 0, 68, 40, '#8c3a3a');
@@ -385,6 +404,7 @@ export function generateInteriorTextures(scene: Phaser.Scene) {
   sofaFront(scene);
   bookshelf(scene);
   plant(scene);
+  agentTable(scene);
   rug(scene);
   doormat(scene);
   corkBoard(scene);
