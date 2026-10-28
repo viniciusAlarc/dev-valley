@@ -31,6 +31,8 @@ export interface Project {
   auditoria: string | null;
   /** Pombal (sincronização com a branch comum do time); null = projeto sem `pombal` no config local. */
   pombal: Pombal | null;
+  /** Tabela "Subir" do `OPERACAO.md` com o estado das portas (lareira); null = sem lado com comando. */
+  lareira: { lados: Lado[] } | null;
 }
 
 /** Pombal na fachada: cartas chegando (commits da branch comum) e a levar (commits da minha). */
@@ -89,6 +91,18 @@ export interface PlanoAcao {
   doc: string;
   path: string;
   kind: 'html' | 'md';
+}
+
+/** Um lado da tabela "Subir" (back, front…): `comando` null = a vila não liga; `problema` = não dá para ligar. */
+export interface Lado {
+  lado: string;
+  pasta: string;
+  cwd: string | null;
+  comando: string | null;
+  porta: number | null;
+  ocupada: boolean;
+  pid: number | null;
+  problema: string | null;
 }
 
 export interface Pendencia {

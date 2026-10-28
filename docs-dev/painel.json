@@ -1,18 +1,16 @@
 {
   "plano": {
-    "nome": "Ambiente de IA na vila",
-    "doc": "docs-dev/context/ambiente-de-ia-na-vila.md",
+    "nome": "Lareira: ligar o sistema da casa (PD-7)",
+    "doc": "docs-dev/a-codar/lareira-subir-sistema.md",
     "fases": [
-      { "nome": "Sino e administrador", "estado": "feito" },
-      { "nome": "Casa em obra", "estado": "feito" },
-      { "nome": "Caixa de sementes", "estado": "feito" },
-      { "nome": "Ervas do retrabalho", "estado": "feito" },
-      { "nome": "Placa de vistoria", "estado": "feito" },
-      { "nome": "Outdoor dos guardrails", "estado": "feito" },
-      { "nome": "Fábrica por dentro e skills", "estado": "feito" }
+      { "nome": "Ler a tabela Subir e as portas", "estado": "feito" },
+      { "nome": "Ligar e desligar os lados", "estado": "a fazer" },
+      { "nome": "Lareira na casa e painel do log", "estado": "a fazer" },
+      { "nome": "Fumaça na chaminé", "estado": "a fazer" }
     ]
   },
   "entregas": [
+    { "data": "2026-10-27", "o_que": "Servidor lê a tabela Subir do OPERACAO.md de cada projeto e vê quais portas estão ocupadas", "como": "server/src/lareira.ts (readLareira, portasOcupadas com ss -ltnpH), Project.lareira" },
     { "data": "2026-10-26", "o_que": "Fábrica por dentro: bancada de agentes (com os da vila, só leitura) e parede de ferramentas com as skills", "como": "server/src/skills.ts, FactoryScene, web/src/ui/skills.ts" },
     { "data": "2026-10-26", "o_que": "Outdoor dos guardrails atrás da praça: plugin ligado e a lista de regras", "como": "server/src/guardrails.ts; plugin e arquivo no config local (repo público)" },
     { "data": "2026-10-26", "o_que": "Placa de vistoria na fachada, amarela quando a auditoria das regras vence", "como": "readAuditoria em server/src/estrutura.ts lê .claude/auditoria-regras.txt" },
@@ -21,7 +19,6 @@
     { "data": "2026-10-26", "o_que": "Casa em obra: andaime no projeto sem a estrutura de acompanhamento", "como": "server/src/estrutura.ts; painel com o que falta e como resolver" },
     { "data": "2026-10-26", "o_que": "✦ Administrador da praça: explica o sino e o quadro e registra o que o usuário conferiu", "como": "server/src/administrador.ts sobre consulta.ts; Edit só nos arquivos de acompanhamento" },
     { "data": "2026-10-26", "o_que": "Sino na praça com as entregas a conferir e o reinício pendente da vila", "como": "server/src/progress.ts (toCheck), server/src/reinicio.ts, web/src/ui/conferir.ts" },
-    { "data": "2026-10-26", "o_que": "Fábrica de agentes: criar, editar e apagar agentes globais e de projeto; NPCs ✦ no pátio", "como": "server/src/agents.ts, /api/agents, web/src/ui/factory.ts" },
-    { "data": "2026-10-25", "o_que": "Diário do progresso no atril da casa", "como": "server/src/progress.ts, GET /api/progress sob demanda" }
+    { "data": "2026-10-26", "o_que": "Fábrica de agentes: criar, editar e apagar agentes globais e de projeto; NPCs ✦ no pátio", "como": "server/src/agents.ts, /api/agents, web/src/ui/factory.ts" }
   ]
 }

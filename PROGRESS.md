@@ -3,6 +3,23 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-27 — Lareira, passo 1: servidor lê a tabela "Subir" e as portas
+
+**O que mudou:** passo 1 do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). Cada projeto ganha `lareira`:
+os lados da tabela "Subir" do `docs-dev/guias/OPERACAO.md` (primeira tabela depois de `## Subir`, colunas achadas
+pelo nome), com pasta, comando, porta e se a porta está ocupada (e por qual PID, quando o processo é do usuário). Pasta
+e comando saem sem as crases; `\|` vira pipe dentro do comando. Célula de comando vazia = a vila não liga aquele lado;
+projeto sem nenhum lado com comando fica sem lareira (null). Cada lado diz o `problema` que impede de ligar: pasta fora
+do projeto, pasta que não existe ou porta inválida. As portas são lidas uma vez por atualização do mundo
+(`ss -ltnpH`), para todas as casas. Só leitura: nada liga nem desliga ainda (passo 2). O `painel.json` passa a ter
+este plano (o anterior estava todo feito).
+**Arquivos:** `server/src/lareira.ts` (novo), `server/src/world.ts` (`Project.lareira`, portas por atualização),
+`web/src/api.ts` (tipo `Lado`), `docs-dev/a-codar/lareira-subir-sistema.md`, `docs-dev/painel.json`, `CLAUDE.md`.
+**Testes:** `npm run typecheck -w server` e `tsc` do front, auditor sem achado. Leitor testado nos projetos reais: este
+repositório tem o back na 4777, que aparece ocupada pela própria vila; o de exemplo tem back e front livres; projeto sem
+`OPERACAO.md` fica sem lareira. Uma tabela de teste confirmou pipe escapado, `../..` recusado, pasta inexistente, porta
+inválida, linha sem comando e a seção seguinte ignorada. Não há o que conferir na vila ainda (nada aparece até o passo 3).
+
 ## 2026-10-27 — Fachada da fábrica mais trabalhada
 
 **O que mudou:** pedido do usuário: manter a identidade da Fábrica de agentes, com mais acabamento. Mesmo tamanho
