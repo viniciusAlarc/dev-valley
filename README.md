@@ -28,7 +28,7 @@ Por baixo dos panos tudo continua igual: repositórios git no WSL e o `claude` d
 | ✦ Administrador da praça | Agente permanente ao lado do sino e do quadro: explica os itens e, quando você diz que conferiu, registra nos arquivos de acompanhamento do projeto (só neles) |
 | Painel "Uso do Claude" | Limites do plano (5h e semanal), como no `/usage` — minimizável |
 | Fábrica (clique para entrar) | Bancada: agentes do Claude Code (`~/.claude/agents` e `<projeto>/.claude/agents`) e, só leitura, os agentes da vila · Parede de ferramentas: skills (`~/.claude/skills` e `<projeto>/.claude/skills`; as instaladas por link são só leitura). Criar, editar e apagar por formulário |
-| ✦ NPC no pátio da Fábrica ou na frente de uma casa | Um agente (todo agente veste terno preto, gravata e óculos escuros, para não se confundir com as sessões, e nenhum repete a pele e o cabelo de outro; o de projeto fica parado na frente da casa dele) — clique para conversar com ele (`claude --agent`; global na praça, de projeto na casa) |
+| ✦ NPC no pátio da Fábrica ou sentado na sala de uma casa | Um agente (todo agente veste terno preto, gravata e óculos escuros, para não se confundir com as sessões, e nenhum repete a pele e o cabelo de outro; o de projeto fica sentado numa mesinha na sala da casa dele) — clique para conversar com ele (`claude --agent`; global na praça, de projeto na casa) |
 
 ### NPCs especiais: agentes permanentes
 

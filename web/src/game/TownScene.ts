@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { bellCount, estadoLareira, urgentPendencias, yardResidents, type AgentSummary, type EstadoLareira, type Project, type Session, type World } from '../api';
+import { bellCount, estadoLareira, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, label, makeInteractive, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
@@ -591,10 +591,13 @@ export class TownScene extends Phaser.Scene {
   // ---------------- moradores ----------------
 
   /** Do lado de fora só ficam os moradores mais relevantes; o resto está dentro de casa. */
-  /** Um NPC ✦ por agente (menos os do Dev Valley, como a bibliotecária, que mora na biblioteca). */
+  /**
+   * Um NPC ✦ por agente global (menos os do Dev Valley, como a bibliotecária, que mora na biblioteca). Agente de
+   * projeto fica sentado na sala da casa dele (`InteriorScene`).
+   */
   private syncAgents() {
     if (!this.agentArea) return;
-    const shown = this.world.agents.filter((a) => !a.managed).slice(0, MAX_AGENT_NPCS);
+    const shown = this.world.agents.filter((a) => !a.managed && a.projectId === null).slice(0, MAX_AGENT_NPCS);
     const byPath = new Map(shown.map((a) => [a.path, a]));
     for (const [path, a] of this.agentNpcs) {
       if (byPath.has(path)) continue;
@@ -608,31 +611,14 @@ export class TownScene extends Phaser.Scene {
         existing.npc.agent = agent;
         continue;
       }
-      const where = agent.projectId === null ? 'global' : `projeto ${this.world.projects.find((p) => p.id === agent.projectId)?.name ?? ''}`;
-      const post = this.agentPost(agent, shown);
-      if (post) {
-        this.agentNpcs.set(agent.path, { npc: new AgentNpc(this, agent, where, post.x, post.y) });
-        continue;
-      }
       const rnd = mulberry32(hash(agent.path));
       const area = this.agentArea;
       const entry: { npc: AgentNpc; timer?: Phaser.Time.TimerEvent } = {
-        npc: new AgentNpc(this, agent, where, area.x + rnd() * area.w, area.y + rnd() * area.h),
+        npc: new AgentNpc(this, agent, 'global', area.x + rnd() * area.w, area.y + rnd() * area.h),
       };
       this.agentNpcs.set(agent.path, entry);
       this.wanderAgent(entry, 800 + rnd() * 3000);
     }
-  }
-
-  /**
-   * Agente de projeto fica parado na frente da casa dele, à direita do caminho da porta (um ao lado do outro, se o
-   * projeto tiver mais de um); agente global, ou de projeto sem casa na vila, passeia no pátio da Fábrica.
-   */
-  private agentPost(agent: AgentSummary, shown: AgentSummary[]): { x: number; y: number } | null {
-    const plot = agent.projectId === null ? undefined : this.layout?.plots.find((p) => p.project.id === agent.projectId);
-    if (!plot) return null;
-    const index = shown.filter((a) => a.projectId === agent.projectId).indexOf(agent);
-    return { x: plot.house.x + 22 + index * 18, y: plot.house.y + 20 };
   }
 
   /** Passeio do agente: só na horizontal, pelo pátio da Fábrica. */
