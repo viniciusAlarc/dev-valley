@@ -1,26 +1,23 @@
-import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import express from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
+import { askAdministrador } from './administrador.js';
+import { Agents } from './agents.js';
+import { criarApp } from './app.js';
 import { loadConfig, ROOT_DIR } from './config.js';
-import * as gitOps from './git.js';
+import { sugerirMensagem } from './escrevente.js';
 import { HookStore } from './hooks.js';
 import { Lareiras } from './lareira.js';
-import { Library } from './library.js';
-import { askAdministrador } from './administrador.js';
 import { askLibrarian } from './librarian.js';
-import { agentInput, Agents } from './agents.js';
-import { skillInput, Skills } from './skills.js';
+import { Library } from './library.js';
 import { Moradores } from './moradores.js';
-import { sugerirMensagem } from './escrevente.js';
-import { buscar, cartas, PombalError, voar } from './pombal.js';
-import { markChecked, readProgress } from './progress.js';
-import { arquivoPermitido, isLocalOrigin } from './seguranca.js';
+import { buscar } from './pombal.js';
+import { isLocalOrigin } from './seguranca.js';
 import { deleteSessionFiles } from './sessions.js';
+import { Skills } from './skills.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
 import { buildWorld, type Project, type World } from './world.js';
@@ -49,7 +46,6 @@ const skills = new Skills(() => world.projects);
 const agentSessions = new Map<string, { cwd: string; agent: string }>();
 /** Sessões avulsas novas (banco da praça), esperando o terminal abrir: nascem na home, fora de qualquer projeto. */
 const avulsaSessions = new Set<string>();
-let lastStatusLine: unknown = null;
 
 async function refreshWorld() {
   try {
@@ -68,395 +64,29 @@ function findProject(id: unknown): Project | undefined {
   return world.projects.find((p) => p.id === id);
 }
 
-/** Garante que `file` é um caminho relativo dentro do projeto. */
-function safeRelative(project: Project, file: unknown): string | null {
-  if (typeof file !== 'string' || !file) return null;
-  const resolved = path.resolve(project.path, file);
-  return resolved.startsWith(project.path + path.sep) ? path.relative(project.path, resolved) : null;
-}
-
-const app = express();
-app.use(express.json({ limit: '5mb' }));
-
-app.get('/api/world', (_req, res) => {
-  res.json(world);
-});
-
-// Chamado pelos hooks do Claude Code (curl local) a cada evento de sessão.
-app.post('/api/hooks', (req, res) => {
-  if (!internalSessions.has(req.body?.session_id) && hooks.handle(req.body ?? {})) void refreshWorld();
-  res.json({});
-});
-
-// SessionStart do mod (mod/hooks/register.ts): a sessão que acabou de abrir pergunta o próprio nome de morador.
-// Recebe só o session_id (regra 3); consultas internas da bibliotecária não viram moradores.
-app.post('/api/moradores/nome', async (req, res) => {
-  const id = req.body?.session_id;
-  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) return res.status(400).json({ error: 'sessão inválida' });
-  res.json({ name: internalSessions.has(id) ? null : await moradores.claim(id) });
-});
-
-// ---- Fábrica de agentes (PD-4): só nas pastas de agentes (global e dos projetos) ----
-
-app.get('/api/agents/file', async (req, res) => {
-  const agent = await agents.read(req.query.path);
-  if (!agent) return res.status(404).json({ error: 'Agente não encontrado.' });
-  res.json(agent);
-});
-
-app.post('/api/agents', async (req, res) => {
-  const input = agentInput(req.body);
-  if (!input) return res.status(400).json({ error: 'Preencha a descrição.' });
-  const result = await agents.create(req.body.projectId ?? null, req.body.name, input);
-  if ('error' in result) return res.status(400).json(result);
-  void refreshWorld();
-  res.json(result);
-});
-
-app.put('/api/agents', async (req, res) => {
-  const input = agentInput(req.body);
-  if (!input) return res.status(400).json({ error: 'Preencha a descrição.' });
-  const result = await agents.save(req.body.path, req.body.mtime, input);
-  if ('error' in result) return res.status(result.status).json({ error: result.error });
-  void refreshWorld();
-  res.json(result);
-});
-
-// Clique no NPC ✦: conversa nova com o agente. Agente de projeto roda no projeto; global, na praça (pasta pessoal,
-// fora de qualquer projeto). Decisão do usuário, 26/10/2026.
-app.post('/api/agents/session', async (req, res) => {
-  const agent = await agents.read(req.body?.path);
-  if (!agent) return res.status(404).json({ error: 'Agente não encontrado.' });
-  // Agente da vila só roda pela vila, com as permissões dela (regra 5): nunca por `claude --agent`.
-  if (agent.village) return res.status(403).json({ error: 'Agente da vila: converse com ele no lugar dele (biblioteca ou praça).' });
-  const project = agent.projectId ? findProject(agent.projectId) : undefined;
-  const sessionId = randomUUID();
-  agentSessions.set(sessionId, { cwd: project?.path ?? os.homedir(), agent: Agents.cliName(agent) });
-  res.json({ sessionId, projectId: project?.id ?? null, name: agent.name });
-});
-
-app.delete('/api/agents', async (req, res) => {
-  const result = await agents.remove(req.query.path);
-  if ('error' in result) return res.status(result.status).json({ error: result.error });
-  void refreshWorld();
-  res.json(result);
-});
-
-// ---- Skills na Fábrica (parede de ferramentas): só nas pastas de skills (global e dos projetos) ----
-
-app.get('/api/skills/file', async (req, res) => {
-  const skill = await skills.read(req.query.path);
-  if (!skill) return res.status(404).json({ error: 'Skill não encontrada.' });
-  res.json(skill);
-});
-
-app.post('/api/skills', async (req, res) => {
-  const input = skillInput(req.body);
-  if (!input) return res.status(400).json({ error: 'Preencha a descrição.' });
-  const result = await skills.create(req.body.projectId ?? null, req.body.name, input);
-  if ('error' in result) return res.status(400).json(result);
-  void refreshWorld();
-  res.json(result);
-});
-
-app.put('/api/skills', async (req, res) => {
-  const input = skillInput(req.body);
-  if (!input) return res.status(400).json({ error: 'Preencha a descrição.' });
-  const result = await skills.save(req.body.path, req.body.mtime, input);
-  if ('error' in result) return res.status(result.status).json({ error: result.error });
-  void refreshWorld();
-  res.json(result);
-});
-
-app.delete('/api/skills', async (req, res) => {
-  const result = await skills.remove(req.query.path);
-  if ('error' in result) return res.status(result.status).json({ error: result.error });
-  void refreshWorld();
-  res.json(result);
-});
-
-// Pergunta à bibliotecária; responde em NDJSON conforme ela trabalha (passos e resposta final).
-app.post('/api/librarian/ask', (req, res) => {
-  const question = String(req.body?.question ?? '').trim();
-  if (!question) return res.status(400).json({ error: 'pergunta vazia' });
-  const history = Array.isArray(req.body?.history) ? req.body.history : [];
-  res.setHeader('Content-Type', 'application/x-ndjson');
-  const cancel = askLibrarian(
-    question,
-    history,
-    (event) => {
-      res.write(JSON.stringify(event) + '\n');
-      if (event.type !== 'step') res.end();
-    },
-    internalSessions,
-  );
-  res.on('close', () => {
-    if (!res.writableEnded) cancel();
-  });
-});
-
-// Pergunta ao administrador da praça (sino e quadro de avisos); ele pode registrar conferências nos arquivos de
-// acompanhamento dos projetos. Mesmo formato NDJSON da bibliotecária.
-app.post('/api/administrador/ask', (req, res) => {
-  const question = String(req.body?.question ?? '').trim();
-  if (!question) return res.status(400).json({ error: 'pergunta vazia' });
-  const history = Array.isArray(req.body?.history) ? req.body.history : [];
-  res.setHeader('Content-Type', 'application/x-ndjson');
-  const cancel = askAdministrador(
-    question,
-    history,
-    world.projects,
-    (event) => {
-      res.write(JSON.stringify(event) + '\n');
-      if (event.type !== 'step') {
-        res.end();
-        void refreshWorld();
-      }
-    },
-    internalSessions,
-  );
-  res.on('close', () => {
-    if (!res.writableEnded) cancel();
-  });
-});
-
-// Diário da casa: as entregas do PROGRESS.md, só leitura.
-app.get('/api/progress', async (req, res) => {
-  const project = findProject(req.query.project);
-  if (!project) return res.status(400).json({ error: 'projeto inválido' });
-  res.json((await readProgress(project.path)) ?? []);
-});
-
-// Sino da praça: marca entregas como conferidas pelas caixinhas (pedido do usuário, 29/10/2026). Escreve em arquivo de
-// projeto: só pedido de página local, e só entrega que o sino lista (o `markChecked` confere de novo no arquivo).
-app.post('/api/progress/conferir', async (req, res) => {
-  if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
-  const project = findProject(req.body?.project);
-  const items = Array.isArray(req.body?.items) ? req.body.items : [];
-  const listed = project?.progress?.toCheck ?? [];
-  const chosen = listed.filter((e) => items.some((i: { date?: unknown; title?: unknown }) => i?.date === e.date && i?.title === e.title));
-  if (!project || !chosen.length) return res.status(400).json({ error: 'projeto ou entrega inválida' });
-  try {
-    res.json({ marcadas: await markChecked(project.path, chosen) });
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  } finally {
-    await refreshWorld();
-  }
-});
-
-// HTML de um repositório (quadro negro e estante da casa), só os arquivos listados no mundo. Ele tem script:
-// `sandbox` sem `allow-same-origin` o deixa numa origem opaca, sem acesso à API nem aos terminais da vila, mesmo
-// aberto numa aba própria.
-function sendIsolatedHtml(res: express.Response, doc: { path: string; kind: string } | undefined) {
-  if (!doc || doc.kind !== 'html') return res.status(404).json({ error: 'documento não encontrado' });
-  res.set({ 'Content-Security-Policy': 'sandbox allow-scripts', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' });
-  res.type('html').sendFile(doc.path);
-}
-
-app.get('/api/quadro', (req, res) => sendIsolatedHtml(res, findProject(req.query.project)?.quadro[Number(req.query.i)]));
-app.get('/api/estante', (req, res) => sendIsolatedHtml(res, findProject(req.query.project)?.estante?.[Number(req.query.i)]));
-
-// Link clicável para arquivo no terminal da vila: o terminal roda no navegador, que só abre link http(s), nunca file://
-// (pedido do usuário, 29/10/2026). O que `arquivoPermitido` recusa responde 404, igual a arquivo inexistente.
-// HTML abre isolado, como os da estante.
-app.get('/api/arquivo', (req, res) => {
-  const pedido = typeof req.query.path === 'string' ? req.query.path : '';
-  const naoEncontrado = () => res.status(404).json({ error: 'arquivo não encontrado' });
-  const real = arquivoPermitido(pedido, world.projects.map((p) => p.path));
-  if (!real) return naoEncontrado();
-
-  const ext = path.extname(real).toLowerCase();
-  if (ext === '.html' || ext === '.htm') return sendIsolatedHtml(res, { path: real, kind: 'html' });
-  res.set({ 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' });
-  // Texto abre na aba, em vez de virar download (o navegador baixa text/markdown).
-  if (['.md', '.txt', '.log', '.csv', '.json', '.yml', '.yaml', '.sql'].includes(ext)) res.type('text/plain; charset=utf-8');
-  res.sendFile(real, (err) => {
-    if (err && !res.headersSent) naoEncontrado();
-  });
-});
-
-// "Sugerir texto" na tela de enviar: o escrevente lê o diff dos arquivos escolhidos (vazio = todos) e devolve a
-// mensagem de commit. Gasta uma consulta ao Claude: só pedido de página local.
-app.post('/api/pombal/sugerir', async (req, res) => {
-  if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
-  const project = findProject(req.body?.project);
-  if (!project?.pombal) return res.status(400).json({ error: 'projeto sem pombal' });
-  const arquivos: string[] = [];
-  for (const f of req.body.arquivos ?? []) {
-    const rel = safeRelative(project, f);
-    if (!rel) return res.status(400).json({ error: `arquivo inválido: ${f}` });
-    arquivos.push(rel);
-  }
-  try {
-    res.json({ texto: await sugerirMensagem(project.path, arquivos, internalSessions) });
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
-});
-
-// Abrir o pombal busca o remoto na hora e lista as cartas dos dois sentidos.
-app.get('/api/pombal', async (req, res) => {
-  const project = findProject(req.query.project);
-  if (!project?.pombal) return res.status(400).json({ error: 'projeto sem pombal' });
-  await buscar(project.path);
-  await refreshWorld();
-  res.json(await cartas(project.path));
-});
-
-// Viagem do pombo: `receber` (manhã) ou `enviar` (fim do dia). Faz push numa branch que outra pessoa usa (regra 9):
-// só pedido de página local, como a lareira, e só por clique confirmado no painel.
-app.post('/api/pombal', async (req, res) => {
-  if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
-  const project = findProject(req.body?.project);
-  const acao = req.body?.acao;
-  if (!project?.pombal || (acao !== 'receber' && acao !== 'enviar')) return res.status(400).json({ error: 'projeto ou ação inválida' });
-  // Arquivos escolhidos para ir (vazio = todos); só caminhos dentro do projeto.
-  const arquivos: string[] = [];
-  for (const f of req.body.arquivos ?? []) {
-    const rel = safeRelative(project, f);
-    if (!rel) return res.status(400).json({ error: `arquivo inválido: ${f}` });
-    arquivos.push(rel);
-  }
-  try {
-    res.json({ passos: await voar(project.path, acao, { mensagem: String(req.body.mensagem ?? ''), arquivos }) });
-  } catch (err) {
-    const e = err as PombalError;
-    res.status(409).json({ error: e.message, conflitos: e.conflitos ?? [], passos: e.passos ?? [] });
-  } finally {
-    await refreshWorld();
-  }
-});
-
-// Lareira (PD-7): liga e apaga os lados da tabela "Subir". Roda comando de verdade: só pedido de página local
-// (mesma checagem do WebSocket, regra 2), e só o que está na tabela lida pelo servidor (o front manda só o projeto).
-app.post('/api/lareira/acender', (req, res) => {
-  if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
-  const project = findProject(req.body?.project);
-  if (!project?.lareira) return res.status(404).json({ error: 'projeto sem lareira' });
-  res.json({ ligados: lareiras.acender(project.id, project.lareira) });
-});
-
-app.post('/api/lareira/apagar', async (req, res) => {
-  if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
-  const project = findProject(req.body?.project);
-  if (!project?.lareira) return res.status(404).json({ error: 'projeto sem lareira' });
-  await lareiras.apagar(project.id);
-  res.json({ ok: true });
-});
-
-app.get('/api/diff', async (req, res) => {
-  const project = findProject(req.query.project);
-  const file = project && safeRelative(project, req.query.file);
-  if (!project || !file) return res.status(400).json({ error: 'projeto ou arquivo inválido' });
-  res.json(await gitOps.fileDiff(project.path, file));
-});
-
-app.post('/api/open-vscode', (req, res) => {
-  const project = findProject(req.body.project);
-  if (!project) return res.status(400).json({ error: 'projeto inválido' });
-  const args = [project.path];
-  const file = req.body.file && safeRelative(project, req.body.file);
-  if (file) args.push('--goto', path.join(project.path, file));
-  spawn('code', args, { detached: true, stdio: 'ignore' }).unref();
-  res.json({ ok: true });
-});
-
-// Chamado pelo status line do Claude Code: contexto da sessão e limites do plano.
-app.post('/api/statusline', (req, res) => {
-  lastStatusLine = req.body;
-  if (statusLine.handle(req.body ?? {})) void refreshWorld();
-  res.json({});
-});
-
-app.get('/api/statusline/last', (_req, res) => {
-  res.json(lastStatusLine);
-});
-
-// ---- Biblioteca ----
-
-app.get('/api/library', async (_req, res) => {
-  res.json(await library.sections());
-});
-
-app.get('/api/library/file', async (req, res) => {
-  const file = await library.read(req.query.path);
-  if (!file) return res.status(404).json({ error: 'arquivo fora da biblioteca' });
-  res.json(file);
-});
-
-// HTML da biblioteca, só o que a varredura listou: abre isolado como os da estante (o script não alcança a vila).
-app.get('/api/library/html', async (req, res) => {
-  const file = await library.htmlPath(req.query.path);
-  sendIsolatedHtml(res, file ? { path: file, kind: 'html' } : undefined);
-});
-
-app.put('/api/library/file', async (req, res) => {
-  const result = await library.write(req.body.path, req.body.content, req.body.mtime);
-  if (!result) return res.status(404).json({ error: 'arquivo fora da biblioteca' });
-  if ('conflict' in result) return res.status(409).json({ error: 'O arquivo mudou no disco desde que foi aberto. Recarregue antes de salvar.' });
-  res.json(result);
-});
-
-app.post('/api/library/claude-md', async (req, res) => {
-  const project = findProject(req.body.project);
-  if (!project) return res.status(400).json({ error: 'projeto inválido' });
-  const file = await library.createClaudeMd(project);
-  if (!file) return res.status(409).json({ error: 'o projeto já tem CLAUDE.md' });
-  res.json({ path: file });
-});
-
-app.post('/api/library/open-vscode', async (req, res) => {
-  const file = await library.read(req.body.path);
-  if (!file) return res.status(404).json({ error: 'arquivo fora da biblioteca' });
-  spawn('code', ['--goto', file.path], { detached: true, stdio: 'ignore' }).unref();
-  res.json({ ok: true });
-});
-
-app.get('/api/library/search', async (req, res) => {
-  const q = String(req.query.q ?? '').trim();
-  if (q.length < 2) return res.json([]);
-  res.json(await library.search(q));
-});
-
-app.post('/api/sessions', (req, res) => {
-  // Sem projeto: sessão avulsa do banco da praça, sempre na home (decisão do usuário, 27/10/2026).
-  if (req.body.project == null) {
-    const sessionId = randomUUID();
-    avulsaSessions.add(sessionId);
-    return res.json({ sessionId, cwd: os.homedir() });
-  }
-  const project = findProject(req.body.project);
-  if (!project) return res.status(400).json({ error: 'projeto inválido' });
-  res.json({ sessionId: randomUUID(), cwd: project.path });
-});
-
-// Encerrar na vila apaga a conversa de vez (decisão do usuário, 26/10/2026): processo, arquivos e estado ao vivo.
-app.delete('/api/sessions/:id', async (req, res) => {
-  const id = req.params.id;
-  const session = world.sessions.find((s) => s.id === id);
-  if (!session) return res.status(404).json({ error: 'Sessão não encontrada.' });
-  // Apagar por baixo de um processo vivo fora da vila (VS Code) deixaria aquele terminal gravando numa conversa sumida.
-  if (session.live && !session.inTown) {
-    return res.status(409).json({ error: 'A sessão está aberta em outro terminal. Feche por lá primeiro.' });
-  }
-  try {
-    await terminals.kill(id);
-    await deleteSessionFiles(id);
-  } catch (err) {
-    return res.status(500).json({ error: String((err as Error).message ?? err) });
-  }
-  hooks.forget(id);
-  await refreshWorld();
-  res.json({ ok: true });
-});
-
-// Em produção o próprio servidor entrega o front já buildado.
+// As rotas HTTP moram em app.ts (PD-8, passo 2: testáveis sem subir a vila); aqui ficam os serviços de verdade.
 const webDist = path.join(ROOT_DIR, 'web', 'dist');
-if (fs.existsSync(webDist)) {
-  app.use(express.static(webDist));
-  app.get('*', (_req, res) => res.sendFile(path.join(webDist, 'index.html')));
-}
+const app = criarApp({
+  world: () => world,
+  refreshWorld,
+  terminals,
+  lareiras,
+  hooks,
+  library,
+  statusLine,
+  moradores,
+  agents,
+  skills,
+  internalSessions,
+  agentSessions,
+  avulsaSessions,
+  askLibrarian,
+  askAdministrador,
+  sugerirMensagem,
+  apagarConversa: deleteSessionFiles,
+  abrirVscode: (args) => spawn('code', args, { detached: true, stdio: 'ignore' }).unref(),
+  webDist: fs.existsSync(webDist) ? webDist : null,
+});
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });

@@ -14,7 +14,10 @@ tinha testes próprios (`mod/tests/`, `claude plugin test mod`) e fica fora dest
    tabela "Subir"), o estado da lareira (front) e as travas de segurança (origem local e `/api/arquivo`). Para testar
    as travas, elas saíram do `index.ts` para `server/src/seguranca.ts`, sem mudar o comportamento.
 3. **CI:** por enquanto os testes rodam só na máquina do usuário; o CI do GitHub segue só com o auditor.
-4. **Onde moram:** `server/tests/` e `web/tests/`. Cada teste cria o projeto de mentira numa pasta temporária
+4. **Rotas sem efeito real:** tudo que as rotas usam fora da pasta do projeto (`~/.claude`, consulta ao Claude, VS Code,
+   apagar conversa, terminais) chega pelo `Contexto` de `criarApp`. Nos testes, `subir()` de `server/tests/servidor.ts`
+   passa imitações que falham alto se forem chamadas sem o teste ter pedido.
+5. **Onde moram:** `server/tests/` e `web/tests/`. Cada teste cria o projeto de mentira numa pasta temporária
    (`projeto()` em `server/tests/util.ts`), nunca lê projeto de verdade (regra 1 do `CLAUDE.md`: repositório público).
 
 ## Passos
@@ -22,7 +25,7 @@ tinha testes próprios (`mod/tests/`, `claude plugin test mod`) e fica fora dest
 | # | Entrega | Estado |
 |---|---|---|
 | 1 | Leitores, estado da lareira e travas de segurança | feito (29/10/2026, 34 testes) |
-| 2 | Rotas HTTP: um teste de sucesso e um de entrada inválida por rota (G11), começando pelas que recebem caminho ou `project` do navegador, com o 404 de "fora do projeto" igual ao de inexistente conferido na resposta (G9). Pede separar a montagem do `app` do `server.listen` no `index.ts` | a fazer |
+| 2 | Rotas HTTP: um teste de sucesso e um de entrada inválida por rota (G11), começando pelas que recebem caminho ou `project` do navegador, com o 404 de "fora do projeto" igual ao de inexistente conferido na resposta (G9). Pede separar a montagem do `app` do `server.listen` no `index.ts` | em andamento: rotas em `server/src/app.ts` (`criarApp(ctx)`), 15 das 37 testadas (29/10/2026); faltam `world`, `hooks`, `moradores/nome`, `agents`, `skills`, `librarian`, `administrador`, `statusline` e o resto de `library` |
 | 3 | Pombal com repositórios git de mentira: commit, rebase com conflito terminando em `rebase --abort` | a fazer |
 | 4 | Testes no CI do GitHub (`npm ci` + `npm test`; o `node-pty` compila código nativo lá) | a decidir com o usuário |
 

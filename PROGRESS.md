@@ -3,6 +3,33 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-29 — Testes automatizados, passo 2 (parte 1): rotas HTTP testáveis, 15 das 37 com teste (PD-8)
+
+**O que mudou:** passo 2 do plano `docs-dev/a-codar/testes-automatizados.md` (G11: sucesso e entrada inválida por rota;
+G9: fora do projeto responde igual a inexistente).
+1. **Rotas saíram do `index.ts` para `server/src/app.ts`**, em `criarApp(ctx)`. Código movido sem mudar a lógica
+   (conferido com `diff` das rotas antes e depois, sem indentação: só `world` → `ctx.world()` e os efeitos externos
+   vindo do `ctx`). Tudo que age fora da pasta do projeto chega pelo `Contexto`: terminais, lareira, hooks, biblioteca,
+   moradores, agentes, skills, consultas ao Claude, apagar conversa e abrir o VS Code. O `index.ts` ficou com os
+   serviços de verdade, os WebSockets e o `listen`.
+2. **`subir()` em `server/tests/servidor.ts`:** sobe o `app` numa porta livre de 127.0.0.1 com mundo de mentira. Toda
+   imitação que o teste não preparou falha alto se for chamada, para nenhum teste agir na vila de verdade.
+3. **18 testes novos em `server/tests/rotas.test.ts`**, nas rotas que recebem caminho ou projeto do navegador:
+   `/api/arquivo` (o mesmo 404 para fora, com ponto, inexistente e relativo), `/api/progress`, `/api/progress/conferir`
+   (página de fora: 403 e arquivo intacto), `/api/quadro`, `/api/estante`, `/api/diff` (repositório git de mentira),
+   `/api/open-vscode`, `/api/pombal/sugerir`, `/api/pombal` (só entrada inválida; o sucesso é do passo 3),
+   `/api/lareira/acender` e `/apagar`, `/api/library/claude-md`, `POST` e `DELETE /api/sessions`.
+**Arquivos:** `server/src/app.ts` (novo), `server/src/index.ts`, `server/tests/servidor.ts` (novo),
+`server/tests/rotas.test.ts` (novo), `CLAUDE.md`, `docs-dev/a-codar/testes-automatizados.md`, `PENDENCIAS.md`,
+`docs-dev/painel.json`.
+**Testes:** `npm test` 52/52. Prova de que pegam bug: sem a trava de origem no conferir, com o `safeRelative` aceitando
+qualquer caminho e apagando sessão aberta fora da vila, 6 testes falharam; código restaurado e 52/52 de novo.
+`npm run typecheck -w server` sem erro (testes incluídos), auditor sem achado; o front não mudou (sem build). O
+`index.ts` montando o `app` de verdade não foi rodado (o reinício é do usuário, regra 6). Conferido na vila pelo usuário
+em 29/10/2026, depois do reinício: a vila sobe, abre terminal, abre o diário da casa e um link de arquivo.
+**Aberto:** faltam 22 rotas no passo 2 (`world`, `hooks`, `moradores/nome`, `agents`, `skills`, `librarian`,
+`administrador`, `statusline` e o resto de `library`).
+
 ## 2026-10-29 — Testes automatizados, passo 1: leitores, lareira e travas de segurança (PD-8)
 
 **O que mudou:** passo 1 do plano `docs-dev/a-codar/testes-automatizados.md` (decisões do usuário em 29/10/2026:
@@ -22,9 +49,9 @@ servidor entram no `npm run typecheck -w server`; o do front roda, mas fica fora
 (novo), `PENDENCIAS.md`, `docs-dev/painel.json`.
 **Testes:** `npm test` 34/34. Prova de que pegam bug: três estragos de propósito (sem a trava do ponto, sem o separador
 de pasta na comparação, item riscado contando) fizeram 3 testes falharem; código restaurado e 34/34 de novo.
-`npm run typecheck -w server` e `tsc` + `vite build` (pasta temporária) sem erro, auditor sem achado. Falta conferir na
-vila (reinício do usuário): o `/api/arquivo` e os WebSockets agora usam as funções extraídas; abrir um link de arquivo
-no terminal da vila confere os dois.
+`npm run typecheck -w server` e `tsc` + `vite build` (pasta temporária) sem erro, auditor sem achado. Conferido na vila
+pelo usuário em 29/10/2026: o `/api/arquivo` e os WebSockets usam as funções extraídas; o link de arquivo abriu no
+terminal da vila.
 **Aberto:** comparado com as regras de teste do `~/.claude/CLAUDE.md`, o passo 1 cobre G4 mas não G11 (teste de sucesso
 e de entrada inválida por rota) nem o 404 do G9 conferido na resposta. Por decisão do usuário (29/10/2026), entrou no
 plano o passo 2 "Rotas HTTP"; o pombal passou a ser o passo 3 e o CI o 4.
@@ -42,7 +69,7 @@ plano o passo 2 "Rotas HTTP"; o pombal passou a ser o passo 3 e o CI o 4.
 `web/src/style.css`, `README.md`.
 **Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. Acervo de teste no scratchpad: a
 varredura listou o `.md` e o `.html` e ignorou o `.json`; a rota recusa `.md` e arquivo fora da biblioteca; o catálogo
-saiu com o título do `<title>`. Falta conferir na vila (reinício do usuário).
+saiu com o título do `<title>`. Conferido na vila pelo usuário em 29/10/2026.
 
 ## 2026-10-29 — Sino marca entregas como conferidas pelas caixinhas, sem passar pelo administrador
 

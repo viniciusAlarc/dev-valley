@@ -36,7 +36,8 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 - Monorepo npm com workspaces `server` e `web`, tudo em TypeScript.
 - `server/` — Node + Express + `ws` + `node-pty`, rodado com `tsx`. Lê projetos e sessões
   (`~/.claude/projects/**/*.jsonl`), roda git, mantém os terminais (`claude --resume`).
-  - `src/index.ts` (entrada), `seguranca.ts` (origem local e o que `/api/arquivo` pode entregar), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
+  - `src/index.ts` (entrada: serviços de verdade, WebSockets e `listen`), `app.ts` (rotas HTTP em `criarApp(ctx)`: o que
+    age fora da pasta do projeto chega pelo `Contexto`, nunca importado direto na rota), `seguranca.ts` (origem local e o que `/api/arquivo` pode entregar), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
     `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `consulta.ts` (base dos agentes da vila),
     `administrador.ts` (administrador da praça), `agents.ts`/`skills.ts` (Fábrica: agentes e skills), `reinicio.ts` (sino:
     reinício pendente), `estrutura.ts` (casa em obra e
@@ -59,8 +60,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 - Build: `npm run build` (front: `tsc && vite build`)
 - Checagem de tipos do servidor: `npm run typecheck -w server`
 - Testes: `npm test` (`node:test` + `tsx`, em `server/tests/` e `web/tests/`; projeto de mentira em pasta temporária
-  por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade). Cobre leitores, estado da lareira e travas de
-  segurança; o resto segue validado com typecheck + build e na vila (PD-8). Nada vermelho em 29/10/2026 (34/34).
+  por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade; rotas por `subir()` de `server/tests/servidor.ts`,
+  com imitações). Cobre leitores, estado da lareira, travas de segurança e 15 das 37 rotas; o resto segue validado com
+  typecheck + build e na vila (PD-8). Nada vermelho em 29/10/2026 (52/52).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com
   `--sem-home`, em `.github/workflows/auditor.yml`)
