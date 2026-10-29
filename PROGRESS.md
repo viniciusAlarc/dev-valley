@@ -3,6 +3,21 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-29 — Arquivo de projeto abre por link clicável no terminal da vila
+
+**O que mudou:** link `file://` nunca abre no terminal da vila: ele roda no navegador (xterm.js), que só torna clicável
+link `http(s)://` e bloqueia `file://` vindo de página http. `explorer.exe` pelo WSL também não abriu. Pedido do
+usuário (29/10/2026): o Claude entrega o link de todo arquivo que ele pede para criar.
+1. Rota nova `GET /api/arquivo?path=/caminho/absoluto`: entrega o arquivo **só se estiver dentro da pasta de um projeto
+   da vila**, conferido pelo caminho real (link simbólico não escapa). Fora disso, inexistente ou pasta: 404, igual.
+2. HTML abre isolado (`sendIsolatedHtml`, como estante e quadro); Markdown e texto abrem na aba como `text/plain`
+   em vez de virar download. Nada que comece com ponto (`.env`, `.git`, `.claude`), em qualquer nível dentro do
+   projeto: recusa explícita, porque o `sendFile` com caminho absoluto **não** recusa sozinho (o primeiro teste entregou
+   `.git/config`; corrigido no mesmo dia).
+3. O servidor continua só em `127.0.0.1`.
+**Arquivos:** `server/src/index.ts` (rota `/api/arquivo`).
+**Validação:** typecheck do servidor sem erro. Falta reiniciar a vila (derruba os terminais) e testar por http.
+
 ## 2026-10-28 — Agente nunca repete a aparência de outro, senta na sala da casa do projeto e abre com cabeçalho de agente
 
 **O que mudou:** um agente de projeto nasceu com a mesma cara do administrador da praça (a aparência sai de 25

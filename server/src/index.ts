@@ -238,6 +238,44 @@ function sendIsolatedHtml(res: express.Response, doc: { path: string; kind: stri
 app.get('/api/quadro', (req, res) => sendIsolatedHtml(res, findProject(req.query.project)?.quadro[Number(req.query.i)]));
 app.get('/api/estante', (req, res) => sendIsolatedHtml(res, findProject(req.query.project)?.estante?.[Number(req.query.i)]));
 
+// Link clicável para arquivo no terminal da vila: o terminal roda no navegador, que só abre link http(s), nunca file://
+// (pedido do usuário, 29/10/2026). Só entrega arquivo de dentro da pasta de um projeto da vila, pelo caminho real
+// (link simbólico não escapa), e o que estiver fora responde 404, igual a arquivo inexistente. Nada que comece com
+// ponto (.env, .git, .claude), em qualquer nível dentro do projeto: o sendFile não recusa sozinho quando recebe o
+// caminho absoluto (testado em 29/10/2026, entregou .git/config). HTML abre isolado, como os da estante.
+app.get('/api/arquivo', (req, res) => {
+  const pedido = typeof req.query.path === 'string' ? req.query.path : '';
+  const naoEncontrado = () => res.status(404).json({ error: 'arquivo não encontrado' });
+  if (!path.isAbsolute(pedido)) return naoEncontrado();
+  let real: string;
+  try {
+    real = fs.realpathSync(pedido);
+    if (!fs.statSync(real).isFile()) return naoEncontrado();
+  } catch {
+    return naoEncontrado();
+  }
+  const raiz = world.projects
+    .map((p) => {
+      try {
+        return fs.realpathSync(p.path);
+      } catch {
+        return null;
+      }
+    })
+    .find((r) => r !== null && real.startsWith(r + path.sep));
+  if (!raiz) return naoEncontrado();
+  if (path.relative(raiz, real).split(path.sep).some((parte) => parte.startsWith('.'))) return naoEncontrado();
+
+  const ext = path.extname(real).toLowerCase();
+  if (ext === '.html' || ext === '.htm') return sendIsolatedHtml(res, { path: real, kind: 'html' });
+  res.set({ 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' });
+  // Texto abre na aba, em vez de virar download (o navegador baixa text/markdown).
+  if (['.md', '.txt', '.log', '.csv', '.json', '.yml', '.yaml', '.sql'].includes(ext)) res.type('text/plain; charset=utf-8');
+  res.sendFile(real, (err) => {
+    if (err && !res.headersSent) naoEncontrado();
+  });
+});
+
 // "Sugerir texto" na tela de enviar: o escrevente lê o diff dos arquivos escolhidos (vazio = todos) e devolve a
 // mensagem de commit. Gasta uma consulta ao Claude: só pedido de página local.
 app.post('/api/pombal/sugerir', async (req, res) => {
