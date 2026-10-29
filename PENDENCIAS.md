@@ -23,9 +23,8 @@
 
 ## P4 — Baixo / melhoria
 
-> Ordem decidida pelo usuário em 29/10/2026: PD-8 (testes) e depois PD-6 (tileset).
+> Ordem decidida pelo usuário em 29/10/2026: PD-8 (testes, fechada no mesmo dia) e depois PD-6 (tileset).
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| PD-8 | 💻 | Suíte de testes automatizada. **Em andamento:** passos 1 a 3 feitos (`npm test`, 80 testes: leitores, as 37 rotas e o pombal); falta decidir o CI (passo 4, 👤), depois pombal (passo 3) e decidir o CI (passo 4). Plano em `docs-dev/a-codar/testes-automatizados.md` | 2026-10-25 |
-| PD-6 | 💻 | Trocar a pixel art gerada em código por um tileset de verdade. Depois da PD-8 | 2026-10-24 |
+| PD-6 | 💻 | Trocar a pixel art gerada em código por um tileset de verdade. **Próxima** | 2026-10-24 |

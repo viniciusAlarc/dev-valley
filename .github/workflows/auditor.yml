@@ -1,6 +1,7 @@
 # Auditor de referências (G12/G16): falha quando CLAUDE.md, agente ou skill aponta para arquivo que não existe.
 # --sem-home: caminhos ~/ são da máquina do usuário e não existem aqui.
-name: Auditor de referências
+# Testes (PD-8): typecheck do servidor e npm test. Os testes não usam rede, a pasta pessoal nem o git do usuário.
+name: CI (auditor e testes)
 
 on:
   push:
@@ -16,3 +17,19 @@ jobs:
       - uses: actions/checkout@v4
       - name: Auditar referências
         run: python3 scripts/auditar-referencias.py . --tudo --sem-home
+
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # node-pty compila código nativo aqui (o runner já tem compilador e python).
+      - name: Instalar dependências
+        run: npm ci
+      - name: Checar tipos do servidor (testes incluídos)
+        run: npm run typecheck -w server
+      - name: Testes
+        run: npm test

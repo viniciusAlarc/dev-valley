@@ -64,7 +64,8 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   com imitações; teste que usa classe que grava em `~` troca o `HOME` antes do `import`, como
   `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
   `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 37 rotas e o pombal; WebSockets e front
-  seguem validados com typecheck + build e na vila (PD-8). Nada vermelho em 29/10/2026 (80/80).
+  seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor e `npm test` a cada push
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 29/10/2026 (80/80).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com
   `--sem-home`, em `.github/workflows/auditor.yml`)

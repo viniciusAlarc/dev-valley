@@ -3,9 +3,22 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-29 — Testes no CI do GitHub; plano de testes fechado (PD-8)
+
+**O que mudou:** passo 4 (último) do plano `docs-dev/context/testes-automatizados.md`, por decisão do usuário. O
+workflow `.github/workflows/auditor.yml` (agora "CI (auditor e testes)") ganhou o job `testes`: Node 24 com cache do
+npm, `npm ci` (o `node-pty` compila código nativo no runner), `npm run typecheck -w server` e `npm test`. GitHub Actions
+é gratuito em repositório público. Com isso o plano fechou: saiu de `docs-dev/a-codar/` para `docs-dev/context/`, a
+PD-8 saiu do `PENDENCIAS.md` e a fase do painel foi marcada como feita. Próxima, pela ordem do usuário: PD-6 (tileset).
+**Arquivos:** `.github/workflows/auditor.yml`, `docs-dev/context/testes-automatizados.md` (movido), `PENDENCIAS.md`,
+`docs-dev/painel.json`, `CLAUDE.md`.
+**Testes:** simulação do runner numa cópia limpa do repositório, sem o config local: `npm ci` (com a compilação do
+`node-pty`), typecheck sem erro e `npm test` 80/80 com `HOME` vazio. O workflow em si só roda no primeiro push (o push é
+do usuário). Auditor sem achado.
+
 ## 2026-10-29 — Testes automatizados, passo 3: pombal com git de verdade (PD-8)
 
-**O que mudou:** passo 3 do plano `docs-dev/a-codar/testes-automatizados.md`. `server/tests/pombal.test.ts` monta, numa
+**O que mudou:** passo 3 do plano `docs-dev/context/testes-automatizados.md`. `server/tests/pombal.test.ts` monta, numa
 pasta temporária, um remoto (`--bare`, o papel do GitHub) e dois clones: `eu`, onde o pombal age, e `colega`, que manda
 commits do time. Sem rede. O git do processo de teste não lê o `~/.gitconfig` do usuário (`GIT_CONFIG_GLOBAL=/dev/null`)
 e tem autor fixo. 13 testes:
@@ -19,7 +32,7 @@ e tem autor fixo. 13 testes:
 5. Dois cliques: a segunda viagem é recusada enquanto a primeira voa.
 6. `/api/pombal` com o pombal de verdade: GET lista as cartas, POST entrega no remoto, conflito responde 409.
 O "nunca `--force`" da regra 9 ficou sem teste: depois do rebase o push é sempre fast-forward, com ou sem `--force`.
-**Arquivos:** `server/tests/pombal.test.ts` (novo), `CLAUDE.md`, `docs-dev/a-codar/testes-automatizados.md`,
+**Arquivos:** `server/tests/pombal.test.ts` (novo), `CLAUDE.md`, `docs-dev/context/testes-automatizados.md`,
 `PENDENCIAS.md`, `docs-dev/painel.json`.
 **Testes:** `npm test` 80/80 em 5 s. Prova de que pegam bug: sem o `rebase --abort`, com o commit ignorando os arquivos
 escolhidos e sem a checagem do stash, 3 testes falharam; `pombal.ts` restaurado (por `trap`, garantido mesmo se o teste
@@ -27,7 +40,7 @@ travasse) e 80/80 de novo. Typecheck sem erro, auditor sem achado. Só testes mu
 
 ## 2026-10-29 — Testes automatizados, passo 2 fechado: as 37 rotas HTTP com teste (PD-8)
 
-**O que mudou:** as 22 rotas que faltavam no passo 2 do plano `docs-dev/a-codar/testes-automatizados.md`.
+**O que mudou:** as 22 rotas que faltavam no passo 2 do plano `docs-dev/context/testes-automatizados.md`.
 1. **Fábrica e biblioteca com as classes de verdade** (`server/tests/rotas-fabrica-biblioteca.test.ts`): quem recusa
    caminho de fora é a classe (`Agents`, `Skills`, `Library`), então imitá-la não testaria a trava (G9). Elas calculam
    `~/.claude` e o catálogo ao carregar o módulo: o arquivo troca o `HOME` por uma pasta temporária antes do `import`,
@@ -41,7 +54,7 @@ travasse) e 80/80 de novo. Typecheck sem erro, auditor sem achado. Só testes mu
 3. **`subir()` com limite de 5 s por requisição:** erro dentro de rota `async` o Express 4 não captura, e a imitação
    proibida travava a suíte em vez de falhar (achado ao estragar a checagem do id de sessão; ver `RETRABALHO.md`).
 **Arquivos:** `server/tests/rotas-fabrica-biblioteca.test.ts` (novo), `server/tests/rotas.test.ts`,
-`server/tests/servidor.ts`, `CLAUDE.md`, `docs-dev/a-codar/testes-automatizados.md`, `PENDENCIAS.md`,
+`server/tests/servidor.ts`, `CLAUDE.md`, `docs-dev/context/testes-automatizados.md`, `PENDENCIAS.md`,
 `docs-dev/painel.json`, `RETRABALHO.md`.
 **Testes:** `npm test` 67/67 em 1,5 s. Prova de que pegam bug: agente aceito fora da pasta de agentes, skill por link
 apagável e id de sessão sem checagem fizeram 3 testes falharem; código restaurado e 67/67 de novo. Nenhum arquivo em
@@ -50,7 +63,7 @@ na vila.
 
 ## 2026-10-29 — Testes automatizados, passo 2 (parte 1): rotas HTTP testáveis, 15 das 37 com teste (PD-8)
 
-**O que mudou:** passo 2 do plano `docs-dev/a-codar/testes-automatizados.md` (G11: sucesso e entrada inválida por rota;
+**O que mudou:** passo 2 do plano `docs-dev/context/testes-automatizados.md` (G11: sucesso e entrada inválida por rota;
 G9: fora do projeto responde igual a inexistente).
 1. **Rotas saíram do `index.ts` para `server/src/app.ts`**, em `criarApp(ctx)`. Código movido sem mudar a lógica
    (conferido com `diff` das rotas antes e depois, sem indentação: só `world` → `ctx.world()` e os efeitos externos
@@ -65,7 +78,7 @@ G9: fora do projeto responde igual a inexistente).
    `/api/open-vscode`, `/api/pombal/sugerir`, `/api/pombal` (só entrada inválida; o sucesso é do passo 3),
    `/api/lareira/acender` e `/apagar`, `/api/library/claude-md`, `POST` e `DELETE /api/sessions`.
 **Arquivos:** `server/src/app.ts` (novo), `server/src/index.ts`, `server/tests/servidor.ts` (novo),
-`server/tests/rotas.test.ts` (novo), `CLAUDE.md`, `docs-dev/a-codar/testes-automatizados.md`, `PENDENCIAS.md`,
+`server/tests/rotas.test.ts` (novo), `CLAUDE.md`, `docs-dev/context/testes-automatizados.md`, `PENDENCIAS.md`,
 `docs-dev/painel.json`.
 **Testes:** `npm test` 52/52. Prova de que pegam bug: sem a trava de origem no conferir, com o `safeRelative` aceitando
 qualquer caminho e apagando sessão aberta fora da vila, 6 testes falharam; código restaurado e 52/52 de novo.
@@ -77,7 +90,7 @@ em 29/10/2026, depois do reinício: a vila sobe, abre terminal, abre o diário d
 
 ## 2026-10-29 — Testes automatizados, passo 1: leitores, lareira e travas de segurança (PD-8)
 
-**O que mudou:** passo 1 do plano `docs-dev/a-codar/testes-automatizados.md` (decisões do usuário em 29/10/2026:
+**O que mudou:** passo 1 do plano `docs-dev/context/testes-automatizados.md` (decisões do usuário em 29/10/2026:
 `node:test` + `tsx`, sem dependência nova; só local, sem CI por enquanto). `npm test` na raiz roda 34 testes:
 1. **Leitores** dos arquivos de acompanhamento: `readPendencias` (emoji no título, P6, colunas pelo cabeçalho, item
    riscado ou com ✅), `readProgress`/`summarizeProgress`/`markChecked` (frase citada entre aspas não conta, parêntese
@@ -90,7 +103,7 @@ em 29/10/2026, depois do reinício: a vila sobe, abre terminal, abre o diário d
 Cada teste cria o projeto de mentira numa pasta temporária (`projeto()` em `server/tests/util.ts`). Os testes do
 servidor entram no `npm run typecheck -w server`; o do front roda, mas fica fora do `tsc` do `web` (sem tipos do Node lá).
 **Arquivos:** `server/src/seguranca.ts` (novo), `server/src/index.ts`, `server/tests/` (novo), `web/tests/` (novo),
-`package.json` (`test`), `server/tsconfig.json`, `CLAUDE.md` (comando e gate), `docs-dev/a-codar/testes-automatizados.md`
+`package.json` (`test`), `server/tsconfig.json`, `CLAUDE.md` (comando e gate), `docs-dev/context/testes-automatizados.md`
 (novo), `PENDENCIAS.md`, `docs-dev/painel.json`.
 **Testes:** `npm test` 34/34. Prova de que pegam bug: três estragos de propósito (sem a trava do ponto, sem o separador
 de pasta na comparação, item riscado contando) fizeram 3 testes falharem; código restaurado e 34/34 de novo.

@@ -1,7 +1,7 @@
 # Testes automatizados (PD-8)
 
-> Plano decidido com o usuário em 29/10/2026 (G7). Ao fechar cada passo: marcar aqui e no `PROGRESS.md`; ao fechar o
-> plano, este arquivo vai para `docs-dev/context/` e a PD-8 sai do `PENDENCIAS.md`.
+> Plano decidido com o usuário e implementado em 29/10/2026: fechado, PD-8 saiu do `PENDENCIAS.md`. Testes em
+> `server/tests/` e `web/tests/`; CI em `.github/workflows/auditor.yml`.
 
 Antes deste plano o servidor e o front eram validados só com typecheck, build e o usuário olhando na vila. O mod já
 tinha testes próprios (`mod/tests/`, `claude plugin test mod`) e fica fora deste plano.
@@ -13,7 +13,8 @@ tinha testes próprios (`mod/tests/`, `claude plugin test mod`) e fica fora dest
 2. **Primeira leva:** os leitores dos arquivos de acompanhamento (pendências, progresso, painel, retrabalho, estrutura,
    tabela "Subir"), o estado da lareira (front) e as travas de segurança (origem local e `/api/arquivo`). Para testar
    as travas, elas saíram do `index.ts` para `server/src/seguranca.ts`, sem mudar o comportamento.
-3. **CI:** por enquanto os testes rodam só na máquina do usuário; o CI do GitHub segue só com o auditor.
+3. **CI:** no começo os testes rodavam só na máquina do usuário. Em 29/10/2026, com a suíte isolada (sem rede, pasta
+   pessoal ou git do usuário), o usuário decidiu rodá-la também no CI (passo 4).
 4. **Rotas sem efeito real:** tudo que as rotas usam fora da pasta do projeto (`~/.claude`, consulta ao Claude, VS Code,
    apagar conversa, terminais) chega pelo `Contexto` de `criarApp`. Nos testes, `subir()` de `server/tests/servidor.ts`
    passa imitações que falham alto se forem chamadas sem o teste ter pedido; cada requisição tem limite de 5 s, porque
@@ -32,7 +33,7 @@ tinha testes próprios (`mod/tests/`, `claude plugin test mod`) e fica fora dest
 | 1 | Leitores, estado da lareira e travas de segurança | feito (29/10/2026, 34 testes) |
 | 2 | Rotas HTTP: um teste de sucesso e um de entrada inválida por rota (G11), começando pelas que recebem caminho ou `project` do navegador, com o 404 de "fora do projeto" igual ao de inexistente conferido na resposta (G9). Pede separar a montagem do `app` do `server.listen` no `index.ts` | feito (29/10/2026): rotas em `server/src/app.ts` (`criarApp(ctx)`), as 37 com teste; Fábrica e biblioteca com as classes de verdade num `HOME` temporário (decisão 6) |
 | 3 | Pombal com repositórios git de mentira: commit, rebase com conflito terminando em `rebase --abort` | feito (29/10/2026, `server/tests/pombal.test.ts`, 13 testes; o "nunca `--force`" da regra 9 não tem teste: depois do rebase o push é sempre fast-forward, com ou sem `--force`) |
-| 4 | Testes no CI do GitHub (`npm ci` + `npm test`; o `node-pty` compila código nativo lá) | a decidir com o usuário |
+| 4 | Testes no CI do GitHub (`npm ci` + `npm test`; o `node-pty` compila código nativo lá) | feito (29/10/2026, job `testes` em `.github/workflows/auditor.yml`; decisão do usuário, que muda a decisão 3) |
 
 O passo 2 entrou em 29/10/2026 (decisão do usuário), depois de comparar o passo 1 com as regras de teste do
 `~/.claude/CLAUDE.md`: G11 pede teste por endpoint e G9 pede o 404 conferido na resposta, e o passo 1 só testa funções.
