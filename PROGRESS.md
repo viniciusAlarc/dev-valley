@@ -3,6 +3,29 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-29 — Testes automatizados, passo 2 fechado: as 37 rotas HTTP com teste (PD-8)
+
+**O que mudou:** as 22 rotas que faltavam no passo 2 do plano `docs-dev/a-codar/testes-automatizados.md`.
+1. **Fábrica e biblioteca com as classes de verdade** (`server/tests/rotas-fabrica-biblioteca.test.ts`): quem recusa
+   caminho de fora é a classe (`Agents`, `Skills`, `Library`), então imitá-la não testaria a trava (G9). Elas calculam
+   `~/.claude` e o catálogo ao carregar o módulo: o arquivo troca o `HOME` por uma pasta temporária antes do `import`,
+   confere que os caminhos caíram nela antes de qualquer escrita e apaga a pasta no fim. Cobre criar, ler, salvar
+   (409 quando mudou no disco) e apagar agente e skill; fora das pastas, 404 e o arquivo intacto; cópia instalada do
+   agente da vila e skill por link, 403; conversa com agente da vila, 403; estantes, busca, catálogo, ler, HTML
+   isolado, salvar e abrir no VS Code só para livro da varredura (`.env` e caminho de fora, 404).
+2. **Rotas que só repassam ao serviço**, com imitação (`rotas.test.ts`): `world`, `hooks` (sessão interna ignorada),
+   `moradores/nome` (id que não é de sessão, 400), `statusline` e `statusline/last`, e as consultas da bibliotecária e
+   do administrador (NDJSON, uma linha por evento; pergunta vazia não consulta o Claude).
+3. **`subir()` com limite de 5 s por requisição:** erro dentro de rota `async` o Express 4 não captura, e a imitação
+   proibida travava a suíte em vez de falhar (achado ao estragar a checagem do id de sessão; ver `RETRABALHO.md`).
+**Arquivos:** `server/tests/rotas-fabrica-biblioteca.test.ts` (novo), `server/tests/rotas.test.ts`,
+`server/tests/servidor.ts`, `CLAUDE.md`, `docs-dev/a-codar/testes-automatizados.md`, `PENDENCIAS.md`,
+`docs-dev/painel.json`, `RETRABALHO.md`.
+**Testes:** `npm test` 67/67 em 1,5 s. Prova de que pegam bug: agente aceito fora da pasta de agentes, skill por link
+apagável e id de sessão sem checagem fizeram 3 testes falharem; código restaurado e 67/67 de novo. Nenhum arquivo em
+`~/.claude` criado pelos testes (conferido). Typecheck sem erro, auditor sem achado. Só testes mudaram: nada a conferir
+na vila.
+
 ## 2026-10-29 — Testes automatizados, passo 2 (parte 1): rotas HTTP testáveis, 15 das 37 com teste (PD-8)
 
 **O que mudou:** passo 2 do plano `docs-dev/a-codar/testes-automatizados.md` (G11: sucesso e entrada inválida por rota;

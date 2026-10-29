@@ -82,12 +82,16 @@ export async function subir(mundo: { projects?: Project[]; sessions?: WorldSessi
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   after(() => new Promise<void>((ok) => server.close(() => ok())));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  // Erro dentro de rota async (uma imitação proibida, por exemplo) o Express 4 não captura: a resposta nunca chega.
+  // O limite faz o teste falhar em vez de travar a suíte.
+  const limite = () => AbortSignal.timeout(5000);
   return {
     url,
     ctx,
-    get: (rota, init) => fetch(url + rota, init),
+    get: (rota, init) => fetch(url + rota, { signal: limite(), ...init }),
     enviar: (metodo, rota, corpo, origem) =>
       fetch(url + rota, {
+        signal: limite(),
         method: metodo,
         headers: { 'Content-Type': 'application/json', ...(origem ? { Origin: origem } : {}) },
         body: corpo === undefined ? undefined : JSON.stringify(corpo),

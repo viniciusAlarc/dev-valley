@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { describe, test } from 'node:test';
 import type { Contexto } from '../src/app.js';
+import type { AgentEvent } from '../src/consulta.js';
 import type { Lareira } from '../src/lareira.js';
 import type { Pombal } from '../src/pombal.js';
 import type { Project } from '../src/world.js';
@@ -246,5 +247,89 @@ describe('DELETE /api/sessions/:id', () => {
     const s = await subir({ sessions: [sessao(ID, { live: true, inTown: false })] });
     assert.equal((await s.enviar('DELETE', '/api/sessions/00000000-0000-0000-0000-000000000002')).status, 404);
     assert.equal((await s.enviar('DELETE', `/api/sessions/${ID}`)).status, 409);
+  });
+});
+
+// ---- Rotas que só repassam ao serviço: o teste confere a validação da rota e o que ela entrega ao serviço ----
+
+describe('GET /api/world', () => {
+  test('sucesso: o mundo atual', async () => {
+    const dir = await projeto();
+    const s = await subir({ projects: [casa('p', dir)] });
+    const mundo = await (await s.get('/api/world')).json();
+    assert.deepEqual(mundo.projects.map((p: Project) => p.id), ['p']);
+  });
+});
+
+describe('POST /api/hooks', () => {
+  test('sucesso: o evento vai ao HookStore; sessão interna da vila é ignorada', async () => {
+    const recebidos: unknown[] = [];
+    const s = await subir({}, { hooks: { handle: (p) => (recebidos.push(p), true), forget: () => {} } });
+    s.ctx.internalSessions.add('interna');
+    assert.equal((await s.enviar('POST', '/api/hooks', { session_id: 'aaa', hook_event_name: 'Stop' })).status, 200);
+    assert.equal((await s.enviar('POST', '/api/hooks', { session_id: 'interna', hook_event_name: 'Stop' })).status, 200);
+    assert.deepEqual(recebidos, [{ session_id: 'aaa', hook_event_name: 'Stop' }]);
+  });
+});
+
+describe('POST /api/moradores/nome', () => {
+  const ID = '00000000-0000-0000-0000-00000000000a';
+
+  test('sucesso: nome do morador; sessão interna da vila não vira morador', async () => {
+    const s = await subir({}, { moradores: { claim: async (id) => (id === ID ? 'Vera' : 'outro') } });
+    assert.deepEqual(await (await s.enviar('POST', '/api/moradores/nome', { session_id: ID })).json(), { name: 'Vera' });
+    s.ctx.internalSessions.add(ID);
+    assert.deepEqual(await (await s.enviar('POST', '/api/moradores/nome', { session_id: ID })).json(), { name: null });
+  });
+
+  test('id que não é de sessão: 400 (nada é reservado)', async () => {
+    const s = await subir({});
+    for (const corpo of [{}, { session_id: 42 }, { session_id: '../x' }, { session_id: 'abc' }])
+      assert.equal((await s.enviar('POST', '/api/moradores/nome', corpo)).status, 400, JSON.stringify(corpo));
+  });
+});
+
+describe('POST /api/statusline e GET /api/statusline/last', () => {
+  test('sucesso: guarda o último e repassa ao StatusLineStore', async () => {
+    const recebidos: unknown[] = [];
+    const s = await subir({}, { statusLine: { handle: (p) => (recebidos.push(p), false) } });
+    assert.equal(await (await s.get('/api/statusline/last')).text(), 'null');
+    assert.equal((await s.enviar('POST', '/api/statusline', { session_id: 'aaa' })).status, 200);
+    assert.deepEqual(await (await s.get('/api/statusline/last')).json(), { session_id: 'aaa' });
+    assert.deepEqual(recebidos, [{ session_id: 'aaa' }]);
+  });
+});
+
+describe('POST /api/librarian/ask e /api/administrador/ask', () => {
+  const responder = (onEvent: (e: AgentEvent) => void) => {
+    onEvent({ type: 'step', text: 'Lendo' });
+    onEvent({ type: 'answer', text: 'Achei' });
+    return () => {};
+  };
+
+  test('sucesso: passos e resposta em NDJSON, uma linha por evento; o administrador recebe os projetos', async () => {
+    const dir = await projeto();
+    const perguntas: string[] = [];
+    const s = await subir(
+      { projects: [casa('p', dir)] },
+      {
+        askLibrarian: (question, _h, onEvent) => (perguntas.push(question), responder(onEvent)),
+        askAdministrador: (question, _h, projects, onEvent) => (perguntas.push(`${question} [${projects.map((p) => p.id)}]`), responder(onEvent)),
+      },
+    );
+    for (const rota of ['/api/librarian/ask', '/api/administrador/ask']) {
+      const r = await s.enviar('POST', rota, { question: '  onde fica?  ' });
+      assert.equal(r.headers.get('content-type'), 'application/x-ndjson', rota);
+      assert.equal(await r.text(), '{"type":"step","text":"Lendo"}\n{"type":"answer","text":"Achei"}\n', rota);
+    }
+    assert.deepEqual(perguntas, ['onde fica?', 'onde fica? [p]']);
+  });
+
+  test('pergunta vazia: 400 (o Claude não é consultado)', async () => {
+    const s = await subir({});
+    for (const rota of ['/api/librarian/ask', '/api/administrador/ask']) {
+      assert.equal((await s.enviar('POST', rota, { question: '   ' })).status, 400, rota);
+      assert.equal((await s.enviar('POST', rota, {})).status, 400, rota);
+    }
   });
 });

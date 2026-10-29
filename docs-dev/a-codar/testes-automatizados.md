@@ -16,8 +16,13 @@ tinha testes próprios (`mod/tests/`, `claude plugin test mod`) e fica fora dest
 3. **CI:** por enquanto os testes rodam só na máquina do usuário; o CI do GitHub segue só com o auditor.
 4. **Rotas sem efeito real:** tudo que as rotas usam fora da pasta do projeto (`~/.claude`, consulta ao Claude, VS Code,
    apagar conversa, terminais) chega pelo `Contexto` de `criarApp`. Nos testes, `subir()` de `server/tests/servidor.ts`
-   passa imitações que falham alto se forem chamadas sem o teste ter pedido.
-5. **Onde moram:** `server/tests/` e `web/tests/`. Cada teste cria o projeto de mentira numa pasta temporária
+   passa imitações que falham alto se forem chamadas sem o teste ter pedido; cada requisição tem limite de 5 s, porque
+   erro em rota async o Express 4 não captura e a resposta nunca chegaria.
+6. **Trava de verdade, não imitação:** agentes, skills e biblioteca recusam caminho de fora dentro da própria classe, então
+   o teste usa a classe real. Elas calculam `~/.claude` ao carregar o módulo: `rotas-fabrica-biblioteca.test.ts` troca o
+   `HOME` por uma pasta temporária antes do `import` e confere que a troca pegou antes de qualquer escrita (cada arquivo
+   de teste roda num processo próprio).
+7. **Onde moram:** `server/tests/` e `web/tests/`. Cada teste cria o projeto de mentira numa pasta temporária
    (`projeto()` em `server/tests/util.ts`), nunca lê projeto de verdade (regra 1 do `CLAUDE.md`: repositório público).
 
 ## Passos
@@ -25,7 +30,7 @@ tinha testes próprios (`mod/tests/`, `claude plugin test mod`) e fica fora dest
 | # | Entrega | Estado |
 |---|---|---|
 | 1 | Leitores, estado da lareira e travas de segurança | feito (29/10/2026, 34 testes) |
-| 2 | Rotas HTTP: um teste de sucesso e um de entrada inválida por rota (G11), começando pelas que recebem caminho ou `project` do navegador, com o 404 de "fora do projeto" igual ao de inexistente conferido na resposta (G9). Pede separar a montagem do `app` do `server.listen` no `index.ts` | em andamento: rotas em `server/src/app.ts` (`criarApp(ctx)`), 15 das 37 testadas (29/10/2026); faltam `world`, `hooks`, `moradores/nome`, `agents`, `skills`, `librarian`, `administrador`, `statusline` e o resto de `library` |
+| 2 | Rotas HTTP: um teste de sucesso e um de entrada inválida por rota (G11), começando pelas que recebem caminho ou `project` do navegador, com o 404 de "fora do projeto" igual ao de inexistente conferido na resposta (G9). Pede separar a montagem do `app` do `server.listen` no `index.ts` | feito (29/10/2026): rotas em `server/src/app.ts` (`criarApp(ctx)`), as 37 com teste; Fábrica e biblioteca com as classes de verdade num `HOME` temporário (decisão 6) |
 | 3 | Pombal com repositórios git de mentira: commit, rebase com conflito terminando em `rebase --abort` | a fazer |
 | 4 | Testes no CI do GitHub (`npm ci` + `npm test`; o `node-pty` compila código nativo lá) | a decidir com o usuário |
 
