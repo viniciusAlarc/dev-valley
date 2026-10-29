@@ -18,7 +18,7 @@ import { skillInput, Skills } from './skills.js';
 import { Moradores } from './moradores.js';
 import { sugerirMensagem } from './escrevente.js';
 import { buscar, cartas, PombalError, voar } from './pombal.js';
-import { readProgress } from './progress.js';
+import { markChecked, readProgress } from './progress.js';
 import { deleteSessionFiles } from './sessions.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
@@ -226,6 +226,24 @@ app.get('/api/progress', async (req, res) => {
   res.json((await readProgress(project.path)) ?? []);
 });
 
+// Sino da praça: marca entregas como conferidas pelas caixinhas (pedido do usuário, 29/10/2026). Escreve em arquivo de
+// projeto: só pedido de página local, e só entrega que o sino lista (o `markChecked` confere de novo no arquivo).
+app.post('/api/progress/conferir', async (req, res) => {
+  if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+  const project = findProject(req.body?.project);
+  const items = Array.isArray(req.body?.items) ? req.body.items : [];
+  const listed = project?.progress?.toCheck ?? [];
+  const chosen = listed.filter((e) => items.some((i: { date?: unknown; title?: unknown }) => i?.date === e.date && i?.title === e.title));
+  if (!project || !chosen.length) return res.status(400).json({ error: 'projeto ou entrega inválida' });
+  try {
+    res.json({ marcadas: await markChecked(project.path, chosen) });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  } finally {
+    await refreshWorld();
+  }
+});
+
 // HTML de um repositório (quadro negro e estante da casa), só os arquivos listados no mundo. Ele tem script:
 // `sandbox` sem `allow-same-origin` o deixa numa origem opaca, sem acesso à API nem aos terminais da vila, mesmo
 // aberto numa aba própria.
@@ -383,6 +401,12 @@ app.get('/api/library/file', async (req, res) => {
   const file = await library.read(req.query.path);
   if (!file) return res.status(404).json({ error: 'arquivo fora da biblioteca' });
   res.json(file);
+});
+
+// HTML da biblioteca, só o que a varredura listou: abre isolado como os da estante (o script não alcança a vila).
+app.get('/api/library/html', async (req, res) => {
+  const file = await library.htmlPath(req.query.path);
+  sendIsolatedHtml(res, file ? { path: file, kind: 'html' } : undefined);
 });
 
 app.put('/api/library/file', async (req, res) => {

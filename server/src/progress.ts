@@ -17,8 +17,10 @@ export interface ProgressSummary {
 }
 
 // Só as frases-padrão, e não quando aparecem citadas (entre aspas ou crases) no texto da entrega.
-const TO_CHECK = /(?<!["“'`])falta conferir na vila/i;
+export const TO_CHECK = /(?<!["“'`])falta conferir na vila/i;
 const CHECKED = /(?<!["“'`])conferid[oa] na vila/i;
+// A frase com o que vem junto, como "(reinício do usuário)", mesmo quebrado em duas linhas.
+const TO_CHECK_FULL = /(?<!["“'`])falta conferir na vila(?:\s*\([^)]*\))?/i;
 
 const HEADING = /^##\s+(?:(\d{4}-\d{2}-\d{2})\s*[—–-]\s*)?(.+)$/;
 
@@ -50,7 +52,43 @@ export async function readProgress(dir: string): Promise<ProgressEntry[] | null>
 export async function summarizeProgress(dir: string): Promise<ProgressSummary | null> {
   const entries = await readProgress(dir);
   if (!entries) return null;
-  // A sessão marca a conferência trocando o texto da entrega; a vila só lê.
-  const toCheck = entries.filter((e) => TO_CHECK.test(e.body) && !CHECKED.test(e.body)).map(({ date, title }) => ({ date, title }));
+  // A conferência é a troca do texto da entrega: pela sessão, pelo administrador ou pelo sino (`markChecked`).
+  const toCheck = entries.filter(isToCheck).map(({ date, title }) => ({ date, title }));
   return { entries: entries.length, lastDate: entries.find((e) => e.date)?.date ?? '', toCheck };
+}
+
+function isToCheck(e: ProgressEntry): boolean {
+  return TO_CHECK.test(e.body) && !CHECKED.test(e.body);
+}
+
+/**
+ * Sino da praça (pedido do usuário, 29/10/2026): marca entregas como conferidas sem passar pelo administrador. Faz só o
+ * passo mecânico, o mesmo do administrador no `PROGRESS.md`: troca "Falta conferir na vila" (e o parêntese que vem
+ * junto) por "Conferido na vila pelo usuário em DD/MM/AAAA". Plano em `a-codar/` e pendência ficam com a sessão ou o
+ * administrador. Só mexe em entrega que o sino lista; retorna quantas trocou.
+ */
+export async function markChecked(dir: string, items: { date: string; title: string }[]): Promise<number> {
+  const file = path.join(dir, 'PROGRESS.md');
+  const text = await fs.readFile(file, 'utf8');
+  const wanted = new Set(items.map((i) => `${i.date}\n${i.title}`));
+  const now = new Date();
+  const today = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+  // Mesmo corte do `readProgress`: cada seção vai do título até o próximo `## `.
+  const sections: { heading: { date: string; title: string } | null; lines: string[] }[] = [{ heading: null, lines: [] }];
+  for (const line of text.split('\n')) {
+    const m = line.match(HEADING);
+    if (m) sections.push({ heading: { date: m[1] ?? '', title: m[2].trim() }, lines: [line] });
+    else sections[sections.length - 1].lines.push(line);
+  }
+  let changed = 0;
+  for (const s of sections) {
+    if (!s.heading || !wanted.has(`${s.heading.date}\n${s.heading.title}`)) continue;
+    const [head, ...rest] = s.lines;
+    const body = rest.join('\n');
+    if (!isToCheck({ ...s.heading, body })) continue;
+    s.lines = [head, ...body.replace(TO_CHECK_FULL, `Conferido na vila pelo usuário em ${today}`).split('\n')];
+    changed++;
+  }
+  if (changed) await fs.writeFile(file, sections.flatMap((s) => s.lines).join('\n'));
+  return changed;
 }

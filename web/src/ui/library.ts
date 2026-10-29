@@ -27,6 +27,17 @@ function renderMarkdown(md: string): string {
   return (meta ? `<pre class="frontmatter">${escapeHtml(meta)}</pre>` : '') + html;
 }
 
+const isHtml = (path: string) => /\.html?$/i.test(path);
+
+/**
+ * HTML de repositório tem script: abre num iframe `sandbox` sem `allow-same-origin`, igual à estante, e nunca vai para o
+ * DOM da vila. O `mtime` na URL faz o iframe recarregar depois de salvar.
+ */
+function renderHtml(file: { path: string; mtime: number }): string {
+  const src = `/api/library/html?path=${encodeURIComponent(file.path)}&v=${file.mtime}`;
+  return `<iframe class="quadro-frame reader-html" sandbox="allow-scripts" src="${escapeHtml(src)}"></iframe>`;
+}
+
 /** Arquivos gerados por script (ex.: o CLAUDE.md global vindo de IA/instalar.sh) não devem ser editados à mão. */
 function generatedNotice(md: string): string | null {
   const head = md.slice(0, 800);
@@ -124,9 +135,12 @@ export async function openLibrary(opts: { sectionId?: string; search?: boolean; 
     if (!on || !current) {
       if (current) {
         const notice = generatedNotice(current.content);
+        const html = isHtml(current.path);
+        body.classList.toggle('markdown', !html);
+        body.classList.toggle('reader-body-html', html);
         body.innerHTML =
           (notice ? `<div class="generated-warning">⚠️ Arquivo gerado — edições aqui podem ser sobrescritas.<br><small>${escapeHtml(notice)}</small></div>` : '') +
-          renderMarkdown(current.content);
+          (html ? renderHtml(current) : renderMarkdown(current.content));
       }
       return;
     }
@@ -149,6 +163,7 @@ export async function openLibrary(opts: { sectionId?: string; search?: boolean; 
       });
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, save);
     }
+    monaco.editor.setModelLanguage(editor.getModel()!, isHtml(current.path) ? 'html' : 'markdown');
     editor.setValue(current.content);
     editor.focus();
   }
@@ -225,7 +240,7 @@ export async function openLibrary(opts: { sectionId?: string; search?: boolean; 
         .map(([name, child]) => `<details class="folder"><summary>📁 ${escapeHtml(name)}</summary>${render(child)}</details>`)
         .join('') +
       node.files
-        .map((f) => `<button class="book" data-path="${escapeHtml(f.path)}" title="${escapeHtml(f.rel)}">📖 ${escapeHtml(f.rel.split('/').pop()!)}</button>`)
+        .map((f) => `<button class="book" data-path="${escapeHtml(f.path)}" title="${escapeHtml(f.rel)}">${isHtml(f.path) ? '🌐' : '📖'} ${escapeHtml(f.rel.split('/').pop()!)}</button>`)
         .join('');
     return render(root);
   }

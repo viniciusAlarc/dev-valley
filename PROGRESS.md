@@ -3,6 +3,38 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-29 — Biblioteca mostra arquivos HTML, além de markdown
+
+**O que mudou:** pedido do usuário (29/10/2026): o leitor da biblioteca mostra também `.html`.
+1. A varredura das estantes aceita `.html`/`.htm` além de `.md`/`.mdx`. Na estante o HTML aparece com 🌐.
+2. O leitor abre o HTML num iframe isolado (`sandbox` sem `allow-same-origin`, igual à estante da casa): o script do
+   documento não alcança a vila nem os terminais. Rota nova `GET /api/library/html`, só para arquivo que a varredura
+   listou. "Editar" abre o Monaco com realce de HTML; depois de salvar, o iframe recarrega.
+3. Catálogo da bibliotecária: o título do HTML vem do `<title>`.
+4. Ficaram de fora outros formatos (`.json`, `.txt`…): encheriam as estantes de `package.json` e afins.
+**Arquivos:** `server/src/library.ts`, `server/src/index.ts`, `server/src/catalog.ts`, `web/src/ui/library.ts`,
+`web/src/style.css`, `README.md`.
+**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. Acervo de teste no scratchpad: a
+varredura listou o `.md` e o `.html` e ignorou o `.json`; a rota recusa `.md` e arquivo fora da biblioteca; o catálogo
+saiu com o título do `<title>`. Falta conferir na vila (reinício do usuário).
+
+## 2026-10-29 — Sino marca entregas como conferidas pelas caixinhas, sem passar pelo administrador
+
+**O que mudou:** pedido do usuário (29/10/2026): o sino deixa de ser só leitura (decisão de 26/10/2026 revista).
+1. Cada entrega do painel do sino tem uma caixinha; o botão "Marcar como conferidas" grava as marcadas.
+2. Faz **só** o passo mecânico do administrador: no `PROGRESS.md`, "Falta conferir na vila" (e o parêntese que vem
+   junto, como "(reinício do usuário)", mesmo quebrado em duas linhas) vira "Conferido na vila pelo usuário em
+   DD/MM/AAAA". Frase citada entre aspas ou crases não muda. Plano em `a-codar/` e pendência continuam com a sessão ou
+   o administrador (decisão do usuário): quando o projeto tem plano que ainda diz "falta conferir na vila", o sino
+   avisa embaixo da lista.
+3. Rota `POST /api/progress/conferir`: só pedido de página local, e só entrega que o sino lista.
+4. O painel se atualiza sozinho depois de gravar, e não perde as caixinhas marcadas quando chega evento de sessão.
+**Arquivos:** `server/src/progress.ts` (`markChecked`), `server/src/sementes.ts` (`toCheck`), `server/src/index.ts`,
+`web/src/ui/conferir.ts`, `web/src/api.ts`, `web/src/style.css`, `README.md`.
+**Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. `markChecked` rodado num `PROGRESS.md`
+de teste no scratchpad: as 2 entregas pedidas trocadas (inclusive o parêntese em duas linhas), a frase entre aspas e
+a entrega não pedida intactas, nenhuma linha a mais no arquivo. Falta conferir na vila (reinício do usuário).
+
 ## 2026-10-29 — CI do auditor no GitHub (PD-9) e plano da lareira fechado (PD-7)
 
 **O que mudou:**
@@ -53,7 +85,7 @@ combinações de pele × cabelo, sorteadas pelo id). Pedido do usuário (28/10/2
 `web/src/game/interiorTextures.ts` (`agentTable`), `web/src/game/common.ts` (`AgentNpc.sit`), `web/src/game/TownScene.ts`,
 `web/src/ui/terminal.ts` (`openTerminal`, opção `agent`), `web/src/ui/actions.ts` (`talkToAgent`).
 **Validação:** typecheck do servidor e do front + `vite build` (numa pasta temporária, para não trocar o front servido)
-sem erro; auditor sem achado. Falta conferir na vila (recarregar a página).
+sem erro; auditor sem achado. Conferido na vila pelo usuário em 29/10/2026.
 
 ## 2026-10-28 — Painel de pendências da casa em linhas curtas que expandem
 
@@ -77,7 +109,7 @@ do P (`## 🔴 P1 — …`) e vai até P6; a regex só aceitava `## P1`..`## P4`
 3. Coluna "Pendência" vale como item (além de "Item").
 4. Front: bilhete, painel e CSS ganham cores para P5 (azul) e P6 (lilás).
 **Conferido:** parser rodado nos dois formatos (o deste repo: 5 itens, como antes; o outro: 38 abertos de P1 a P6,
-nenhum riscado). Typecheck, build e auditor sem achado. Falta conferir na vila (reinício é do usuário).
+nenhum riscado). Typecheck, build e auditor sem achado. Conferido na vila pelo usuário em 29/10/2026.
 **Arquivos:** `server/src/pendencias.ts`, `web/src/ui/pendencias.ts`, `web/src/game/interiorTextures.ts`, `web/src/style.css`.
 
 ## 2026-10-28 — Lareira: correções do primeiro uso de verdade
@@ -111,7 +143,7 @@ chaminé fica em (x+15, y-72) do pé da casa, pela textura `house` (chaminé nos
 **Arquivos:** `web/src/game/TownScene.ts` (`HouseView.smoke`, `puffSmoke`, `smokeTimer`), `web/src/game/textures.ts`
 (`smokePuff`: `smoke` e `smoke-dark`), `README.md`, `docs-dev/context/lareira-subir-sistema.md`, `docs-dev/painel.json`.
 **Testes:** `tsc` + `vite build` (diretório temporário), auditor sem achado. Posição da fumaça calculada pela textura
-da casa, sem renderizar. Falta conferir na vila (precisa do reinício): a casa do dev-valley deve soltar fumaça clara
+da casa, sem renderizar. Conferido na vila pelo usuário em 29/10/2026: a casa do dev-valley deve soltar fumaça clara
 (a 4777 é a própria vila, conta como acesa); acender o sistema de outra casa deve mostrar fumaça fina e depois
 contínua. Com a conferência, o plano fecha: vai para `docs-dev/context/` e a PD-7 sai do `PENDENCIAS.md`.
 
@@ -188,7 +220,7 @@ sob viga de aço; base de pedra. A primeira versão saiu detalhada demais e o us
 símbolo do meio: sem a engrenagem, tijolo num tom só com juntas espaçadas, sem rebites, reflexos e vidraça acesa.
 **Arquivos:** `web/src/game/textures.ts` (`factory`, `factoryWindow`).
 **Testes:** `tsc` + `vite build` (diretório temporário), auditor sem achado. Prévia em PNG do sprite gerada fora do
-navegador. Falta conferir na vila: depende do build/reinício, que é do usuário (regra 6).
+navegador. Conferido na vila pelo usuário em 29/10/2026.
 
 ## 2026-10-27 — Fachada da biblioteca com cara de biblioteca
 
@@ -198,7 +230,7 @@ com inscrição e dentículos, colunas com capitel e base, janelas em arco que m
 por dentro (`bookWindow`), porta em arco de duas folhas com lampiões dos lados, e escadaria na entrada.
 **Arquivos:** `web/src/game/textures.ts` (`library`, `bookWindow`).
 **Testes:** `tsc` + `vite build` (diretório temporário), auditor sem achado. Prévia em PNG do sprite gerada fora do
-navegador. Falta conferir na vila: depende do build/reinício, que é do usuário (regra 6).
+navegador. Conferido na vila pelo usuário em 29/10/2026.
 
 ## 2026-10-27 — Banco da praça abre sessão nova avulsa
 
@@ -238,7 +270,7 @@ atualizada). `POST /api/pombal/sugerir` só aceita página local.
 `web/src/api.ts`, `web/src/ui/commit.ts`, `README.md`, `CLAUDE.md`, `docs-dev/context/pombal.md`.
 **Testes:** `npm run typecheck -w server`, `npm run build`, auditor. Sugestão real neste repositório, com os arquivos
 do pombal: em 4 s veio "Pombal passa a ser a única peça de git da casa: enviar para o time faz commit, rebase e push
-de uma vez, e a caixa de envio saiu", no estilo do `git log`. Falta conferir na vila (precisa do reinício do servidor).
+de uma vez, e a caixa de envio saiu", no estilo do `git log`. Conferido na vila pelo usuário em 29/10/2026.
 
 ## 2026-10-28 — Pombal absorve a caixa de envio: dois estágios, local e enviado
 
@@ -275,7 +307,7 @@ não seja local, como a lareira. Regra 9 do `CLAUDE.md` reescrita.
 **Testes:** `npm run typecheck -w server`, `npm run build`. Repositório de teste com remoto falso e dois clones na
 mesma branch: pull com commit dos dois lados (rebase em linha), push, conflito (rebase desfeito, arquivo listado,
 repositório limpo), fetch falho sem "!", "!" que some depois de resolver por fora, branch sem upstream sem pombal.
-Falta conferir na vila (precisa do reinício do servidor).
+Conferido na vila pelo usuário em 29/10/2026.
 
 ## 2026-10-27 — Pombal vira casinha de passarinho no quintal
 

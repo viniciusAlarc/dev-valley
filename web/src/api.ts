@@ -21,8 +21,9 @@ export interface Project {
   progress: { entries: number; lastDate: string; toCheck: { date: string; title: string }[] } | null;
   /** Arquivos de acompanhamento que faltam (casa em obra); vazio = estrutura completa. */
   missingStructure: string[];
-  /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. */
-  sementes: { path: string; title: string }[] | null;
+  /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. `toCheck`: algum passo ainda
+   * diz "falta conferir na vila". */
+  sementes: { path: string; title: string; toCheck: boolean }[] | null;
   /** `docs-dev/context/` (estante): `html` abre isolado, `md` no leitor; null = o projeto não tem a pasta. */
   estante: { path: string; title: string; kind: 'html' | 'md' }[] | null;
   /** `RETRABALHO.md` (ervas do quintal): cabeçalho e linhas como estão no arquivo; null = sem o arquivo. */
@@ -355,6 +356,9 @@ export const api = {
   /** Encerra e apaga a conversa de vez. */
   deleteSession: (id: string) => request('DELETE', `/api/sessions/${id}`),
   progress: (project: string) => request<ProgressEntry[]>('GET', `/api/progress?project=${encodeURIComponent(project)}`),
+  /** Sino: troca "Falta conferir na vila" por "Conferido na vila…" nas entregas escolhidas. */
+  conferir: (project: string, items: { date: string; title: string }[]) =>
+    request<{ marcadas: number }>('POST', '/api/progress/conferir', { project, items }),
   /** Busca o remoto e lista as cartas dos dois sentidos. */
   acenderLareira: (project: string) => request<{ ligados: string[] }>('POST', '/api/lareira/acender', { project }),
   apagarLareira: (project: string) => request<{ ok: boolean }>('POST', '/api/lareira/apagar', { project }),

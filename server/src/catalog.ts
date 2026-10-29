@@ -38,6 +38,8 @@ async function describe(file: string): Promise<BookMeta> {
     description = fm[1].match(/^description:\s*(.+)$/m)?.[1].trim() ?? null;
     title = fm[1].match(/^name:\s*(.+)$/m)?.[1].trim() ?? null;
   }
+  // HTML: o título é o <title>; os cabeçalhos markdown abaixo não casam com nada nele.
+  title ??= text.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1].trim() || null;
   const headings: string[] = [];
   let inCode = false;
   for (const line of text.split('\n')) {

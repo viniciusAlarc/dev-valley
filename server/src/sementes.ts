@@ -1,11 +1,14 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { TO_CHECK } from './progress.js';
 
 /** Um plano decidido e ainda não codado (G7): um `.md` em `docs-dev/a-codar/`. */
 export interface Semente {
   /** Caminho absoluto (abre no leitor da biblioteca). */
   path: string;
   title: string;
+  /** Algum passo ainda diz "falta conferir na vila": o sino avisa que o plano não sai com a caixinha. */
+  toCheck: boolean;
 }
 
 /**
@@ -27,7 +30,7 @@ export async function readSementes(dir: string): Promise<Semente[] | null> {
       const full = path.join(base, name);
       const text = await fs.readFile(full, 'utf8').catch(() => '');
       const title = text.match(/^#\s+(.+)$/m)?.[1].trim() || name.replace(/\.md$/, '');
-      return { path: full, title };
+      return { path: full, title, toCheck: TO_CHECK.test(text) };
     }),
   );
 }

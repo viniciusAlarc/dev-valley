@@ -6,9 +6,13 @@ import { CLAUDE_PROJECTS_DIR, type Config } from './config.js';
 import type { Project } from './world.js';
 
 /**
- * A Biblioteca: tudo o que é conhecimento em markdown — instruções globais do Claude,
+ * A Biblioteca: tudo o que é conhecimento em markdown e HTML — instruções globais do Claude,
  * memórias automáticas, CLAUDE.md/AGENTS.md/docs de cada projeto e pastas extras (libraryRoots).
  */
+
+// Livros da estante: markdown e, desde 29/10/2026 (pedido do usuário), HTML, que o leitor abre isolado.
+const BOOK = /\.(md|mdx|html?)$/i;
+const isHtml = (file: string) => /\.html?$/i.test(file);
 
 export type SectionKind = 'global' | 'memory' | 'project' | 'root';
 
@@ -44,7 +48,7 @@ async function stat(file: string): Promise<LibraryFile | null> {
   }
 }
 
-async function walkMarkdown(base: string): Promise<LibraryFile[]> {
+async function walkBooks(base: string): Promise<LibraryFile[]> {
   const out: LibraryFile[] = [];
   async function walk(dir: string, depth: number) {
     if (depth > MAX_DEPTH || out.length >= MAX_FILES_PER_SECTION) return;
@@ -61,7 +65,7 @@ async function walkMarkdown(base: string): Promise<LibraryFile[]> {
         // .claude entra (CLAUDE.md, agentes, comandos); as demais pastas ocultas não.
         if (SKIP_DIRS.has(e.name) || (e.name.startsWith('.') && e.name !== '.claude')) continue;
         await walk(full, depth + 1);
-      } else if (e.isFile() && /\.(md|mdx)$/i.test(e.name)) {
+      } else if (e.isFile() && BOOK.test(e.name)) {
         const f = await stat(full);
         if (f) out.push({ ...f, rel: path.relative(base, full) });
       }
@@ -104,7 +108,7 @@ async function scan(config: Config, projects: Project[]): Promise<Section[]> {
   }
   for (const dir of memoryDirs.sort()) {
     const base = path.join(CLAUDE_PROJECTS_DIR, dir, 'memory');
-    const files = await walkMarkdown(base);
+    const files = await walkBooks(base);
     if (!files.length) continue;
     const project = projects.find((p) => encodeProjectDir(p.path) === dir);
     const title = project
@@ -116,13 +120,13 @@ async function scan(config: Config, projects: Project[]): Promise<Section[]> {
   }
 
   for (const p of projects) {
-    const files = await walkMarkdown(p.path);
+    const files = await walkBooks(p.path);
     const hasClaudeMd = files.some((f) => f.rel === 'CLAUDE.md' || f.rel === path.join('.claude', 'CLAUDE.md'));
     sections.push({ id: `project:${p.id}`, title: p.name, kind: 'project', base: p.path, projectId: p.id, files, missingClaudeMd: !hasClaudeMd });
   }
 
   for (const root of config.libraryRoots) {
-    sections.push({ id: `root:${root}`, title: path.basename(root), kind: 'root', base: root, files: await walkMarkdown(root) });
+    sections.push({ id: `root:${root}`, title: path.basename(root), kind: 'root', base: root, files: await walkBooks(root) });
   }
   return sections;
 }
@@ -155,6 +159,12 @@ export class Library {
     if (typeof file !== 'string') return null;
     const lookup = (s: Section[]) => s.flatMap((x) => x.files).find((f) => f.path === file) ?? null;
     return lookup(await this.sections()) ?? lookup(await this.sections(true));
+  }
+
+  /** Caminho do HTML para abrir isolado no leitor; null fora da biblioteca ou quando não é HTML. */
+  async htmlPath(file: unknown): Promise<string | null> {
+    const f = await this.find(file);
+    return f && isHtml(f.path) ? f.path : null;
   }
 
   async read(file: unknown) {
