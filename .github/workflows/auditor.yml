@@ -1,0 +1,18 @@
+# Auditor de referências (G12/G16): falha quando CLAUDE.md, agente ou skill aponta para arquivo que não existe.
+# --sem-home: caminhos ~/ são da máquina do usuário e não existem aqui.
+name: Auditor de referências
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Auditar referências
+        run: python3 scripts/auditar-referencias.py . --tudo --sem-home

@@ -1,15 +1,16 @@
 {
   "plano": {
-    "nome": "Lareira: ligar o sistema da casa (PD-7)",
-    "doc": "docs-dev/a-codar/lareira-subir-sistema.md",
+    "nome": "Qualidade e acabamento (ordem de 29/10/2026)",
+    "doc": "PENDENCIAS.md",
     "fases": [
-      { "nome": "Ler a tabela Subir e as portas", "estado": "feito" },
-      { "nome": "Ligar e desligar os lados", "estado": "feito" },
-      { "nome": "Lareira na casa e painel do log", "estado": "feito" },
-      { "nome": "Fumaça na chaminé", "estado": "feito" }
+      { "nome": "CI do auditor no GitHub (PD-9)", "estado": "feito" },
+      { "nome": "Suíte de testes (PD-8)", "estado": "a fazer" },
+      { "nome": "Tileset de verdade (PD-6)", "estado": "a fazer" }
     ]
   },
   "entregas": [
+    { "data": "2026-10-29", "o_que": "CI no GitHub roda o auditor de referências a cada push e pull request", "como": ".github/workflows/auditor.yml; --sem-home em scripts/auditar-referencias.py" },
+    { "data": "2026-10-29", "o_que": "Plano da lareira fechado: conferido na vila, PD-7 encerrada", "como": "docs-dev/context/lareira-subir-sistema.md" },
     { "data": "2026-10-28", "o_que": "Chaminé da casa solta fumaça pelo estado da lareira: fina subindo, contínua no ar, escura com erro", "como": "puffSmoke em TownScene, textura smoke/smoke-dark em textures.ts, estadoLareira" },
     { "data": "2026-10-27", "o_que": "Lareira na sala da casa com 4 estados e painel com os comandos, Acender/Apagar e uma aba de log por lado", "como": "web/src/ui/lareira.ts, estadoLareira em web/src/api.ts, fireplace em interiorTextures.ts" },
     { "data": "2026-10-27", "o_que": "Servidor liga e apaga os lados da tabela Subir: um pseudo-terminal por lado, apagar mata o grupo de processos inteiro", "como": "Lareiras em server/src/lareira.ts, POST /api/lareira/acender e /apagar (só origem local), log em /ws/lareira" },

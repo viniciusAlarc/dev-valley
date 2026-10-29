@@ -19,13 +19,13 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| PD-5 | 💻 | Chat próprio via Claude Agent SDK, com pedidos de permissão em caixas de diálogo | 2026-10-24 |
+| PD-10 | 💻 | Permitir/negar pelo balão do morador na vila, mantendo o terminal: o hook `PermissionRequest` responde `hookSpecificOutput.decision.behavior` (`allow`/`deny`), conferido na doc em 29/10/2026. A conferir no plano: se o diálogo do terminal aparece junto enquanto o hook espera, e o `timeout` do hook. Substitui a PD-5 (chat via Agent SDK), descartada pelo usuário em 29/10/2026 para não perder o Claude Code de verdade (slash commands, skills, mod) | 2026-10-29 |
 
 ## P4 — Baixo / melhoria
 
+> Ordem decidida pelo usuário em 29/10/2026: PD-8 (testes) e depois PD-6 (tileset).
+
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| PD-6 | 💻 | Trocar a pixel art gerada em código por um tileset de verdade | 2026-10-24 |
-| PD-7 | 💻 | Lareira na casa liga e desliga o sistema pela tabela "Subir" do `docs-dev/guias/OPERACAO.md` (back e front juntos, terminal da vila, fumaça na chaminé). Plano fechado em `docs-dev/a-codar/lareira-subir-sistema.md` (decisões de 26 e 27/10), pronto para o passo 1 | 2026-10-25 |
-| PD-8 | 💻 | Suíte de testes automatizada (hoje só typecheck + build + validação na vila) | 2026-10-25 |
-| PD-9 | 🖥️ | CI no GitHub rodando `python3 scripts/auditar-referencias.py . --tudo` (o repo ainda não tem CI) | 2026-10-25 |
+| PD-8 | 💻 | Suíte de testes automatizada (hoje só typecheck + build + validação na vila). **Próxima** | 2026-10-25 |
+| PD-6 | 💻 | Trocar a pixel art gerada em código por um tileset de verdade. Depois da PD-8 | 2026-10-24 |

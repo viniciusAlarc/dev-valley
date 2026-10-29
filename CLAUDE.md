@@ -60,7 +60,8 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 - Checagem de tipos do servidor: `npm run typecheck -w server`
 - Testes: não há suíte automatizada do servidor e do front ainda (PD-8). Validar com typecheck + build e na vila.
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
-- Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo`
+- Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com
+  `--sem-home`, em `.github/workflows/auditor.yml`)
 - Mod e agentes: `npm run hooks:install` / `npm run hooks:uninstall`
 
 ## Regras técnicas deste projeto — invioláveis

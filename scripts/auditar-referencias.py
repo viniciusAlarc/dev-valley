@@ -8,8 +8,9 @@ aponta para uma pasta apagada continua mandando criar arquivo lá até alguém n
 
 Regra de projeto: relatório que ninguém lê é pior que nenhum. Só reporta o que dá para agir.
 
-Uso:  auditar-referencias.py [raiz-do-repo] [--json] [--tudo]
-      --tudo  inclui docs (por padrão só o que INSTRUI: skill, hook, CLAUDE.md, AGENTS.md)
+Uso:  auditar-referencias.py [raiz-do-repo] [--json] [--tudo] [--sem-home]
+      --tudo      inclui docs (por padrão só o que INSTRUI: skill, hook, CLAUDE.md, AGENTS.md)
+      --sem-home  pula caminhos com ~/ (são da máquina do usuário; o CI não tem como conferir)
 Saída: exit 1 se houver achado em algo que instrui.
 """
 import os, re, sys, json, glob
@@ -22,6 +23,7 @@ try:
 except Exception:
     ACERVOS = {}
 TUDO = '--tudo' in sys.argv
+SEM_HOME = '--sem-home' in sys.argv
 
 ALVOS = [('skill', '.claude/commands/*.md'), ('skill', '.claude/skills/*/SKILL.md'),
          ('hook', '.claude/hooks/*.sh'), ('instrucao', 'CLAUDE.md'), ('instrucao', 'AGENTS.md'),
@@ -76,6 +78,8 @@ def caminho_auditavel(c):
         return False                                   # método, lista de enum, rota de API
     if '/' not in c.rstrip('/'):
         return False                                   # segmento único: ambíguo (pode ser de outro repo)
+    if SEM_HOME and c.startswith('~'):
+        return False                                   # ~/.claude/...: existe só na máquina do usuário
     if c.startswith(('http', '/api', 'api/')) or '${' in c or '<' in c or '*' in c:
         return False
     if '...' in c:

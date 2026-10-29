@@ -3,6 +3,24 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-29 — CI do auditor no GitHub (PD-9) e plano da lareira fechado (PD-7)
+
+**O que mudou:**
+1. **PD-7 fechada.** O usuário conferiu a lareira na vila (29/10/2026, "funcionando 100%", com a fumaça na chaminé). O
+   plano saiu de `docs-dev/a-codar/` para `docs-dev/context/lareira-subir-sistema.md`.
+2. **PD-9: CI no GitHub.** `.github/workflows/auditor.yml` roda o auditor de referências a cada push e pull request. Na
+   máquina do GitHub os caminhos `~/.claude/...` citados no `CLAUDE.md`, no `README.md` e nos agentes não existem: um
+   clone limpo com `HOME` vazio deu 16 falsos achados. Opção nova `--sem-home` no `scripts/auditar-referencias.py` pula
+   esses caminhos; o CI usa ela, e na máquina do usuário o auditor continua conferindo tudo.
+3. **Ordem do que falta** (decisão do usuário, 29/10/2026): PD-8 (testes), depois PD-6 (tileset). PD-5 (chat próprio
+   via Agent SDK) foi descartada: perderia o Claude Code de verdade (slash commands, skills, mod) e a maior vantagem
+   dela, permitir/negar sem abrir o terminal, dá para ter pelo hook `PermissionRequest`. Entrou a PD-10 no lugar.
+**Arquivos:** `.github/workflows/auditor.yml` (novo), `scripts/auditar-referencias.py` (`--sem-home`), `CLAUDE.md`,
+`docs-dev/context/lareira-subir-sistema.md` (movido), `PENDENCIAS.md`, `docs-dev/painel.json`.
+**Testes:** cópia limpa do repositório sem o config local e com `HOME` vazio (como no GitHub): sem `--sem-home` 16
+achados, com ela nenhum; com uma referência morta de verdade inserida no `CLAUDE.md` da cópia, o auditor acusa e sai
+com 1. Na máquina, `--tudo` sem a opção segue sem achado. O workflow só roda de verdade no primeiro push.
+
 ## 2026-10-29 — Arquivo de projeto abre por link clicável no terminal da vila
 
 **O que mudou:** link `file://` nunca abre no terminal da vila: ele roda no navegador (xterm.js), que só torna clicável
@@ -76,7 +94,7 @@ fumaça preta. Três causas, achadas reproduzindo cada lado como a lareira roda 
    "apagado pela vila". Agora o lado é marcado como sendo apagado antes do sinal, e qualquer saída depois disso conta
    como código 0.
 **Arquivos:** `server/src/lareira.ts` (`apagando`, teclado no `attach`), `web/src/ui/lareira.ts` (xterm aceita
-teclado), `docs-dev/a-codar/lareira-subir-sistema.md` (decisão 8), `RETRABALHO.md`.
+teclado), `docs-dev/context/lareira-subir-sistema.md` (decisão 8), `RETRABALHO.md`.
 **Testes:** `npm run typecheck -w server` e `tsc` do front. O back do projeto rodado pela classe `Lareiras`: porta
 aberta em 30s, nenhuma linha de erro no log, e depois de apagar a porta ficou livre com código 0 (sem fumaça preta) e
 sem processo sobrando. O front reproduzido mostrou a pergunta do autocompletar parada esperando resposta. Falta
@@ -85,13 +103,13 @@ fumaça parar.
 
 ## 2026-10-28 — Lareira, passo 4: fumaça na chaminé da fachada
 
-**O que mudou:** último passo do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). A chaminé de cada casa
+**O que mudou:** último passo do plano `docs-dev/context/lareira-subir-sistema.md` (PD-7). A chaminé de cada casa
 com lareira solta baforadas pelo estado (`estadoLareira`, o mesmo da sala): apagada, nada; acendendo, fumaça fina e
 espaçada; acesa, fumaça clara contínua; erro, fumaça escura. Cada baforada sobe uns 20px, se espalha e some em 1,8s.
 Um timer só da cena (120ms) cuida de todas as casas e é recriado junto com a vila, para não acumular. A boca da
 chaminé fica em (x+15, y-72) do pé da casa, pela textura `house` (chaminé nos pixels 43 a 52 de 64).
 **Arquivos:** `web/src/game/TownScene.ts` (`HouseView.smoke`, `puffSmoke`, `smokeTimer`), `web/src/game/textures.ts`
-(`smokePuff`: `smoke` e `smoke-dark`), `README.md`, `docs-dev/a-codar/lareira-subir-sistema.md`, `docs-dev/painel.json`.
+(`smokePuff`: `smoke` e `smoke-dark`), `README.md`, `docs-dev/context/lareira-subir-sistema.md`, `docs-dev/painel.json`.
 **Testes:** `tsc` + `vite build` (diretório temporário), auditor sem achado. Posição da fumaça calculada pela textura
 da casa, sem renderizar. Falta conferir na vila (precisa do reinício): a casa do dev-valley deve soltar fumaça clara
 (a 4777 é a própria vila, conta como acesa); acender o sistema de outra casa deve mostrar fumaça fina e depois
@@ -99,7 +117,7 @@ contínua. Com a conferência, o plano fecha: vai para `docs-dev/context/` e a P
 
 ## 2026-10-27 — Lareira, passo 3: lareira na sala e painel com os logs
 
-**O que mudou:** passo 3 do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). Projeto com a tabela "Subir"
+**O que mudou:** passo 3 do plano `docs-dev/context/lareira-subir-sistema.md` (PD-7). Projeto com a tabela "Subir"
 (algum lado com comando) ganha uma lareira encostada no canto de cima à direita (decisão 9). Primeiro ela ficou solta
 no chão ao lado do sofá; o usuário apontou que não fazia sentido, e a parede de cima foi redistribuída: estante,
 atril, quadro de cortiça, janela (saiu do centro), quadro negro com a caixa de sementes embaixo, escrivaninha e
@@ -115,7 +133,7 @@ nunca ligado criava um registro que aparecia como "saiu"; agora aparece como nã
 **Arquivos:** `web/src/ui/lareira.ts` (novo), `web/src/api.ts` (`estadoLareira`, `acenderLareira`, `apagarLareira`),
 `web/src/game/interiorTextures.ts` (`fireplace`), `web/src/game/InteriorScene.ts` (lareira, `lightFireplace`),
 `web/src/ui/actions.ts`, `web/src/style.css` (comando longo quebra), `server/src/lareira.ts` (`merge`), `README.md`,
-`docs-dev/a-codar/lareira-subir-sistema.md`, `docs-dev/painel.json`.
+`docs-dev/context/lareira-subir-sistema.md`, `docs-dev/painel.json`.
 **Testes:** `npm run typecheck -w server`, `tsc` + `vite build` (diretório temporário), auditor sem achado.
 `estadoLareira` testado com os 7 casos da tabela do plano (apagada, acendendo por processo e por porta, acesa com um
 lado de fora, erro, apagado pela vila, lados sem comando e com problema ignorados). As posições da parede foram
@@ -123,7 +141,7 @@ conferidas pelas medidas de cada peça (sem sobreposição), sem renderizar. Con
 
 ## 2026-10-27 — Lareira, passo 2: servidor liga e apaga os lados
 
-**O que mudou:** passo 2 do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). `Lareiras` em
+**O que mudou:** passo 2 do plano `docs-dev/context/lareira-subir-sistema.md` (PD-7). `Lareiras` em
 `server/src/lareira.ts` mantém um processo por lado, em pseudo-terminal (`node-pty`, como os moradores), filho do
 servidor: `bash -c "<comando>"` na pasta da tabela. Acender liga só os lados que têm comando, não têm problema, não
 estão rodando pela vila e cuja porta está livre (decisões 2 e 7: a vila nunca mexe em processo que não criou). Apagar
@@ -136,7 +154,7 @@ projeto: o comando vem da tabela lida pelo servidor. As duas rotas exigem págin
 reiniciar a vila derruba esses sistemas.
 **Arquivos:** `server/src/lareira.ts` (`Lareiras`, `Lado.vila`), `server/src/index.ts` (rotas, `/ws/lareira`,
 `refreshWorld` junta o estado, desligamento), `web/src/api.ts`, `docs-dev/guias/OPERACAO.md`,
-`docs-dev/a-codar/lareira-subir-sistema.md`, `docs-dev/painel.json`.
+`docs-dev/context/lareira-subir-sistema.md`, `docs-dev/painel.json`.
 **Testes:** `npm run typecheck -w server` e `tsc` do front, auditor sem achado. Gerenciador testado de verdade, fora
 da vila (sem reiniciar o servidor), num projeto falso no scratchpad com 3 lados: dois servidores HTTP (um deles com um
 `sleep` em segundo plano) e um comando que sai com código 3. Acender ocupou as duas portas e marcou "rodando"; o lado
@@ -146,7 +164,7 @@ nenhum processo órfão (o `sleep` morreu junto). As rotas e o `/ws/lareira` nã
 
 ## 2026-10-27 — Lareira, passo 1: servidor lê a tabela "Subir" e as portas
 
-**O que mudou:** passo 1 do plano `docs-dev/a-codar/lareira-subir-sistema.md` (PD-7). Cada projeto ganha `lareira`:
+**O que mudou:** passo 1 do plano `docs-dev/context/lareira-subir-sistema.md` (PD-7). Cada projeto ganha `lareira`:
 os lados da tabela "Subir" do `docs-dev/guias/OPERACAO.md` (primeira tabela depois de `## Subir`, colunas achadas
 pelo nome), com pasta, comando, porta e se a porta está ocupada (e por qual PID, quando o processo é do usuário). Pasta
 e comando saem sem as crases; `\|` vira pipe dentro do comando. Célula de comando vazia = a vila não liga aquele lado;
@@ -155,7 +173,7 @@ do projeto, pasta que não existe ou porta inválida. As portas são lidas uma v
 (`ss -ltnpH`), para todas as casas. Só leitura: nada liga nem desliga ainda (passo 2). O `painel.json` passa a ter
 este plano (o anterior estava todo feito).
 **Arquivos:** `server/src/lareira.ts` (novo), `server/src/world.ts` (`Project.lareira`, portas por atualização),
-`web/src/api.ts` (tipo `Lado`), `docs-dev/a-codar/lareira-subir-sistema.md`, `docs-dev/painel.json`, `CLAUDE.md`.
+`web/src/api.ts` (tipo `Lado`), `docs-dev/context/lareira-subir-sistema.md`, `docs-dev/painel.json`, `CLAUDE.md`.
 **Testes:** `npm run typecheck -w server` e `tsc` do front, auditor sem achado. Leitor testado nos projetos reais: este
 repositório tem o back na 4777, que aparece ocupada pela própria vila; o de exemplo tem back e front livres; projeto sem
 `OPERACAO.md` fica sem lareira. Uma tabela de teste confirmou pipe escapado, `../..` recusado, pasta inexistente, porta

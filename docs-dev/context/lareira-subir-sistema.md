@@ -1,7 +1,8 @@
 # Lareira: ligar o sistema da casa (PD-7)
 
-> Plano decidido com o usuário em 26/10/2026 (G7). Ao fechar cada passo: marcar aqui e no `PROGRESS.md`; ao fechar o
-> plano, este arquivo vai para `docs-dev/context/` e a PD-7 sai do `PENDENCIAS.md`.
+> Plano decidido com o usuário em 26/10/2026 (G7) e implementado de 27 a 28/10/2026. Conferido na vila pelo usuário em
+> 29/10/2026: plano fechado, PD-7 saiu do `PENDENCIAS.md`. Código: `server/src/lareira.ts`, `web/src/ui/lareira.ts`,
+> `puffSmoke` na `TownScene`.
 
 Todo projeto tem, pelo G14, a tabela "Subir" no topo do `docs-dev/guias/OPERACAO.md` (lado, pasta, comando, porta).
 Este plano usa essa tabela para a vila ligar e desligar o sistema do projeto de dentro da casa.
