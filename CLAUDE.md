@@ -62,8 +62,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 - Testes: `npm test` (`node:test` + `tsx`, em `server/tests/` e `web/tests/`; projeto de mentira em pasta temporária
   por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade; rotas por `subir()` de `server/tests/servidor.ts`,
   com imitações; teste que usa classe que grava em `~` troca o `HOME` antes do `import`, como
-  `rotas-fabrica-biblioteca.test.ts`). Cobre leitores, estado da lareira, travas de segurança e as 37 rotas; pombal,
-  WebSockets e front seguem validados com typecheck + build e na vila (PD-8). Nada vermelho em 29/10/2026 (67/67).
+  `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
+  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 37 rotas e o pombal; WebSockets e front
+  seguem validados com typecheck + build e na vila (PD-8). Nada vermelho em 29/10/2026 (80/80).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com
   `--sem-home`, em `.github/workflows/auditor.yml`)

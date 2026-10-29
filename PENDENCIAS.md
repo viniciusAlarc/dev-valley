@@ -27,5 +27,5 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| PD-8 | 💻 | Suíte de testes automatizada. **Em andamento:** passos 1 e 2 feitos (`npm test`, 67 testes, as 37 rotas HTTP); próximo: pombal (passo 3), depois decidir o CI (passo 4), depois pombal (passo 3) e decidir o CI (passo 4). Plano em `docs-dev/a-codar/testes-automatizados.md` | 2026-10-25 |
+| PD-8 | 💻 | Suíte de testes automatizada. **Em andamento:** passos 1 a 3 feitos (`npm test`, 80 testes: leitores, as 37 rotas e o pombal); falta decidir o CI (passo 4, 👤), depois pombal (passo 3) e decidir o CI (passo 4). Plano em `docs-dev/a-codar/testes-automatizados.md` | 2026-10-25 |
 | PD-6 | 💻 | Trocar a pixel art gerada em código por um tileset de verdade. Depois da PD-8 | 2026-10-24 |

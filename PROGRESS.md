@@ -3,6 +3,28 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-29 — Testes automatizados, passo 3: pombal com git de verdade (PD-8)
+
+**O que mudou:** passo 3 do plano `docs-dev/a-codar/testes-automatizados.md`. `server/tests/pombal.test.ts` monta, numa
+pasta temporária, um remoto (`--bare`, o papel do GitHub) e dois clones: `eu`, onde o pombal age, e `colega`, que manda
+commits do time. Sem rede. O git do processo de teste não lê o `~/.gitconfig` do usuário (`GIT_CONFIG_GLOBAL=/dev/null`)
+e tem autor fixo. 13 testes:
+1. `readPombal`, `buscar` e `cartas`: arquivos só seus, commits a receber depois de buscar, remoto inacessível vira
+   `falhaBusca` sem "!".
+2. `enviar`: commit, rebase e push com o remoto ficando com os dois commits; só os arquivos escolhidos vão; sem
+   mensagem recusa antes de sair, sem marcar erro; sem upstream só commita.
+3. **Regra 9:** conflito no rebase termina em `rebase --abort`: commit local preservado, nenhum rebase em andamento,
+   pasta limpa, remoto intacto e "!" no pombal, que some quando o HEAD sai daquele commit.
+4. `receber`: traz o que chegou mantendo alteração sem commit (autostash); alteração que conflita fica no stash.
+5. Dois cliques: a segunda viagem é recusada enquanto a primeira voa.
+6. `/api/pombal` com o pombal de verdade: GET lista as cartas, POST entrega no remoto, conflito responde 409.
+O "nunca `--force`" da regra 9 ficou sem teste: depois do rebase o push é sempre fast-forward, com ou sem `--force`.
+**Arquivos:** `server/tests/pombal.test.ts` (novo), `CLAUDE.md`, `docs-dev/a-codar/testes-automatizados.md`,
+`PENDENCIAS.md`, `docs-dev/painel.json`.
+**Testes:** `npm test` 80/80 em 5 s. Prova de que pegam bug: sem o `rebase --abort`, com o commit ignorando os arquivos
+escolhidos e sem a checagem do stash, 3 testes falharam; `pombal.ts` restaurado (por `trap`, garantido mesmo se o teste
+travasse) e 80/80 de novo. Typecheck sem erro, auditor sem achado. Só testes mudaram: nada a conferir na vila.
+
 ## 2026-10-29 — Testes automatizados, passo 2 fechado: as 37 rotas HTTP com teste (PD-8)
 
 **O que mudou:** as 22 rotas que faltavam no passo 2 do plano `docs-dev/a-codar/testes-automatizados.md`.

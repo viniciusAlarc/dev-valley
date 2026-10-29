@@ -9,6 +9,7 @@
     ]
   },
   "entregas": [
+    { "data": "2026-10-29", "o_que": "Pombal testado com git de verdade: enviar, receber, arquivos escolhidos, conflito com rebase --abort, stash e dois cliques (80 testes)", "como": "server/tests/pombal.test.ts: remoto bare e dois clones em pasta temporária, git isolado do ~/.gitconfig" },
     { "data": "2026-10-29", "o_que": "As 37 rotas HTTP com teste (67 testes); Fábrica e biblioteca testadas com as classes de verdade num HOME temporário", "como": "server/tests/rotas-fabrica-biblioteca.test.ts; limite de 5 s por requisição em servidor.ts" },
     { "data": "2026-10-29", "o_que": "Rotas HTTP testáveis sem subir a vila: 15 das 37 com teste de sucesso e de entrada inválida (52 testes)", "como": "criarApp(ctx) em server/src/app.ts; subir() em server/tests/servidor.ts com imitações" },
     { "data": "2026-10-29", "o_que": "npm test com 34 testes: leitores dos arquivos de acompanhamento, estado da lareira e travas de segurança", "como": "node:test + tsx; server/tests, web/tests; travas extraídas para server/src/seguranca.ts" },

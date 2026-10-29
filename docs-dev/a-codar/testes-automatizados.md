@@ -31,7 +31,7 @@ tinha testes próprios (`mod/tests/`, `claude plugin test mod`) e fica fora dest
 |---|---|---|
 | 1 | Leitores, estado da lareira e travas de segurança | feito (29/10/2026, 34 testes) |
 | 2 | Rotas HTTP: um teste de sucesso e um de entrada inválida por rota (G11), começando pelas que recebem caminho ou `project` do navegador, com o 404 de "fora do projeto" igual ao de inexistente conferido na resposta (G9). Pede separar a montagem do `app` do `server.listen` no `index.ts` | feito (29/10/2026): rotas em `server/src/app.ts` (`criarApp(ctx)`), as 37 com teste; Fábrica e biblioteca com as classes de verdade num `HOME` temporário (decisão 6) |
-| 3 | Pombal com repositórios git de mentira: commit, rebase com conflito terminando em `rebase --abort` | a fazer |
+| 3 | Pombal com repositórios git de mentira: commit, rebase com conflito terminando em `rebase --abort` | feito (29/10/2026, `server/tests/pombal.test.ts`, 13 testes; o "nunca `--force`" da regra 9 não tem teste: depois do rebase o push é sempre fast-forward, com ou sem `--force`) |
 | 4 | Testes no CI do GitHub (`npm ci` + `npm test`; o `node-pty` compila código nativo lá) | a decidir com o usuário |
 
 O passo 2 entrou em 29/10/2026 (decisão do usuário), depois de comparar o passo 1 com as regras de teste do
