@@ -3,6 +3,32 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-29 — Testes automatizados, passo 1: leitores, lareira e travas de segurança (PD-8)
+
+**O que mudou:** passo 1 do plano `docs-dev/a-codar/testes-automatizados.md` (decisões do usuário em 29/10/2026:
+`node:test` + `tsx`, sem dependência nova; só local, sem CI por enquanto). `npm test` na raiz roda 34 testes:
+1. **Leitores** dos arquivos de acompanhamento: `readPendencias` (emoji no título, P6, colunas pelo cabeçalho, item
+   riscado ou com ✅), `readProgress`/`summarizeProgress`/`markChecked` (frase citada entre aspas não conta, parêntese
+   quebrado em duas linhas), `readPainel`, `readRetrabalho`, `missingStructure`, `readAuditoria` e `readLareira` (pipe
+   escapado, pasta fora do projeto, porta inválida).
+2. **Estado da lareira** (`estadoLareira`, front): os 7 casos da tabela do plano da lareira.
+3. **Travas de segurança:** `isLocalOrigin` e a checagem do `/api/arquivo` saíram do `index.ts` para
+   `server/src/seguranca.ts` (`arquivoPermitido`), sem mudar o comportamento. Testes: pasta vizinha com o mesmo começo de
+   nome, arquivo com ponto em qualquer nível (`.env`, `.git/config`), link simbólico para fora.
+Cada teste cria o projeto de mentira numa pasta temporária (`projeto()` em `server/tests/util.ts`). Os testes do
+servidor entram no `npm run typecheck -w server`; o do front roda, mas fica fora do `tsc` do `web` (sem tipos do Node lá).
+**Arquivos:** `server/src/seguranca.ts` (novo), `server/src/index.ts`, `server/tests/` (novo), `web/tests/` (novo),
+`package.json` (`test`), `server/tsconfig.json`, `CLAUDE.md` (comando e gate), `docs-dev/a-codar/testes-automatizados.md`
+(novo), `PENDENCIAS.md`, `docs-dev/painel.json`.
+**Testes:** `npm test` 34/34. Prova de que pegam bug: três estragos de propósito (sem a trava do ponto, sem o separador
+de pasta na comparação, item riscado contando) fizeram 3 testes falharem; código restaurado e 34/34 de novo.
+`npm run typecheck -w server` e `tsc` + `vite build` (pasta temporária) sem erro, auditor sem achado. Falta conferir na
+vila (reinício do usuário): o `/api/arquivo` e os WebSockets agora usam as funções extraídas; abrir um link de arquivo
+no terminal da vila confere os dois.
+**Aberto:** comparado com as regras de teste do `~/.claude/CLAUDE.md`, o passo 1 cobre G4 mas não G11 (teste de sucesso
+e de entrada inválida por rota) nem o 404 do G9 conferido na resposta. Por decisão do usuário (29/10/2026), entrou no
+plano o passo 2 "Rotas HTTP"; o pombal passou a ser o passo 3 e o CI o 4.
+
 ## 2026-10-29 — Biblioteca mostra arquivos HTML, além de markdown
 
 **O que mudou:** pedido do usuário (29/10/2026): o leitor da biblioteca mostra também `.html`.
@@ -33,7 +59,7 @@ saiu com o título do `<title>`. Falta conferir na vila (reinício do usuário).
 `web/src/ui/conferir.ts`, `web/src/api.ts`, `web/src/style.css`, `README.md`.
 **Testes:** `npm run typecheck -w server`, `npm run build`, auditor sem achado. `markChecked` rodado num `PROGRESS.md`
 de teste no scratchpad: as 2 entregas pedidas trocadas (inclusive o parêntese em duas linhas), a frase entre aspas e
-a entrega não pedida intactas, nenhuma linha a mais no arquivo. Falta conferir na vila (reinício do usuário).
+a entrega não pedida intactas, nenhuma linha a mais no arquivo. Conferido na vila pelo usuário em 29/10/2026.
 
 ## 2026-10-29 — CI do auditor no GitHub (PD-9) e plano da lareira fechado (PD-7)
 

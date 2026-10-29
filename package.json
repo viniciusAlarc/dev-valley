@@ -10,6 +10,7 @@
     "dev": "concurrently -n server,web -c green,cyan \"npm run dev -w server\" \"npm run dev -w web\"",
     "build": "npm run build -w web",
     "start": "npm run build && npm run start -w server",
+    "test": "tsx --test \"server/tests/*.test.ts\" \"web/tests/*.test.ts\"",
     "hooks:install": "npm run hooks:install -w server",
     "hooks:uninstall": "npm run hooks:uninstall -w server"
   },

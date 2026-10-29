@@ -19,6 +19,7 @@ import { Moradores } from './moradores.js';
 import { sugerirMensagem } from './escrevente.js';
 import { buscar, cartas, PombalError, voar } from './pombal.js';
 import { markChecked, readProgress } from './progress.js';
+import { arquivoPermitido, isLocalOrigin } from './seguranca.js';
 import { deleteSessionFiles } from './sessions.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
@@ -257,32 +258,13 @@ app.get('/api/quadro', (req, res) => sendIsolatedHtml(res, findProject(req.query
 app.get('/api/estante', (req, res) => sendIsolatedHtml(res, findProject(req.query.project)?.estante?.[Number(req.query.i)]));
 
 // Link clicável para arquivo no terminal da vila: o terminal roda no navegador, que só abre link http(s), nunca file://
-// (pedido do usuário, 29/10/2026). Só entrega arquivo de dentro da pasta de um projeto da vila, pelo caminho real
-// (link simbólico não escapa), e o que estiver fora responde 404, igual a arquivo inexistente. Nada que comece com
-// ponto (.env, .git, .claude), em qualquer nível dentro do projeto: o sendFile não recusa sozinho quando recebe o
-// caminho absoluto (testado em 29/10/2026, entregou .git/config). HTML abre isolado, como os da estante.
+// (pedido do usuário, 29/10/2026). O que `arquivoPermitido` recusa responde 404, igual a arquivo inexistente.
+// HTML abre isolado, como os da estante.
 app.get('/api/arquivo', (req, res) => {
   const pedido = typeof req.query.path === 'string' ? req.query.path : '';
   const naoEncontrado = () => res.status(404).json({ error: 'arquivo não encontrado' });
-  if (!path.isAbsolute(pedido)) return naoEncontrado();
-  let real: string;
-  try {
-    real = fs.realpathSync(pedido);
-    if (!fs.statSync(real).isFile()) return naoEncontrado();
-  } catch {
-    return naoEncontrado();
-  }
-  const raiz = world.projects
-    .map((p) => {
-      try {
-        return fs.realpathSync(p.path);
-      } catch {
-        return null;
-      }
-    })
-    .find((r) => r !== null && real.startsWith(r + path.sep));
-  if (!raiz) return naoEncontrado();
-  if (path.relative(raiz, real).split(path.sep).some((parte) => parte.startsWith('.'))) return naoEncontrado();
+  const real = arquivoPermitido(pedido, world.projects.map((p) => p.path));
+  if (!real) return naoEncontrado();
 
   const ext = path.extname(real).toLowerCase();
   if (ext === '.html' || ext === '.htm') return sendIsolatedHtml(res, { path: real, kind: 'html' });
@@ -478,16 +460,6 @@ if (fs.existsSync(webDist)) {
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });
-
-function isLocalOrigin(origin: string | undefined): boolean {
-  if (!origin) return true;
-  try {
-    const { hostname } = new URL(origin);
-    return hostname === 'localhost' || hostname === '127.0.0.1';
-  } catch {
-    return false;
-  }
-}
 
 server.on('upgrade', (req, socket, head) => {
   // Os terminais rodam comandos de verdade: só aceitamos páginas servidas localmente.

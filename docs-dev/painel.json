@@ -4,11 +4,12 @@
     "doc": "PENDENCIAS.md",
     "fases": [
       { "nome": "CI do auditor no GitHub (PD-9)", "estado": "feito" },
-      { "nome": "Suíte de testes (PD-8)", "estado": "a fazer" },
+      { "nome": "Suíte de testes (PD-8)", "estado": "andamento", "doc": "docs-dev/a-codar/testes-automatizados.md" },
       { "nome": "Tileset de verdade (PD-6)", "estado": "a fazer" }
     ]
   },
   "entregas": [
+    { "data": "2026-10-29", "o_que": "npm test com 34 testes: leitores dos arquivos de acompanhamento, estado da lareira e travas de segurança", "como": "node:test + tsx; server/tests, web/tests; travas extraídas para server/src/seguranca.ts" },
     { "data": "2026-10-29", "o_que": "CI no GitHub roda o auditor de referências a cada push e pull request", "como": ".github/workflows/auditor.yml; --sem-home em scripts/auditar-referencias.py" },
     { "data": "2026-10-29", "o_que": "Plano da lareira fechado: conferido na vila, PD-7 encerrada", "como": "docs-dev/context/lareira-subir-sistema.md" },
     { "data": "2026-10-28", "o_que": "Chaminé da casa solta fumaça pelo estado da lareira: fina subindo, contínua no ar, escura com erro", "como": "puffSmoke em TownScene, textura smoke/smoke-dark em textures.ts, estadoLareira" },
