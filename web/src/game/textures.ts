@@ -130,13 +130,20 @@ function weed(scene: Phaser.Scene, key: string, flower: boolean) {
   add(scene, key, c);
 }
 
-/** Placa de vistoria embaixo da janela da esquerda: no prazo (papel) ou vencida (amarela). */
+/** Placa de vistoria fincada no quintal da frente: tabuleta numa estaca, no prazo (papel) ou vencida (amarela). */
 function plaque(scene: Phaser.Scene, key: string, face: string, lines: string) {
-  const { c, ctx } = makeCanvas(9, 7);
-  rect(ctx, 0, 0, 9, 7, '#6b4423');
-  rect(ctx, 1, 1, 7, 5, face);
-  rect(ctx, 2, 2, 5, 1, lines);
-  rect(ctx, 2, 4, 3, 1, lines);
+  const W = 13;
+  const H = 16;
+  const { c, ctx } = makeCanvas(W, H);
+  rect(ctx, 5, 7, 3, 7, '#7a4a22');
+  rect(ctx, 5, 7, 1, 7, '#9a6430');
+  disc(ctx, 6, 14, 1, '#6b4a2a');
+  rect(ctx, 3, 14, 7, 1, '#6b4a2a');
+  rect(ctx, 1, 1, 11, 7, '#6b4423');
+  rect(ctx, 2, 2, 9, 5, face);
+  rect(ctx, 3, 3, 7, 1, lines);
+  rect(ctx, 3, 5, 4, 1, lines);
+  outline(ctx, W, H);
   add(scene, key, c);
 }
 

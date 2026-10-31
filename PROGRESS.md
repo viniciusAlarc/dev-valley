@@ -3,6 +3,17 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-31 — Placa de vistoria fincada no quintal da frente
+
+**O que mudou:** a placa de vistoria saiu da parede (embaixo da janela da esquerda) e virou uma tabuleta numa estaca no
+quintal da frente, à esquerda do caminho da porta, acima do letreiro do nome, para a fachada aparecer inteira (pedido
+do usuário). Cores, tooltip e clique (entra na casa) iguais. Duas tentativas de fachada nova, a partir de imagens de
+referência do usuário, foram desfeitas a pedido dele antes do commit: a casa segue com o desenho original.
+**Arquivos:** `web/src/game/textures.ts` (`plaque` com estaca), `web/src/game/TownScene.ts` (posição), `README.md`.
+**Testes:** `npm test` 96/96, typecheck do servidor e `tsc` + `vite build` do front (diretório temporário) sem erro,
+auditor só com os 2 avisos informativos que já existiam. Placa conferida em prévia PNG; a posição foi medida (moita,
+caminho e letreiro), não renderizada. Conferido na vila pelo usuário em 31/10/2026.
+
 ## 2026-10-31 — Pombal: o pombo chega voando quando o time manda coisa nova
 
 **O que mudou:** quando a busca do remoto (a cada 5 min ou ao abrir o pombal) descobre commits a receber, o pombo entra

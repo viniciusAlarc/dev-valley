@@ -469,8 +469,9 @@ export class TownScene extends Phaser.Scene {
       () => ui.openObra(this.currentProject(p.id)),
     );
 
-    // Placa de vistoria embaixo da janela da esquerda, entre o peitoril e a fundação.
-    const plaque = this.add.image(plot.house.x - 16, plot.house.y - 8, 'plaque-ok').setOrigin(0.5, 1).setDepth(plot.house.y + 1).setVisible(false);
+    // Placa de vistoria fincada no quintal da frente, à esquerda do caminho da porta (fora da fachada, para a casa
+    // aparecer inteira); acima do letreiro com o nome e na frente da moita.
+    const plaque = this.add.image(plot.house.x - 26, plot.house.y + 15, 'plaque-ok').setOrigin(0.5, 1).setDepth(plot.house.y + 15).setVisible(false);
     makeInteractive(
       plaque,
       () => {
@@ -480,7 +481,7 @@ export class TownScene extends Phaser.Scene {
           ? `Vistoria das regras vencida desde ${d}/${m}/${y} — numa sessão desta casa, rode /auditar-regras`
           : `Vistoria das regras em dia — próxima até ${d}/${m}/${y} (/auditar-regras)`;
       },
-      // A placa está na fachada: o clique continua entrando na casa.
+      // A placa é da casa: o clique continua entrando nela.
       () => this.enterHouse(this.currentProject(p.id)),
     );
 
