@@ -344,7 +344,8 @@ export const library = {
   read: (path: string) => request<{ path: string; content: string; mtime: number }>('GET', `/api/library/file?path=${encodeURIComponent(path)}`),
   write: (path: string, content: string, mtime: number) => request<{ mtime: number }>('PUT', '/api/library/file', { path, content, mtime }),
   createClaudeMd: (project: string) => request<{ path: string }>('POST', '/api/library/claude-md', { project }),
-  search: (q: string) => request<SearchHit[]>('GET', `/api/library/search?q=${encodeURIComponent(q)}`),
+  search: (q: string, section?: string) =>
+    request<SearchHit[]>('GET', `/api/library/search?q=${encodeURIComponent(q)}${section ? `&section=${encodeURIComponent(section)}` : ''}`),
   openVsCode: (path: string) => request('POST', '/api/library/open-vscode', { path }),
 };
 
@@ -374,9 +375,20 @@ export const api = {
     const res = await fetch('/api/pombal', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ project, acao, ...opts }) });
     const data = await res.json();
     if (!res.ok && res.status !== 409) throw new Error(data.error ?? `HTTP ${res.status}`);
+    if (acao === 'enviar' && !data.error) enviosFeitos.set(project, Date.now());
     return data as Voo;
   },
 };
+
+/** Envios que deram certo pela vila, por projeto (hora): o pombo só leva as cartas num push feito por aqui. */
+const enviosFeitos = new Map<string, number>();
+
+/** Consome a marca do último envio do projeto; vale por 2 minutos, para um descarte depois não virar voo. */
+export function tomarEnvio(project: string): boolean {
+  const t = enviosFeitos.get(project);
+  enviosFeitos.delete(project);
+  return t !== undefined && Date.now() - t < 120_000;
+}
 
 export function wsUrl(path: string): string {
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${path}`;

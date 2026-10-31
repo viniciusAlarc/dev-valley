@@ -175,21 +175,29 @@ function dovecote(scene: Phaser.Scene, key: string, pigeon: 'none' | 'sleep' | '
   add(scene, key, c);
 }
 
-/** Pombo pousado no telhado do pombal com uma carta no bico: chegou coisa nova da branch comum. */
-function pigeonLetter(scene: Phaser.Scene) {
+/**
+ * Pombo virado para a direita. Com carta no bico = pousado no telhado do pombal (chegou coisa nova da branch comum) ou
+ * levando as suas no envio; `wingUp` = quadro com a asa levantada, alternado com o normal para bater asa no voo.
+ */
+function pigeon(scene: Phaser.Scene, key: string, opts: { letter: boolean; wingUp: boolean }) {
   const { c, ctx } = makeCanvas(21, 14);
   rect(ctx, 1, 7, 3, 3, '#8b8e96');
   disc(ctx, 7, 8, 4, '#b9bcc4');
-  rect(ctx, 5, 7, 4, 1, '#a7aab3');
+  if (opts.wingUp) {
+    rect(ctx, 4, 1, 3, 2, '#a7aab3');
+    rect(ctx, 5, 3, 4, 3, '#a7aab3');
+  } else rect(ctx, 5, 7, 4, 1, '#a7aab3');
   rect(ctx, 9, 6, 3, 2, '#6fa58a');
   disc(ctx, 11, 4, 3, '#a7aab3');
   rect(ctx, 12, 3, 1, 1, '#2b1a0e');
   rect(ctx, 14, 4, 1, 1, '#e8892b');
-  rect(ctx, 15, 3, 5, 4, '#f4efe0');
-  rect(ctx, 17, 4, 1, 2, '#c0392b');
+  if (opts.letter) {
+    rect(ctx, 15, 3, 5, 4, '#f4efe0');
+    rect(ctx, 17, 4, 1, 2, '#c0392b');
+  }
   for (const x of [6, 9]) rect(ctx, x, 12, 1, 1, '#e8892b');
   outline(ctx, 21, 14);
-  add(scene, 'pigeon-letter', c);
+  add(scene, key, c);
 }
 
 /** Carta no poleiro do pombal: um commit seu que a branch comum ainda não tem. */
@@ -758,7 +766,9 @@ export function generateTextures(scene: Phaser.Scene) {
   dovecote(scene, 'dovecote-empty', 'none');
   dovecote(scene, 'dovecote-sleep', 'sleep');
   dovecote(scene, 'dovecote-awake', 'awake');
-  pigeonLetter(scene);
+  pigeon(scene, 'pigeon', { letter: false, wingUp: false });
+  pigeon(scene, 'pigeon-letter', { letter: true, wingUp: false });
+  pigeon(scene, 'pigeon-letter-fly', { letter: true, wingUp: true });
   letter(scene);
   weed(scene, 'weed0', false);
   weed(scene, 'weed1', true);

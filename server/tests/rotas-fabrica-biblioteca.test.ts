@@ -148,6 +148,9 @@ describe('Biblioteca: /api/library', () => {
     const achados = await (await s.get('/api/library/search?q=tabs')).json();
     assert.deepEqual(achados.map((a: { path: string; line: number }) => [a.path, a.line]), [[path.join(dir, 'CLAUDE.md'), 3]]);
     assert.deepEqual(await (await s.get('/api/library/search?q=t')).json(), [], 'busca com menos de 2 letras');
+    // A estante da casa busca só no próprio projeto.
+    assert.equal((await (await s.get('/api/library/search?q=tabs&section=project:p')).json()).length, 1);
+    assert.deepEqual(await (await s.get('/api/library/search?q=tabs&section=project:outro')).json(), []);
   });
 
   test('ler, abrir HTML isolado, salvar e abrir no VS Code: só livro da varredura; fora dela, 404', async () => {

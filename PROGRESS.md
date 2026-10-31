@@ -3,6 +3,32 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-31 — Estante da casa abre o leitor da biblioteca, só com o projeto
+
+**O que mudou:** pedido do usuário (a estante da casa e as da biblioteca faziam coisas diferentes, quebrando a imersão).
+Clicar na estante da casa abre o mesmo painel da biblioteca (árvore de pastas, leitor, edição, VS Code), com título
+"Estante — <projeto>" e só a seção `project:<id>`: busca e links entre documentos ficam no projeto, e a bibliotecária
+não aparece (ela mora na biblioteca). A busca ganhou `?section=` no servidor, para o limite de 100 achados não esconder
+os do projeto. O painel antigo (`web/src/ui/estante.ts`, só `docs-dev/context/`) saiu. Os livros desenhados na estante
+continuam contando `docs-dev/context/`; a rota `/api/estante` ficou sem uso no front.
+**Arquivos:** `web/src/ui/library.ts` (`openLibrary({ project })`), `web/src/ui/actions.ts`, `web/src/game/InteriorScene.ts`
+(dica da estante), `server/src/library.ts` e `server/src/app.ts` (busca por seção), `web/src/api.ts` (`library.search`),
+`server/tests/rotas-fabrica-biblioteca.test.ts`, `README.md`.
+**Testes:** `npm test` 96/96, typecheck do servidor e build sem erro. Falta conferir na vila (reinício é do usuário).
+
+## 2026-10-31 — Pombal: o pombo recolhe as cartas e voa no envio
+
+**O que mudou:** depois de um push, as cartas que foram não somem mais de uma vez do chão. O pombo sai do pombal, pula de
+carta em carta (cada uma encolhe quando ele chega) e voa para a direita, batendo asa, até sair da tela. Decisões do
+usuário (31/10/2026): só o push **feito pela vila** vira voo (`api.voar('enviar')` sem erro marca o projeto por 2 min,
+`tomarEnvio`); descarte e push pelo terminal seguem sumindo direto. Com painel aberto (ele tapa o quintal), as cartas
+esperam no chão e o voo começa quando o painel fecha. Push parcial leva só as cartas que foram. Durante o voo, a
+atualização do mundo não redesenha as cartas; no fim, cartas e pombal voltam a seguir o mundo. Pombo ganhou três
+quadros: sem carta, com carta e com carta de asa levantada.
+**Arquivos:** `web/src/game/TownScene.ts` (`voarPombo`, `PombalView`), `web/src/game/textures.ts` (`pigeon`),
+`web/src/api.ts` (`tomarEnvio`).
+**Testes:** `npm test` 96/96, typecheck do servidor e build sem erro. Front sem teste automático: falta conferir na vila.
+
 ## 2026-10-31 — Moradores variados e com a aparência combinando com o nome
 
 **O que mudou:** plano `docs-dev/context/moradores-variados.md` (decisões do usuário em 31/10/2026).

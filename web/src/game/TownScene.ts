@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { bellCount, estadoLareira, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
+import { bellCount, estadoLareira, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, CONVERSA_DX, label, makeInteractive, TALK_Y, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
@@ -75,7 +75,20 @@ interface HouseView {
   smoke: EstadoLareira | null;
   smokeAcc: number;
   /** Pombal (casinha de passarinho no quintal): a única peça de git da casa; casa sem git não tem. */
-  pombal?: { box: Phaser.GameObjects.Image; pigeon: Phaser.GameObjects.Image; alert: Phaser.GameObjects.Container; letters: Phaser.GameObjects.Image[]; lettersKey: string };
+  pombal?: PombalView;
+}
+
+interface PombalView {
+  box: Phaser.GameObjects.Image;
+  pigeon: Phaser.GameObjects.Image;
+  alert: Phaser.GameObjects.Container;
+  letters: Phaser.GameObjects.Image[];
+  lettersKey: string;
+  /**
+   * Envio feito pela vila: `esperando` = as cartas ficam no chão até o painel fechar (ele tapa o quintal); `voando` = o
+   * pombo está recolhendo e levando. Nos dois, a atualização do mundo não redesenha as cartas.
+   */
+  voo?: { estado: 'esperando' | 'voando'; projectId: string; parar?: () => void };
 }
 
 export class TownScene extends Phaser.Scene {
@@ -126,6 +139,13 @@ export class TownScene extends Phaser.Scene {
 
   update(_t: number, dt: number) {
     if (!this.keys || ui.isPanelOpen()) return;
+    for (const view of this.houses.values()) {
+      const voo = view.pombal?.voo;
+      if (voo?.estado !== 'esperando') continue;
+      const project = this.world.projects.find((p) => p.id === voo.projectId);
+      if (project) this.voarPombo(view.pombal!, project);
+      else view.pombal!.voo = undefined;
+    }
     const k = this.keys;
     const speed = (dt * 0.4) / this.cameras.main.zoom;
     const cam = this.cameras.main;
@@ -221,6 +241,7 @@ export class TownScene extends Phaser.Scene {
     this.visitas.clear();
     for (const a of this.agentNpcs.values()) a.timer?.remove();
     this.agentNpcs.clear();
+    for (const view of this.houses.values()) view.pombal?.voo?.parar?.();
     this.houses.clear();
     this.children.removeAll(true);
 
@@ -483,17 +504,25 @@ export class TownScene extends Phaser.Scene {
   /**
    * Dois estágios (decisão de 28/10/2026): local = cartas espalhadas no chão, uma por arquivo que só você tem, e o pombo
    * acordado; enviado = chão limpo e pombo dormindo. Pombo com carta no telhado = chegou coisa do time; "!" = a última
-   * viagem que você disparou não completou. Sem branch (repositório sem commit), sem pombal.
+   * viagem que você disparou não completou. Sem branch (repositório sem commit), sem pombal. Push feito pela vila: as
+   * cartas que foram não somem, o pombo as recolhe e voa para a direita (`voarPombo`).
    */
-  private updatePombal(view: NonNullable<HouseView['pombal']>, project: Project) {
+  private updatePombal(view: PombalView, project: Project) {
     const p = project.pombal;
     const travado = !!p?.erro;
     view.box.setVisible(!!p);
     view.alert.setVisible(!!p && travado);
     view.pigeon.setVisible(!!p && !travado && p.aReceber > 0);
-    if (p) view.box.setTexture(travado || p.aReceber > 0 ? 'dovecote-empty' : p.locais > 0 ? 'dovecote-awake' : 'dovecote-sleep');
+    if (p) view.box.setTexture(view.voo?.estado === 'voando' || travado || p.aReceber > 0 ? 'dovecote-empty' : p.locais > 0 ? 'dovecote-awake' : 'dovecote-sleep');
+    if (view.voo) return;
     const n = Math.min(p?.locais ?? 0, POMBAL_LETTER_SLOTS.length);
     if (String(n) === view.lettersKey) return;
+    // Só o push feito pela vila vira voo (decisão do usuário, 31/10/2026): descarte e push pelo terminal seguem sumindo.
+    if (n < view.letters.length && p?.upstream && tomarEnvio(project.id)) {
+      view.voo = { estado: 'esperando', projectId: project.id };
+      if (!ui.isPanelOpen()) this.voarPombo(view, project);
+      return;
+    }
     view.lettersKey = String(n);
     for (const l of view.letters) l.destroy();
     view.letters = POMBAL_LETTER_SLOTS.slice(0, n).map(([dx, dy, angle]) => {
@@ -505,6 +534,77 @@ export class TownScene extends Phaser.Scene {
       );
       return letter;
     });
+  }
+
+  /**
+   * O pombo sai do pombal, pula de carta em carta recolhendo as que foram no push (as do fim da lista: os lugares são
+   * fixos e as que ficam são sempre as primeiras) e voa para a direita batendo asa até sair da tela. No fim, as cartas
+   * e o pombal voltam a seguir o mundo.
+   */
+  private voarPombo(view: PombalView, project: Project) {
+    const n = Math.min(project.pombal?.locais ?? 0, view.letters.length);
+    const levar = view.letters.slice(n);
+    const terminar = () => {
+      view.voo = undefined;
+      view.lettersKey = '';
+      this.updatePombal(view, this.currentProject(project.id));
+    };
+    if (!levar.length) return terminar();
+    view.letters = view.letters.slice(0, n);
+    view.voo = { estado: 'voando', projectId: project.id };
+    view.box.setTexture('dovecote-empty');
+
+    const bird = this.add.image(view.box.x, view.box.y - 24, 'pigeon').setOrigin(0.5, 1).setDepth(view.box.depth + 0.2);
+    let x = bird.x;
+    const passos: Phaser.Types.Tweens.TweenBuilderConfig[] = levar.map((letter) => {
+      // Para do lado de onde vem, com o bico virado para a carta.
+      const esquerda = letter.x < x;
+      const alvoX = letter.x + (esquerda ? 7 : -7);
+      x = alvoX;
+      return {
+        targets: bird,
+        x: alvoX,
+        y: letter.y + 1,
+        duration: 280,
+        ease: 'Quad.inOut',
+        completeDelay: 120,
+        onStart: () => void bird.setFlipX(esquerda).setDepth(Math.max(letter.depth, view.box.depth) + 0.2),
+        onComplete: () => {
+          bird.setTexture('pigeon-letter');
+          this.tweens.add({ targets: letter, scale: 0, duration: 150, onComplete: () => letter.destroy() });
+        },
+      };
+    });
+    const cam = this.cameras.main;
+    const saida = Math.max(cam.worldView.right, x) + 40;
+    let bater: Phaser.Time.TimerEvent | undefined;
+    passos.push({
+      targets: bird,
+      x: saida,
+      y: bird.y - 60,
+      duration: Math.max(1200, (saida - x) * 7),
+      ease: 'Sine.in',
+      onStart: () => {
+        bird.setFlipX(false).setDepth(100000);
+        bater = this.time.addEvent({
+          delay: 110,
+          loop: true,
+          callback: () => void bird.setTexture(bird.texture.key === 'pigeon-letter' ? 'pigeon-letter-fly' : 'pigeon-letter'),
+        });
+      },
+    });
+    const chain = this.tweens.chain({
+      tweens: passos,
+      onComplete: () => {
+        bater?.remove();
+        bird.destroy();
+        terminar();
+      },
+    });
+    view.voo.parar = () => {
+      chain.stop();
+      bater?.remove();
+    };
   }
 
   private currentProject(id: string): Project {

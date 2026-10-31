@@ -196,10 +196,12 @@ export class Library {
     return file;
   }
 
-  async search(query: string, limit = 100) {
+  /** `sectionId` restringe a uma estante (a estante da casa busca só no próprio projeto). */
+  async search(query: string, limit = 100, sectionId?: string) {
     const q = query.toLowerCase();
     const results: { path: string; section: string; rel: string; line: number; text: string }[] = [];
     for (const section of await this.sections()) {
+      if (sectionId && section.id !== sectionId) continue;
       for (const f of section.files) {
         if (results.length >= limit) return results;
         if (f.rel.toLowerCase().includes(q)) results.push({ path: f.path, section: section.title, rel: f.rel, line: 0, text: '' });

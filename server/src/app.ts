@@ -405,7 +405,7 @@ export function criarApp(ctx: Contexto): express.Express {
   app.get('/api/library/search', async (req, res) => {
     const q = String(req.query.q ?? '').trim();
     if (q.length < 2) return res.json([]);
-    res.json(await library.search(q));
+    res.json(await library.search(q, 100, typeof req.query.section === 'string' ? req.query.section : undefined));
   });
 
   app.post('/api/sessions', (req, res) => {

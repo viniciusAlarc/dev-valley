@@ -211,10 +211,7 @@ export class InteriorScene extends Phaser.Scene {
     const shelf = this.prop('bookshelf', SHELF_X, SHELF_Y);
     makeInteractive(
       shelf,
-      () => {
-        const n = this.project(getWorld())?.estante?.length ?? 0;
-        return n ? `Estante — ${n} documento(s) do que já foi construído` : 'Estante — vazia, nada em docs-dev/context/';
-      },
+      () => 'Estante — instruções e documentação deste projeto',
       () => ui.openEstante(this.project(getWorld()) ?? project),
     );
 

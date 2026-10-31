@@ -61,22 +61,27 @@ function resolvePath(from: string, href: string) {
   return '/' + out.join('/');
 }
 
-export async function openLibrary(opts: { sectionId?: string; search?: boolean; path?: string } = {}) {
+/**
+ * Leitor da biblioteca. Com `project`, é a estante da casa: o mesmo leitor, mas só com a estante daquele projeto
+ * (busca e links também ficam nela) e sem a bibliotecária, que mora na biblioteca (pedido do usuário, 31/10/2026).
+ */
+export async function openLibrary(opts: { sectionId?: string; search?: boolean; path?: string; project?: { id: string; name: string } } = {}) {
+  const onlySection = opts.project && `project:${opts.project.id}`;
   let editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null;
   let current: OpenFile | null = null;
   let editing = false;
 
   const panel = openPanel({
-    title: 'Biblioteca',
-    subtitle: 'Instruções, memórias e documentação dos seus projetos',
+    title: opts.project ? `Estante — ${opts.project.name}` : 'Biblioteca',
+    subtitle: opts.project ? 'Instruções e documentação deste projeto' : 'Instruções, memórias e documentação dos seus projetos',
     size: 'lg',
     onClose: () => editor?.dispose(),
   });
-  panel.actions.append(button('✦ Perguntar à bibliotecária', () => ui.openLibrarian(), 'primary'));
+  if (!opts.project) panel.actions.append(button('✦ Perguntar à bibliotecária', () => ui.openLibrarian(), 'primary'));
   panel.body.innerHTML = `
     <div class="library-layout">
       <aside class="library-nav">
-        <input class="library-search" type="search" placeholder="🔎 Buscar em todos os livros..." />
+        <input class="library-search" type="search" placeholder="🔎 Buscar em ${opts.project ? 'todos os livros desta estante' : 'todos os livros'}..." />
         <div class="library-tree"><p class="muted">Carregando estantes...</p></div>
         <div class="library-results" hidden></div>
       </aside>
@@ -215,7 +220,7 @@ export async function openLibrary(opts: { sectionId?: string; search?: boolean; 
     if (href.startsWith('#')) return void body.querySelector(`[id="${CSS.escape(href.slice(1))}"]`)?.scrollIntoView();
     const target = resolvePath(current.path, href);
     if (allFiles().some((f) => f.path === target)) void openFile(target);
-    else status.textContent = `Link fora da biblioteca: ${href}`;
+    else status.textContent = `Link fora da ${onlySection ? 'estante' : 'biblioteca'}: ${href}`;
   });
 
   // ---------------- estantes ----------------
@@ -277,7 +282,8 @@ export async function openLibrary(opts: { sectionId?: string; search?: boolean; 
   });
 
   async function reload() {
-    sections = await library.sections();
+    const all = await library.sections();
+    sections = onlySection ? all.filter((s) => s.id === onlySection) : all;
     renderTree();
   }
 
@@ -293,7 +299,7 @@ export async function openLibrary(opts: { sectionId?: string; search?: boolean; 
       return;
     }
     searchTimer = window.setTimeout(async () => {
-      const hits = await library.search(q);
+      const hits = await library.search(q, onlySection);
       tree.hidden = true;
       results.hidden = false;
       results.innerHTML = hits.length
@@ -306,7 +312,7 @@ export async function openLibrary(opts: { sectionId?: string; search?: boolean; 
             </button>`,
             )
             .join('')
-        : '<p class="muted">Nenhum livro fala disso.</p>';
+        : `<p class="muted">Nenhum livro ${onlySection ? 'desta estante ' : ''}fala disso.</p>`;
     }, 300);
   });
   results.addEventListener('click', (e) => {
@@ -320,7 +326,7 @@ export async function openLibrary(opts: { sectionId?: string; search?: boolean; 
   if (opts.search) search.focus();
   const start =
     sections.find((s) => opts.path && s.files.some((f) => f.path === opts.path)) ??
-    sections.find((s) => s.id === opts.sectionId) ??
+    sections.find((s) => s.id === (onlySection ?? opts.sectionId)) ??
     sections.find((s) => s.kind === 'global');
   if (start) {
     const shelf = tree.querySelector<HTMLDetailsElement>(`.shelf[data-id="${CSS.escape(start.id)}"]`)!;
