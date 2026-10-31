@@ -89,6 +89,13 @@ interface PombalView {
    * pombo está recolhendo e levando. Nos dois, a atualização do mundo não redesenha as cartas.
    */
   voo?: { estado: 'esperando' | 'voando'; projectId: string; parar?: () => void };
+  /**
+   * Chegou coisa do time: o pombo vem da direita com a carta e pousa no telhado (`chegarPombo`). `esperando` = painel
+   * aberto, chega quando fechar. `pigeonVisto` = a vila já viu o pombal uma vez: no primeiro estado (abrir ou recarregar
+   * a vila, ou casa nova) ele já está pousado, sem animação.
+   */
+  chegada?: { estado: 'esperando' | 'voando'; parar?: () => void };
+  pigeonVisto?: boolean;
 }
 
 export class TownScene extends Phaser.Scene {
@@ -140,6 +147,7 @@ export class TownScene extends Phaser.Scene {
   update(_t: number, dt: number) {
     if (!this.keys || ui.isPanelOpen()) return;
     for (const view of this.houses.values()) {
+      if (view.pombal?.chegada?.estado === 'esperando') this.chegarPombo(view.pombal);
       const voo = view.pombal?.voo;
       if (voo?.estado !== 'esperando') continue;
       const project = this.world.projects.find((p) => p.id === voo.projectId);
@@ -241,7 +249,10 @@ export class TownScene extends Phaser.Scene {
     this.visitas.clear();
     for (const a of this.agentNpcs.values()) a.timer?.remove();
     this.agentNpcs.clear();
-    for (const view of this.houses.values()) view.pombal?.voo?.parar?.();
+    for (const view of this.houses.values()) {
+      view.pombal?.voo?.parar?.();
+      view.pombal?.chegada?.parar?.();
+    }
     this.houses.clear();
     this.children.removeAll(true);
 
@@ -512,7 +523,7 @@ export class TownScene extends Phaser.Scene {
     const travado = !!p?.erro;
     view.box.setVisible(!!p);
     view.alert.setVisible(!!p && travado);
-    view.pigeon.setVisible(!!p && !travado && p.aReceber > 0);
+    this.pousarPombo(view, !!p && !travado && p.aReceber > 0);
     if (p) view.box.setTexture(view.voo?.estado === 'voando' || travado || p.aReceber > 0 ? 'dovecote-empty' : p.locais > 0 ? 'dovecote-awake' : 'dovecote-sleep');
     if (view.voo) return;
     const n = Math.min(p?.locais ?? 0, POMBAL_LETTER_SLOTS.length);
@@ -533,6 +544,63 @@ export class TownScene extends Phaser.Scene {
         () => ui.openPombal(this.currentProject(project.id)),
       );
       return letter;
+    });
+  }
+
+  /**
+   * Pombo com carta no telhado (decisões do usuário, 31/10/2026): no primeiro estado que a vila vê, já pousado; quando
+   * passa a haver coisa a receber, ele chega voando; com ele já pousado, commit novo não repete a chegada.
+   */
+  private pousarPombo(view: PombalView, quer: boolean) {
+    if (!view.pigeonVisto) {
+      view.pigeonVisto = true;
+      view.pigeon.setVisible(quer);
+    } else if (!quer) {
+      view.chegada?.parar?.();
+      view.chegada = undefined;
+      view.pigeon.setVisible(false);
+    } else if (!view.pigeon.visible && !view.chegada) {
+      view.chegada = { estado: 'esperando' };
+      if (!ui.isPanelOpen()) this.chegarPombo(view);
+    }
+  }
+
+  /** O pombo entra pela direita, de cima, batendo asa, e desce até o telhado; lá vira o pombo parado de sempre. */
+  private chegarPombo(view: PombalView) {
+    const destinoX = view.box.x;
+    const destinoY = view.box.y - 42;
+    const inicioX = Math.max(this.cameras.main.worldView.right, destinoX) + 40;
+    const bird = this.add.image(inicioX, destinoY - 60, 'pigeon-letter').setOrigin(0.5, 1).setFlipX(true).setDepth(100000);
+    const bater = this.baterAsa(bird);
+    const tween = this.tweens.add({
+      targets: bird,
+      x: destinoX,
+      y: destinoY,
+      duration: Math.max(1200, (inicioX - destinoX) * 7),
+      ease: 'Sine.out',
+      onComplete: () => {
+        bater.remove();
+        bird.destroy();
+        view.chegada = undefined;
+        view.pigeon.setVisible(true);
+      },
+    });
+    view.chegada = {
+      estado: 'voando',
+      parar: () => {
+        tween.stop();
+        bater.remove();
+        bird.destroy();
+      },
+    };
+  }
+
+  /** Alterna o quadro de asa levantada com o normal do pombo com carta. */
+  private baterAsa(bird: Phaser.GameObjects.Image) {
+    return this.time.addEvent({
+      delay: 110,
+      loop: true,
+      callback: () => void bird.setTexture(bird.texture.key === 'pigeon-letter' ? 'pigeon-letter-fly' : 'pigeon-letter'),
     });
   }
 
@@ -586,11 +654,7 @@ export class TownScene extends Phaser.Scene {
       ease: 'Sine.in',
       onStart: () => {
         bird.setFlipX(false).setDepth(100000);
-        bater = this.time.addEvent({
-          delay: 110,
-          loop: true,
-          callback: () => void bird.setTexture(bird.texture.key === 'pigeon-letter' ? 'pigeon-letter-fly' : 'pigeon-letter'),
-        });
+        bater = this.baterAsa(bird);
       },
     });
     const chain = this.tweens.chain({

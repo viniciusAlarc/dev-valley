@@ -3,6 +3,19 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-31 — Pombal: o pombo chega voando quando o time manda coisa nova
+
+**O que mudou:** quando a busca do remoto (a cada 5 min ou ao abrir o pombal) descobre commits a receber, o pombo entra
+pela direita batendo asa, com a carta no bico, e desce até o telhado do pombal; lá vira o pombo parado de sempre, à
+espera do "Trazer". Decisões do usuário (31/10/2026): ao abrir ou recarregar a vila com carta já esperando, ele já está
+pousado (sem animação); com ele pousado, commit novo não repete a chegada; com painel aberto, chega quando fechar. Se o
+motivo some no meio do voo (pull feito, erro), a chegada é cancelada. O bater de asa virou `baterAsa`, usado também no
+envio.
+**Arquivos:** `web/src/game/TownScene.ts` (`pousarPombo`, `chegarPombo`, `baterAsa`).
+**Testes:** `npm test` 96/96 e typecheck do servidor sem erro; `TownScene.ts` sem erro de tipo. O build do front não
+fechou por trabalho em andamento de outra sessão (`textures.ts` importa `./houseArt`, ainda inexistente). Falta conferir
+na vila.
+
 ## 2026-10-31 — Estante da casa abre o leitor da biblioteca, só com o projeto
 
 **O que mudou:** pedido do usuário (a estante da casa e as da biblioteca faziam coisas diferentes, quebrando a imersão).
