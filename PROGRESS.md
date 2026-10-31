@@ -3,6 +3,17 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-30 — PD-6 (tileset) descartada
+
+**O que mudou:** levantamento da troca da pixel art por um tileset: ~80 desenhos em código, metade sem equivalente em
+tileset nenhum (pombal, lareira, quadro negro, sementes, ervas, andaime, outdoor, sino) e moradores sorteados com o traje
+de agente da regra 8, então a troca seria só parcial. Licenças conferidas: Kenney Tiny Town e Ninja Adventure são CC0;
+Sprout Lands, o mais parecido com Stardew, proíbe redistribuir (não pode ir para o repositório público). Decisão do
+usuário (30/10/2026): gosta do visual atual, a PD-6 sai; a pixel art em código segue como decisão do projeto (regra 7).
+Saiu do `PENDENCIAS.md` e do painel.
+**Arquivos:** `PENDENCIAS.md`, `docs-dev/painel.json`.
+**Testes:** não se aplica (sem código).
+
 ## 2026-10-29 — Testes no CI do GitHub; plano de testes fechado (PD-8)
 
 **O que mudou:** passo 4 (último) do plano `docs-dev/context/testes-automatizados.md`, por decisão do usuário. O

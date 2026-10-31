@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { citados, contextoCitados, corpoStatus, textoRodape, type Mapa } from '../hooks/moradores'
+import { citados, contextoCitados, corpoStatus, idsCitados, textoRodape, type Mapa } from '../hooks/moradores'
 
 const MAPA: Mapa = {
   atualizadoEm: '2026-10-26T18:00:00.000Z',
@@ -30,6 +30,12 @@ describe('@Nome', () => {
     expect(texto).toContain('@Fulano: nenhum morador')
     expect(texto).not.toContain('@types')
     expect(contextoCitados(['types'], MAPA, '/m.json')).toBeUndefined()
+  })
+
+  test('ids citados: só os do mapa (sem acento também), sem repetir e nunca a própria sessão', () => {
+    expect(idsCitados(['Vera', 'Iris', 'Fulano', 'vera'], MAPA, 'zzzz')).toEqual(['aaaa', 'bbbb'])
+    expect(idsCitados(['Vera', 'Iris'], MAPA, 'aaaa')).toEqual(['bbbb'])
+    expect(idsCitados(['Fulano'], MAPA, 'zzzz')).toEqual([])
   })
 })
 
@@ -109,8 +115,22 @@ describe('mod', () => {
     expect(corpos.length).toBeGreaterThan(0)
     for (const c of corpos) {
       expect(c).not.toContain('segredo')
-      expect(Object.keys(JSON.parse(c)).every((k) => ['session_id', 'cwd', 'hook_event_name'].includes(k))).toBe(true)
+      expect(c).not.toContain('Vera')
+      const corpo = JSON.parse(c)
+      expect(Object.keys(corpo).every((k) => ['session_id', 'cwd', 'hook_event_name', 'citados'].includes(k))).toBe(true)
+      // Da mensagem, só o id da sessão citada (NPCs conversando): nunca o nome digitado nem o texto.
+      if (corpo.citados) expect(corpo).toEqual({ session_id: 'sid-2', cwd: expect.any(String), hook_event_name: 'UserPromptSubmit', citados: ['aaaa'] })
     }
+    expect(corpos.some((c) => JSON.parse(c).citados)).toBe(true)
+  })
+
+  test('mensagem sem @Nome não manda citados', async ($, on) => {
+    sessao(on, 'sid-3')
+    const corpos: any[] = []
+    on('http.fetch', (_$: unknown, e: any) => (corpos.push(JSON.parse(e.init?.body ?? '{}')), ok('{"name":"Bia"}')))
+    on('prompt.submit', (_$: unknown, e: any) => ({ text: e.text }))
+    await $.prompt.submit(MENSAGEM('só uma pergunta, e-mail a@b.com'))
+    expect(corpos.some((c) => 'citados' in c)).toBe(false)
   })
 
   test('porta lida do vila.json gravado pelo install; fim de turno vira "esperando"', async ($, on) => {

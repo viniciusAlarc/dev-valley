@@ -210,6 +210,8 @@ export interface World {
   restart: { server: boolean; web: boolean };
   /** Outdoor dos guardrails; null = não configurado no config local. */
   guardrails: { enabled: boolean; plugin: string; core: string; items: { id: string; title: string }[] } | null;
+  /** NPCs conversando: `de` citou `para` com `@Nome` na mensagem em curso. */
+  conversas: { de: string; para: string }[];
 }
 
 /** Avulsas encerradas que continuam soltas na praça (elas não têm casa para onde ir). */
@@ -380,7 +382,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [] };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

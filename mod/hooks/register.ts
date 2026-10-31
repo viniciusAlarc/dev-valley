@@ -1,14 +1,15 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { citados, contextoCitados, contextoProprioNome, corpoStatus, textoRodape, type Mapa } from './moradores'
+import { citados, contextoCitados, contextoProprioNome, corpoStatus, idsCitados, textoRodape, type Mapa } from './moradores'
 
 // Mod do Dev Valley (substitui a status line e quase todos os hooks de shell do settings.json; PD-11).
 // Usa só eventos nativos: os `classic.*` de um mod de usuário são pulados pelo plugin de segurança que roda acima
 // (cc-plugin-sec-default, visto em 26/10/2026). Por isso "pedindo permissão" continua num hook de shell
 // (PermissionRequest e Notification, instalados pelo `npm run hooks:install`): nenhum evento nativo diz quando o
 // diálogo de permissão abre (decisão do usuário, 26/10/2026: híbrido).
-// À vila vão só session_id, cwd e nome do evento (regra 3 do CLAUDE.md do repo): o texto das mensagens é lido aqui,
-// localmente, só para achar `@Nome` no mapa de moradores. Vila fechada: tudo falha em silêncio e a sessão segue.
+// À vila vão só session_id, cwd, nome do evento e os ids das sessões citadas (regra 3 do CLAUDE.md do repo): o texto
+// das mensagens é lido aqui, localmente, só para achar `@Nome` no mapa de moradores. Vila fechada: tudo falha em
+// silêncio e a sessão segue.
 
 /** Espera pela vila para saber o nome do morador antes de seguir sem ele. */
 const ESPERA_MS = 1500
@@ -57,9 +58,15 @@ function aTempo<T>($: EngineInterface, p: Promise<T>, ms: number): Promise<T | u
  * Manda o evento à vila (mesmo corpo dos hooks de shell de antes: o servidor não muda), esperando no máximo
  * AVISO_MS. É esperado dentro do hook: trabalho que segue depois de o hook voltar não tem garantia de rodar.
  */
-async function avisar($: EngineInterface, evento: string, sessionId?: string) {
+async function avisar($: EngineInterface, evento: string, { sessionId, citados = [] }: { sessionId?: string; citados?: string[] } = {}) {
   const enviar = async () =>
-    post($, '/api/hooks', { session_id: sessionId ?? (await $.session.id()), cwd: await $.session.cwd(), hook_event_name: evento })
+    post($, '/api/hooks', {
+      session_id: sessionId ?? (await $.session.id()),
+      cwd: await $.session.cwd(),
+      hook_event_name: evento,
+      // Só ids de sessão do mapa (NPCs conversando, regra 3): nunca o texto da mensagem.
+      ...(citados.length ? { citados } : {}),
+    })
   await aTempo($, enviar(), AVISO_MS)
 }
 
@@ -82,26 +89,29 @@ export const register: Register = on => {
   })
 
   on('prompt.submit', async ($, e, next) => {
-    await avisar($, 'UserPromptSubmit')
+    const id = await $.session.id()
+    // `@Nome` é lido só aqui, no mapa local: à vila vão só os ids das sessões citadas (NPCs conversando).
+    const nomesCitados = e.isMeta ? [] : citados(e.text)
+    let mapa: Mapa | undefined
+    const mapaPath = `${home || (await $.env.get('HOME'))}/.claude/dev-valley/moradores.json`
+    if (nomesCitados.length) {
+      try {
+        mapa = JSON.parse(await $.fs.read(mapaPath)) as Mapa
+      } catch {
+        // sem mapa (vila nunca rodou): a mensagem segue sem esse contexto
+      }
+    }
+    await avisar($, 'UserPromptSubmit', { citados: mapa ? idsCitados(nomesCitados, mapa, id) : [] })
     const contexto: string[] = []
     // "Você é o morador X" junto da primeira mensagem da sessão (o `prompt.compose` de um mod de usuário também é
     // pulado pelo plugin de segurança, visto em 26/10/2026).
-    const id = await $.session.id()
     const name = await nomeDoMorador($)
     if (name && !anunciados.has(id)) {
       anunciados.add(id)
       contexto.push(contextoProprioNome(name))
     }
-    const nomesCitados = e.isMeta ? [] : citados(e.text)
-    if (nomesCitados.length) {
-      try {
-        const mapaPath = `${home || (await $.env.get('HOME'))}/.claude/dev-valley/moradores.json`
-        const citado = contextoCitados(nomesCitados, JSON.parse(await $.fs.read(mapaPath)) as Mapa, mapaPath)
-        if (citado) contexto.push(citado)
-      } catch {
-        // sem mapa (vila nunca rodou): a mensagem segue sem esse contexto
-      }
-    }
+    const citado = mapa && contextoCitados(nomesCitados, mapa, mapaPath)
+    if (citado) contexto.push(citado)
     return contexto.length ? next({ ...e, context: [...(e.context ?? []), ...contexto] }) : next(e)
   }).catch(($, e, next) => next(e))
 
@@ -121,7 +131,7 @@ export const register: Register = on => {
   })
 
   on('session.end', async ($, e, next) => {
-    await avisar($, 'SessionEnd', e.sessionId)
+    await avisar($, 'SessionEnd', { sessionId: e.sessionId })
     return next(e)
   })
 

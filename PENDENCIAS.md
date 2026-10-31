@@ -23,8 +23,5 @@
 
 ## P4 — Baixo / melhoria
 
-> Ordem decidida pelo usuário em 29/10/2026: PD-8 (testes, fechada no mesmo dia) e depois PD-6 (tileset).
-
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| PD-6 | 💻 | Trocar a pixel art gerada em código por um tileset de verdade. **Próxima** | 2026-10-24 |

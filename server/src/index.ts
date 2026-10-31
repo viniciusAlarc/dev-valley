@@ -28,7 +28,7 @@ const POLL_MS = 3000;
 /** De quanto em quanto tempo o pombal busca o remoto (rede); entre uma busca e outra, o estado vem do disco. */
 const POMBAL_FETCH_MS = 5 * 60_000;
 
-let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [] };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 

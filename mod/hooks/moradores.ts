@@ -42,6 +42,15 @@ export function contextoCitados(nomes: string[], mapa: Mapa, mapaPath: string): 
   return `Moradores do Dev Valley citados nesta mensagem (mapa ${mapaPath}, atualizado em ${mapa.atualizadoEm}):\n${lines.join('\n')}`;
 }
 
+/**
+ * Ids das sessões citadas que estão no mapa, sem a própria: o único dado tirado da mensagem que vai à vila (regra 3,
+ * ampliada em 30/10/2026 para os NPCs conversarem). Nunca o nome digitado nem o texto.
+ */
+export function idsCitados(nomes: string[], mapa: Mapa, propria: string): string[] {
+  const byName = new Map(Object.entries(mapa.moradores).map(([name, m]) => [norm(name), m.sessao]));
+  return [...new Set(nomes.map((n) => byName.get(norm(n))).filter((id): id is string => !!id && id !== propria))];
+}
+
 export function contextoProprioNome(name: string): string {
   return (
     `No Dev Valley (a vila em pixel art onde o usuário organiza as sessões do Claude Code), esta sessão é o morador ${name}. ` +

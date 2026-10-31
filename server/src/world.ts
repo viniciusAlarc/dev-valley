@@ -80,6 +80,8 @@ export interface World {
   restart: RestartPending;
   /** Outdoor dos guardrails; null = não configurado (`guardrails` no config local). */
   guardrails: Guardrails | null;
+  /** NPCs conversando: `de` citou `para` com `@Nome` na mensagem em curso (só entre sessões da vila). */
+  conversas: { de: string; para: string }[];
 }
 
 /** Janelas possíveis quando ainda não sabemos o tamanho real para o modelo. */
@@ -227,5 +229,16 @@ export async function buildWorld(
     };
   });
   await moradores.sync(sessions, projects);
-  return { projects, sessions, agents: await agents.list(projects), skills: await skills.list(projects), usage: statusLine.usage, restart: await restartPending(), guardrails: await readGuardrails(config) };
+  const naVila = new Set(sessions.map((s) => s.id));
+  const conversas = hooks.flatMap((h) => (naVila.has(h.id) ? h.citados.filter((c) => naVila.has(c)).map((para) => ({ de: h.id, para })) : []));
+  return {
+    projects,
+    sessions,
+    agents: await agents.list(projects),
+    skills: await skills.list(projects),
+    usage: statusLine.usage,
+    restart: await restartPending(),
+    guardrails: await readGuardrails(config),
+    conversas,
+  };
 }

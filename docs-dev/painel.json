@@ -4,8 +4,7 @@
     "doc": "PENDENCIAS.md",
     "fases": [
       { "nome": "CI do auditor no GitHub (PD-9)", "estado": "feito" },
-      { "nome": "Suíte de testes (PD-8)", "estado": "feito", "doc": "docs-dev/context/testes-automatizados.md" },
-      { "nome": "Tileset de verdade (PD-6)", "estado": "a fazer" }
+      { "nome": "Suíte de testes (PD-8)", "estado": "feito", "doc": "docs-dev/context/testes-automatizados.md" }
     ]
   },
   "entregas": [
