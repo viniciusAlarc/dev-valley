@@ -3,6 +3,19 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-31 — Casas refinadas sem mudar o desenho
+
+**O que mudou:** acabamento sutil nas casas, como foi feito na Fábrica: mesma forma, cores, tamanho e posições
+(brilho das janelas, fumaça, andaime, "!"). Telhado com juntas de telha desencontradas nas faixas, brilho na cumeeira e
+beiral com filete; chaminé com tijolos marcados e chapéu com brilho; parede com emendas das tábuas desencontradas, filete
+claro em cada tábua, esteios com meio-tom e sombra do beiral; janelas com reflexo extra e peitoril com brilho; porta com
+almofadas, quina clara e maçaneta com brilho; fundação de pedra com rejunte e soleira na frente da porta. Pedido do
+usuário depois de desistir das fachadas novas por referência.
+**Arquivos:** `web/src/game/textures.ts` (`roof`, `window_`, `planks`, `house`).
+**Testes:** `npm test` 96/96, typecheck do servidor e `tsc` + `vite build` do front (diretório temporário) sem erro,
+auditor só com os 2 avisos informativos que já existiam. Antes e depois conferidos em prévia PNG (gerada das próprias
+funções do `textures.ts`). Conferido na vila pelo usuário em 31/10/2026.
+
 ## 2026-10-31 — Placa de vistoria fincada no quintal da frente
 
 **O que mudou:** a placa de vistoria saiu da parede (embaixo da janela da esquerda) e virou uma tabuleta numa estaca no

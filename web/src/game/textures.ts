@@ -290,6 +290,7 @@ export const ROOFS: Record<string, [string, string, string]> = {
   grey: ['#7d7f84', '#5b5d61', '#9a9ca1'],
 };
 
+/** Telhado em trapézio de faixas de telha: juntas desencontradas em cada faixa, brilho na cumeeira e beiral escuro. */
 function roof(ctx: Ctx, x0: number, w: number, top: number, bottom: number, pal: [string, string, string]) {
   const h = bottom - top;
   for (let y = 0; y < h; y++) {
@@ -297,43 +298,78 @@ function roof(ctx: Ctx, x0: number, w: number, top: number, bottom: number, pal:
     const color = y % 5 === 4 ? pal[1] : pal[0];
     rect(ctx, x0 + inset, top + y, w - inset * 2, 1, color);
     if (y % 5 === 0) rect(ctx, x0 + inset + 2, top + y, w - inset * 2 - 4, 1, pal[2]);
+    // juntas das telhas, desencontradas de uma faixa para a outra
+    if (y % 5 === 2 || y % 5 === 3) {
+      const off = Math.floor(y / 5) % 2 === 0 ? 3 : 7;
+      for (let x = x0 + inset + off; x < x0 + w - inset - 2; x += 8) rect(ctx, x, top + y, 1, 1, pal[1]);
+    }
   }
+  rect(ctx, x0 + 11, top, w - 22, 1, pal[2]);
   rect(ctx, x0, bottom - 2, w, 2, pal[1]);
+  rect(ctx, x0 + 1, bottom - 2, w - 2, 1, pal[0]);
 }
 
 export function window_(ctx: Ctx, x: number, y: number) {
   rect(ctx, x, y, 12, 10, '#4a2a12');
   rect(ctx, x + 1, y + 1, 10, 8, '#8fc8de');
   rect(ctx, x + 1, y + 1, 4, 3, '#c6e8f2');
+  rect(ctx, x + 7, y + 6, 2, 1, '#c6e8f2');
   rect(ctx, x + 6, y + 1, 1, 8, '#4a2a12');
   rect(ctx, x + 1, y + 5, 10, 1, '#4a2a12');
   rect(ctx, x - 1, y + 10, 14, 2, '#7a4b20');
+  rect(ctx, x - 1, y + 10, 14, 1, '#9a6430');
 }
 
 export function planks(ctx: Ctx, x: number, y: number, w: number, h: number) {
   rect(ctx, x, y, w, h, '#b9854a');
-  for (let yy = y + 4; yy < y + h; yy += 5) rect(ctx, x, yy, w, 1, '#8d5f30');
+  for (let yy = y + 4; yy < y + h; yy += 5) {
+    rect(ctx, x, yy, w, 1, '#8d5f30');
+    rect(ctx, x, yy + 1, w, 1, '#c79560');
+    // emendas das tábuas, desencontradas de uma fileira para a outra
+    const off = ((yy - y) / 5) % 2 === 0 ? 9 : 19;
+    for (let xx = x + off; xx < x + w - 4; xx += 20) rect(ctx, xx, yy + 1, 1, 4, '#9c6b38');
+  }
   rect(ctx, x, y, 3, h, '#6b4220');
   rect(ctx, x + w - 3, y, 3, h, '#6b4220');
+  rect(ctx, x + 1, y, 1, h, '#7d5028');
+  rect(ctx, x + w - 2, y, 1, h, '#7d5028');
 }
 
 function house(scene: Phaser.Scene, key: string, pal: [string, string, string]) {
   const W = 64;
   const H = 74;
   const { c, ctx } = makeCanvas(W, H);
-  // chaminé
+  // chaminé de tijolo, com o chapéu mais escuro
   rect(ctx, 44, 2, 7, 14, '#8e3b2e');
+  for (let y = 6; y < 16; y += 3) {
+    rect(ctx, 44, y, 7, 1, '#76301f');
+    rect(ctx, y % 2 === 0 ? 47 : 46, y - 2, 1, 2, '#76301f');
+  }
+  rect(ctx, 44, 4, 1, 12, '#a54a3a');
   rect(ctx, 43, 2, 9, 2, '#6d2b21');
+  rect(ctx, 43, 2, 9, 1, '#84382b');
   planks(ctx, 5, 36, W - 10, 34);
+  // sombra do beiral na parede
+  rect(ctx, 8, 38, W - 16, 1, '#8d5f30');
+  // fundação de pedra com rejunte
   rect(ctx, 5, 68, W - 10, 4, '#8a8478');
+  rect(ctx, 5, 68, W - 10, 1, '#a39b8b');
+  for (let x = 11; x < W - 5; x += 9) rect(ctx, x, 69, 1, 3, '#6f6a60');
   roof(ctx, 0, W, 8, 38, pal);
   window_(ctx, 10, 46);
   window_(ctx, 42, 46);
-  // porta
+  // porta com batente, almofadas e soleira de pedra
   rect(ctx, 25, 50, 14, 22, '#4a2a12');
   rect(ctx, 26, 51, 12, 21, '#7a4724');
-  rect(ctx, 26, 58, 12, 1, '#5e3519');
-  rect(ctx, 35, 61, 2, 2, '#e8c252');
+  rect(ctx, 26, 51, 1, 21, '#8c5530');
+  rect(ctx, 28, 53, 8, 4, '#6b3d1e');
+  rect(ctx, 28, 61, 8, 7, '#6b3d1e');
+  rect(ctx, 29, 54, 6, 2, '#7a4724');
+  rect(ctx, 29, 62, 6, 5, '#7a4724');
+  rect(ctx, 35, 59, 2, 2, '#e8c252');
+  rect(ctx, 35, 59, 1, 1, '#fff1b8');
+  rect(ctx, 23, 72, 18, 2, '#a39b8b');
+  rect(ctx, 23, 72, 18, 1, '#c4bca9');
   outline(ctx, W, H);
   add(scene, key, c);
 }
