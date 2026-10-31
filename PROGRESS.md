@@ -13,8 +13,10 @@ motivo some no meio do voo (pull feito, erro), a chegada é cancelada. O bater d
 envio.
 **Arquivos:** `web/src/game/TownScene.ts` (`pousarPombo`, `chegarPombo`, `baterAsa`).
 **Testes:** `npm test` 96/96 e typecheck do servidor sem erro; `TownScene.ts` sem erro de tipo. O build do front não
-fechou por trabalho em andamento de outra sessão (`textures.ts` importa `./houseArt`, ainda inexistente). Falta conferir
-na vila.
+fechou por trabalho em andamento de outra sessão (`textures.ts` importa `./houseArt`, ainda inexistente; depois fechou).
+Teste com repositório de mentira (remoto falso local): o pombo apareceu pousado após reiniciar a vila (a busca roda ao
+subir, e o primeiro estado não anima), mas a chegada voando não foi vista. O usuário considerou funcionando e vai
+observar no uso (31/10/2026).
 
 ## 2026-10-31 — Estante da casa abre o leitor da biblioteca, só com o projeto
 
