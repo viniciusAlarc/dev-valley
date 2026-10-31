@@ -19,7 +19,6 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| PD-10 | 💻 | Permitir/negar pelo balão do morador na vila, mantendo o terminal: o hook `PermissionRequest` responde `hookSpecificOutput.decision.behavior` (`allow`/`deny`), conferido na doc em 29/10/2026. A conferir no plano: se o diálogo do terminal aparece junto enquanto o hook espera, e o `timeout` do hook. Substitui a PD-5 (chat via Agent SDK), descartada pelo usuário em 29/10/2026 para não perder o Claude Code de verdade (slash commands, skills, mod) | 2026-10-29 |
 
 ## P4 — Baixo / melhoria
 

@@ -3,6 +3,16 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-31 — PD-10 (permitir/negar pelo balão) descartada
+
+**O que mudou:** decisão do usuário (31/10/2026). Ganho só de UX, sem ganho de desempenho: a sessão espera a resposta do
+mesmo jeito, e o atalho acrescentaria um hook esperando a vila, mais dados indo à vila (o comando pedido, contra a regra
+3) e um ponto de falha com a vila fechada. E abrir a conversa quando aparece o "!" faz o usuário se recontextualizar,
+o que importa com várias sessões trabalhando: aprovar pelo balão, sem ver o que veio antes, levaria a aprovar sem
+entender. O fluxo atual ("!" no morador, resposta no terminal) fica. Com isso o `PENDENCIAS.md` ficou sem item aberto.
+**Arquivos:** `PENDENCIAS.md`.
+**Testes:** não se aplica (sem código).
+
 ## 2026-10-30 — NPCs conversando: os dois ficam juntos enquanto o citado responde
 
 **O que mudou:** ajuste pedido pelo usuário depois de conferir na vila: a sessão A foi até a B, mas quando a B começou a
