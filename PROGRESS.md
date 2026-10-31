@@ -3,6 +3,20 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-30 — NPCs conversando: os dois ficam juntos enquanto o citado responde
+
+**O que mudou:** ajuste pedido pelo usuário depois de conferir na vila: a sessão A foi até a B, mas quando a B começou a
+responder, a A virou as costas e saiu, e a B ficou falando sozinha. Causa: a conversa fechava no `Stop` de quem citou, e
+o turno da A termina justamente quando ela manda a mensagem para a B. Regra nova (`conversaAtiva` em
+`server/src/hooks.ts`): a conversa A → B segue enquanto a A trabalha (limite de 10 min), enquanto a B responde (começou a
+trabalhar depois da citação) e, entre uma e outra, até 20 s depois de a A terminar, esperando a B começar. A B
+terminando, a conversa fecha e não reabre se a B trabalhar de novo depois. Citado que já trabalhava antes da citação não
+segura a conversa. O `HookStore` ganhou `paradoEm` e `trabalhandoDesde` por sessão; a vila não mudou.
+**Arquivos:** `server/src/hooks.ts`, `server/tests/hooks.test.ts`, `docs-dev/a-codar/npcs-conversando.md`.
+**Testes:** `npm test` 88/88; testes da conversa reescritos com relógio falso, incluindo o caso visto pelo usuário (a B
+responde 3 min: os dois juntos até o `Stop` da B). Com a condição "o citado está respondendo" desligada, esse teste
+falha; código restaurado. Typecheck sem erro. Falta conferir na vila (reinício do usuário; o mod não mudou).
+
 ## 2026-10-30 — NPCs conversando: quem cita @Nome vai até o citado
 
 **O que mudou:** plano `docs-dev/a-codar/npcs-conversando.md` (decisões do usuário em 30/10/2026), passos 1 a 4.
@@ -32,8 +46,8 @@ corrige.
 **Testes:** `npm test` 85/85 (5 novos do `HookStore`: abrir, manter, fechar, validar ids, expirar em 10 min com relógio
 falso); `claude plugin test mod` 10/10 (`idsCitados`; corpo com `@Vera` leva só `citados: ['aaaa']`, sem o nome nem o
 texto; mensagem sem `@Nome` não manda `citados`); typecheck do servidor e build do front sem erro; auditor sem achado.
-As animações não foram vistas rodando. Falta conferir na vila (reinício do usuário, depois de `claude plugin update`):
-citar `@Nome` de uma sessão em outra e ver a visita, na vila e dentro da casa; e a linha nova da prévia.
+Conferido na vila pelo usuário em 30/10/2026, com um ajuste: quem citou ia embora quando o citado começava a responder
+(entrega seguinte).
 
 ## 2026-10-30 — PD-6 (tileset) descartada
 

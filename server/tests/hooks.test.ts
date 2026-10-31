@@ -25,14 +25,54 @@ describe('HookStore: estado da sessão', () => {
 });
 
 describe('HookStore: NPCs conversando', () => {
-  test('a mensagem que cita abre a conversa; ferramentas no meio não fecham; o fim da resposta fecha', () => {
+  /** Evento de outra sessão (o citado). */
+  const da = (store: HookStore, id: string, hook_event_name: string) => store.handle({ session_id: id, cwd: '/tmp/y', hook_event_name });
+
+  test('a mensagem que cita abre a conversa; ferramentas no meio não fecham', () => {
     const store = new HookStore();
     assert.equal(evento(store, 'UserPromptSubmit', { citados: [VERA, IRIS] }), true);
-    assert.deepEqual(citados(store), [VERA, IRIS]);
     evento(store, 'PreToolUse');
     evento(store, 'PostToolUse');
     assert.deepEqual(citados(store), [VERA, IRIS]);
-    assert.equal(evento(store, 'Stop'), true, 'mudou: a conversa acabou');
+  });
+
+  test('quem citou terminou e o citado não respondeu: a conversa espera 20 s e fecha', (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+    const store = new HookStore();
+    evento(store, 'UserPromptSubmit', { citados: [VERA] });
+    evento(store, 'Stop');
+    t.mock.timers.tick(19_000);
+    assert.deepEqual(citados(store), [VERA]);
+    t.mock.timers.tick(2_000);
+    assert.deepEqual(citados(store), []);
+  });
+
+  test('o citado responde: os dois ficam juntos até ele terminar, mesmo bem depois dos 20 s (caso visto pelo usuário)', (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+    const store = new HookStore();
+    da(store, VERA, 'Stop');
+    evento(store, 'UserPromptSubmit', { citados: [VERA] });
+    evento(store, 'Stop');
+    t.mock.timers.tick(5_000);
+    da(store, VERA, 'UserPromptSubmit');
+    t.mock.timers.tick(3 * 60_000);
+    da(store, VERA, 'PreToolUse');
+    assert.deepEqual(citados(store), [VERA], 'a Vera ainda responde');
+    da(store, VERA, 'Stop');
+    assert.deepEqual(citados(store), [], 'a Vera terminou');
+    // Conversa encerrada não volta quando a Vera trabalha de novo depois.
+    da(store, VERA, 'UserPromptSubmit');
+    assert.deepEqual(citados(store), []);
+  });
+
+  test('citado que já trabalhava antes da citação não segura a conversa', (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+    const store = new HookStore();
+    da(store, VERA, 'UserPromptSubmit');
+    t.mock.timers.tick(1_000);
+    evento(store, 'UserPromptSubmit', { citados: [VERA] });
+    evento(store, 'Stop');
+    t.mock.timers.tick(21_000);
     assert.deepEqual(citados(store), []);
   });
 
@@ -53,7 +93,7 @@ describe('HookStore: NPCs conversando', () => {
     assert.deepEqual(citados(store), []);
   });
 
-  test('conversa sem o fim da resposta some depois de 10 minutos', (t) => {
+  test('quem citou trabalhando sem o fim da resposta: a conversa some depois de 10 minutos', (t) => {
     t.mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
     const store = new HookStore();
     evento(store, 'UserPromptSubmit', { citados: [VERA] });

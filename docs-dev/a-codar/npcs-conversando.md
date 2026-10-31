@@ -18,8 +18,9 @@ com outra, um morador vai até o outro e os dois ficam conversando.
 1. **Regra 3 ampliada:** junto do `UserPromptSubmit`, o mod manda à vila os **ids** das sessões citadas com `@Nome` que
    estão no mapa de moradores (nunca a própria, nunca o texto). O teste `mod/tests/dev-valley.test.ts` confere.
 2. **Gatilho:** só o `@Nome`. Mensagem entre sessões pela ferramenta `SendMessage` fica de fora.
-3. **Duração:** até a sessão que citou terminar a resposta (`Stop`), ou encerrar; mensagem nova sem citação também
-   encerra. Limite de segurança de 10 min.
+3. **Duração:** enquanto quem citou trabalha (limite de segurança de 10 min) e, depois, enquanto o citado responde (os
+   dois ficam juntos; ajuste do usuário em 30/10/2026, depois de conferir na vila), com 20 s de espera para o citado
+   começar. Mensagem nova sem citação encerra.
 4. **Onde:** quem cita vai até o citado. Na vila, sai do quintal dele (ou da praça) e anda até onde o citado está; o
    citado para de passear. Dentro da casa, só anima quando os dois moram nela: quem citou levanta da mesa e vai até o
    outro.

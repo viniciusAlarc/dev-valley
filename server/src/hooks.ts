@@ -10,10 +10,14 @@ export interface HookState {
   cwd: string;
   status: SessionStatus;
   updatedAt: number;
-  /** Sessões citadas com `@Nome` na mensagem em curso (NPCs conversando); vazio = não está conversando. */
+  /** Sessões citadas com `@Nome` (NPCs conversando); vazio = não está conversando. Ver `conversaAtiva`. */
   citados: string[];
-  /** Quando a conversa começou: some sozinha depois de CONVERSA_MS. */
+  /** Quando a conversa começou (a mensagem que citou). */
   citadosEm: number;
+  /** Quando a sessão terminou a última resposta (`Stop`); 0 = ainda não terminou desde a última mensagem. */
+  paradoEm: number;
+  /** Desde quando está trabalhando sem parar (ou pedindo permissão); 0 = parada. */
+  trabalhandoDesde: number;
 }
 
 export interface HookPayload {
@@ -32,7 +36,23 @@ const WORKING_STALE_MS = 15 * 60 * 1000;
 const FORGET_MS = 12 * 60 * 60 * 1000;
 /** Limite de segurança da conversa entre NPCs, se o `Stop` não chegar (decisão do usuário, 30/10/2026). */
 const CONVERSA_MS = 10 * 60 * 1000;
+/** Depois que quem citou termina, quanto tempo a conversa espera o citado começar a responder. */
+const RESPOSTA_ESPERA_MS = 20 * 1000;
 const SESSION_ID = /^[0-9a-f-]{36}$/;
+
+const ativa = (s: HookState) => s.status === 'working' || s.status === 'permission';
+
+/**
+ * A conversa `de` → `para` segue enquanto quem citou trabalha (até CONVERSA_MS), enquanto o citado responde (começou a
+ * trabalhar depois da citação) e, entre um e outro, até RESPOSTA_ESPERA_MS depois que quem citou terminou. Assim os
+ * dois ficam juntos enquanto o citado responde (pedido do usuário, 30/10/2026: quem citou ia embora quando o outro
+ * começava a falar).
+ */
+export function conversaAtiva(de: HookState, para: HookState | undefined, now: number): boolean {
+  if (ativa(de)) return now - de.citadosEm < CONVERSA_MS;
+  if (para && ativa(para) && para.trabalhandoDesde >= de.citadosEm) return true;
+  return de.paradoEm > 0 && now - de.paradoEm < RESPOSTA_ESPERA_MS;
+}
 
 /** Até 5 ids de sessão válidos, sem repetir e sem a própria. */
 function validCitados(v: unknown, self: string): string[] {
@@ -74,17 +94,22 @@ export class HookStore {
         return false;
     }
 
-    // A conversa começa com a mensagem que cita alguém e acaba no fim da resposta ou numa mensagem sem citação.
+    // A conversa começa com a mensagem que cita alguém; mensagem sem citação a encerra. O fim, com o citado
+    // respondendo, é decidido em `all()` por `conversaAtiva`.
     const now = Date.now();
     let citados = prev?.citados ?? [];
     let citadosEm = prev?.citadosEm ?? 0;
+    let paradoEm = prev?.paradoEm ?? 0;
     if (p.hook_event_name === 'UserPromptSubmit') {
       citados = validCitados(p.citados, id);
       citadosEm = now;
-    } else if (p.hook_event_name === 'Stop') citados = [];
+      paradoEm = 0;
+    } else if (p.hook_event_name === 'Stop') paradoEm = now;
+    const estava = prev ? ativa(prev) : false;
+    const trabalhandoDesde = status === 'working' || status === 'permission' ? (estava ? prev!.trabalhandoDesde : now) : 0;
 
     if (status === null) this.states.delete(id);
-    else this.states.set(id, { id, cwd, status, updatedAt: now, citados, citadosEm });
+    else this.states.set(id, { id, cwd, status, updatedAt: now, citados, citadosEm, paradoEm, trabalhandoDesde });
     return status !== prev?.status || citados.join() !== (prev?.citados ?? []).join();
   }
 
@@ -98,7 +123,10 @@ export class HookStore {
     for (const [id, s] of this.states) {
       if (now - s.updatedAt > FORGET_MS) this.states.delete(id);
       else if (s.status === 'working' && now - s.updatedAt > WORKING_STALE_MS) s.status = 'idle';
-      if (s.citados.length && now - s.citadosEm > CONVERSA_MS) s.citados = [];
+    }
+    // Conversa encerrada não volta: o citado trabalhar de novo mais tarde não reabre.
+    for (const s of this.states.values()) {
+      if (s.citados.length) s.citados = s.citados.filter((c) => conversaAtiva(s, this.states.get(c), now));
     }
     return [...this.states.values()];
   }
