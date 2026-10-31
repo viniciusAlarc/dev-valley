@@ -3,6 +3,38 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-30 — NPCs conversando: quem cita @Nome vai até o citado
+
+**O que mudou:** plano `docs-dev/a-codar/npcs-conversando.md` (decisões do usuário em 30/10/2026), passos 1 a 4.
+1. **Mod (0.2.0):** junto do `UserPromptSubmit`, manda à vila `citados`: os ids das sessões citadas com `@Nome` que estão
+   no mapa (`idsCitados`), sem a própria e nunca o texto nem o nome digitado. **Regra 3 ampliada** no `CLAUDE.md` e no
+   `README.md`. Versão subiu para o `claude plugin update` trazer a mudança (o mod instalado é cópia, em
+   `~/.claude/plugins/cache/dev-valley/`).
+2. **Servidor:** cada estado do `HookStore` tem `citados`: abre na mensagem que cita, segue durante as ferramentas,
+   fecha no `Stop`, numa mensagem sem citação ou em 10 min. Só ids válidos, sem repetir, sem a própria, até 5.
+   `World.conversas` (`{ de, para }`) só entre sessões da vila.
+3. **Vila (`TownScene`):** quem citou para de passear, anda em linha reta até ficar a 16 px do citado (que também para),
+   os dois se viram e um balão de conversa (textura `talk`, dois balõezinhos) balança acima deles, 54 px acima dos pés,
+   para ficar por cima do "..." de quem está trabalhando. Ao terminar, o balão some e cada um volta a passear.
+4. **Dentro da casa (`InteriorScene`):** quando os dois moram nela e aparecem na sala, quem citou levanta (`standUp`, o
+   inverso de `sit`) e vai até o outro; ao terminar volta ao lugar e senta de novo (ou volta a passear). O balanço de
+   digitação e o passeio pausam durante a visita.
+5. **Prévia `web/sprites.html`:** linha nova com dois moradores conversando, com e sem o "...", nas medidas da vila
+   (`CONVERSA_DX` e `TALK_Y` em `common.ts`, usados pelas duas cenas).
+Parte disto (passos 1 e 2, mais o começo do 3) foi enviada ao GitHub às 22:16 pelo pombal no meio da entrega
+(`b491534`), sem o ajuste em `server/tests/servidor.ts`: o CI daquele commit fica vermelho no typecheck; este commit
+corrige.
+**Arquivos:** `mod/hooks/moradores.ts`, `mod/hooks/register.ts`, `mod/tests/dev-valley.test.ts`,
+`mod/.claude-plugin/plugin.json`, `server/src/hooks.ts`, `server/src/world.ts`, `server/src/index.ts`,
+`server/tests/hooks.test.ts` (novo), `server/tests/servidor.ts`, `web/src/api.ts`, `web/src/game/TownScene.ts`,
+`web/src/game/InteriorScene.ts`, `web/src/game/common.ts`, `web/src/game/textures.ts`, `web/src/sprites.ts`,
+`CLAUDE.md`, `README.md`, `docs-dev/a-codar/npcs-conversando.md`, `docs-dev/painel.json`.
+**Testes:** `npm test` 85/85 (5 novos do `HookStore`: abrir, manter, fechar, validar ids, expirar em 10 min com relógio
+falso); `claude plugin test mod` 10/10 (`idsCitados`; corpo com `@Vera` leva só `citados: ['aaaa']`, sem o nome nem o
+texto; mensagem sem `@Nome` não manda `citados`); typecheck do servidor e build do front sem erro; auditor sem achado.
+As animações não foram vistas rodando. Falta conferir na vila (reinício do usuário, depois de `claude plugin update`):
+citar `@Nome` de uma sessão em outra e ver a visita, na vila e dentro da casa; e a linha nova da prévia.
+
 ## 2026-10-30 — PD-6 (tileset) descartada
 
 **O que mudou:** levantamento da troca da pixel art por um tileset: ~80 desenhos em código, metade sem equivalente em

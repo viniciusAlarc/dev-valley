@@ -713,6 +713,24 @@ function bubble(scene: Phaser.Scene) {
   add(scene, 'bubble', c);
 }
 
+/** Dois balões sobrepostos: dois moradores conversando (um citou o outro com `@Nome`). */
+function talk(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(18, 13);
+  // Balão de trás, azul claro, à direita.
+  rect(ctx, 8, 1, 9, 6, '#cfe8ff');
+  rect(ctx, 7, 2, 11, 4, '#cfe8ff');
+  rect(ctx, 13, 7, 2, 2, '#cfe8ff');
+  rect(ctx, 9, 3, 6, 1, '#3b5a7a');
+  // Balão da frente, branco, à esquerda, com duas linhas de "texto".
+  rect(ctx, 1, 4, 9, 6, '#ffffff');
+  rect(ctx, 0, 5, 11, 4, '#ffffff');
+  rect(ctx, 3, 10, 2, 2, '#ffffff');
+  rect(ctx, 2, 6, 6, 1, '#3b2312');
+  rect(ctx, 2, 8, 4, 1, '#3b2312');
+  outline(ctx, 18, 13);
+  add(scene, 'talk', c);
+}
+
 /** Balão amarelo com "!" — a sessão precisa de você. */
 function alert(scene: Phaser.Scene) {
   const { c, ctx } = makeCanvas(12, 16);
@@ -779,6 +797,7 @@ export function generateTextures(scene: Phaser.Scene) {
   signBoard(scene);
   glow(scene);
   bubble(scene);
+  talk(scene);
   alert(scene);
   shadow(scene);
 }

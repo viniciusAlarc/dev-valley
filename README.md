@@ -68,14 +68,16 @@ clássicos de um mod de usuário são pulados por um plugin de segurança do Cla
 `Notification` continuam como hooks de shell (`jq` + `curl`) no `~/.claude/settings.json`, marcados com `# dev-valley`.
 O install tira e repõe só essas entradas (com backup). Um agente com o mesmo nome criado por você nunca é sobrescrito.
 
-À vila vão apenas `session_id`, `cwd`, nome do evento e o tipo de notificação, mais contexto e limites do plano — nunca
-conteúdo de arquivos ou prompts. Se a vila estiver fechada, o mod desiste em até 1s, em silêncio. Sessões abertas fora da
+À vila vão apenas `session_id`, `cwd`, nome do evento, o tipo de notificação e os ids das sessões citadas com `@Nome`,
+mais contexto e limites do plano — nunca conteúdo de arquivos ou prompts. Se a vila estiver fechada, o mod desiste em até 1s, em silêncio. Sessões abertas fora da
 vila (ex.: VS Code) também aparecem, e a vila não deixa retomar uma sessão que já está rodando em outro terminal.
 
 **Nomes dos moradores.** Cada sessão tem um nome único na vila, guardado em `~/.claude/dev-valley/nomes.json`. Ao abrir,
 a sessão fica sabendo o próprio nome. Numa mensagem, cite outro morador como `@Nome` (ex.: "vê o que a @Lia fez"): o mod
 acha o nome no mapa `~/.claude/dev-valley/moradores.json` (gravado pela vila) e entrega à sessão quem é, de que projeto e
-onde está a conversa, sem busca. O texto da mensagem é lido só na sua máquina; à vila vai apenas o `session_id`.
+onde está a conversa, sem busca. O texto da mensagem é lido só na sua máquina; à vila vão apenas o `session_id` e os ids
+das sessões citadas. Com eles, na vila, quem citou anda até o citado e os dois conversam (balão de conversa) até a
+resposta terminar; dentro da casa, só quando os dois moram nela.
 
 ## Configuração
 

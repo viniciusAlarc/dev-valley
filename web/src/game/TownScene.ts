@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { bellCount, estadoLareira, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
-import { AgentNpc, label, makeInteractive, TEXT_STYLE, VillagerView } from './common';
+import { AgentNpc, CONVERSA_DX, label, makeInteractive, TALK_Y, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
 import { generateTextures, hash, mulberry32, ROOFS } from './textures';
 import { villagerTexture } from './villager';
@@ -53,7 +53,10 @@ interface Resident {
   view: VillagerView;
   area: Rect;
   timer?: Phaser.Time.TimerEvent;
+  /** Numa conversa (visitando ou recebendo visita): não passeia. */
+  ocupado?: boolean;
 }
+
 
 interface HouseView {
   plot: Plot;
@@ -82,6 +85,8 @@ export class TownScene extends Phaser.Scene {
   private houses = new Map<string, HouseView>();
   private smokeTimer?: Phaser.Time.TimerEvent;
   private residents = new Map<string, Resident>();
+  /** NPCs conversando (decisão do usuário, 30/10/2026): quem citou com `@Nome` → quem ele foi visitar. */
+  private visitas = new Map<string, { para: string; balao?: Phaser.GameObjects.Image }>();
   private agentNpcs = new Map<string, { npc: AgentNpc; timer?: Phaser.Time.TimerEvent }>();
   private agentArea!: Rect;
   private world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [] };
@@ -154,6 +159,7 @@ export class TownScene extends Phaser.Scene {
       if (project) this.updateHouse(view, project);
     }
     this.syncResidents();
+    this.syncConversas();
     this.syncAgents();
     this.updateBillboard();
   }
@@ -211,6 +217,8 @@ export class TownScene extends Phaser.Scene {
   private buildTown(projects: Project[]) {
     for (const r of this.residents.values()) r.timer?.remove();
     this.residents.clear();
+    // Os balões somem junto com os outros objetos logo abaixo; a próxima atualização do mundo recomeça as visitas.
+    this.visitas.clear();
     for (const a of this.agentNpcs.values()) a.timer?.remove();
     this.agentNpcs.clear();
     this.houses.clear();
@@ -702,7 +710,7 @@ export class TownScene extends Phaser.Scene {
 
   private scheduleWander(r: Resident, delay: number) {
     r.timer = this.time.delayedCall(delay, () => {
-      if (!r.view.sprite.active) return;
+      if (!r.view.sprite.active || r.ocupado) return;
       // Quem precisa de você fica parado olhando para a tela, com o "!" na cabeça.
       if (r.view.session.status === 'permission') {
         r.view.stand();
@@ -724,5 +732,77 @@ export class TownScene extends Phaser.Scene {
         }),
       );
     });
+  }
+  /**
+   * Uma visita por morador: quem citou vai até o primeiro citado que está andando pela vila. Citado que não está na vila
+   * (dentro da casa, fora do limite da praça) não recebe visita aqui.
+   */
+  private syncConversas() {
+    const quer = new Map<string, string>();
+    for (const { de, para } of this.world.conversas) {
+      if (!quer.has(de) && this.residents.has(de) && this.residents.has(para)) quer.set(de, para);
+    }
+    for (const [de, v] of this.visitas) if (quer.get(de) !== v.para) this.endVisit(de);
+    for (const [de, para] of quer) if (!this.visitas.has(de)) this.startVisit(de, para);
+  }
+
+  private startVisit(de: string, para: string) {
+    const r = this.residents.get(de)!;
+    const host = this.residents.get(para)!;
+    const visita: { para: string; balao?: Phaser.GameObjects.Image } = { para };
+    this.visitas.set(de, visita);
+    for (const x of [r, host]) {
+      x.ocupado = true;
+      x.timer?.remove();
+      this.tweens.killTweensOf(x.view.sprite);
+      x.view.stand();
+    }
+    // Chega pelo lado de onde vem e para ao lado de quem foi visitar.
+    const { x: hx, y: hy } = host.view.sprite;
+    const lado = r.view.sprite.x <= hx ? -1 : 1;
+    this.walkStraight(r, 'y', hy, () =>
+      this.walkStraight(r, 'x', hx + lado * CONVERSA_DX, () => {
+        if (!r.view.sprite.active || this.visitas.get(de) !== visita) return;
+        r.view.stand();
+        // flipX = olhando para a esquerda: os dois se viram um para o outro.
+        r.view.face('side', lado > 0);
+        host.view.face('side', lado < 0);
+        const balao = this.add.image(hx + (lado * CONVERSA_DX) / 2, hy - TALK_Y, 'talk').setDepth(100001);
+        this.tweens.add({ targets: balao, y: balao.y - 2, yoyo: true, repeat: -1, duration: 600, ease: 'Sine.inOut' });
+        visita.balao = balao;
+      }),
+    );
+  }
+
+  private endVisit(de: string) {
+    const visita = this.visitas.get(de);
+    if (!visita) return;
+    this.visitas.delete(de);
+    if (visita.balao) {
+      this.tweens.killTweensOf(visita.balao);
+      visita.balao.destroy();
+    }
+    // Quem recebeu volta a passear, se não estiver em outra conversa.
+    const host = this.residents.get(visita.para);
+    const hostOcupado = this.visitas.has(visita.para) || [...this.visitas.values()].some((v) => v.para === visita.para);
+    if (host && !hostOcupado) {
+      host.ocupado = false;
+      this.scheduleWander(host, 1500);
+    }
+    // Quem visitou volta para um ponto do quintal dele (ou da praça) e retoma o passeio.
+    const r = this.residents.get(de);
+    if (!r || [...this.visitas.values()].some((v) => v.para === de)) return;
+    r.ocupado = false;
+    r.timer?.remove();
+    this.tweens.killTweensOf(r.view.sprite);
+    const tx = Math.round(r.area.x + Math.random() * r.area.w);
+    const ty = Math.round(r.area.y + Math.random() * r.area.h);
+    this.walkStraight(r, 'x', tx, () =>
+      this.walkStraight(r, 'y', ty, () => {
+        if (!r.view.sprite.active || r.ocupado) return;
+        r.view.stand();
+        this.scheduleWander(r, 2000 + Math.random() * 3000);
+      }),
+    );
   }
 }

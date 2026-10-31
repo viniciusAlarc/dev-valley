@@ -78,9 +78,11 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
    `dev-valley.config.local.json`.
 2. **O servidor escuta só em `127.0.0.1` e recusa WebSocket de outra origem:** os terminais rodam comandos de
    verdade. Nunca afrouxar isso.
-3. **O mod (`mod/`) e os hooks de permissão mandam à vila só `session_id`, `cwd`, nome do evento e tipo de
-   notificação** (e contexto/limites no `/api/statusline`). Nunca conteúdo de arquivo ou prompt: o prompt é lido **só localmente**, para achar `@Nome` no
-   mapa `~/.claude/dev-valley/moradores.json`. O teste `mod/tests/dev-valley.test.ts` confere isso.
+3. **O mod (`mod/`) e os hooks de permissão mandam à vila só `session_id`, `cwd`, nome do evento, tipo de
+   notificação e os ids das sessões citadas com `@Nome`** (e contexto/limites no `/api/statusline`). Nunca conteúdo de
+   arquivo ou prompt, nem o nome digitado: o prompt é lido **só localmente**, para achar `@Nome` no mapa
+   `~/.claude/dev-valley/moradores.json`; os ids citados servem aos NPCs conversando (decisão do usuário, 30/10/2026). O
+   teste `mod/tests/dev-valley.test.ts` confere isso.
 4. **`hooks:install` instala o mod (`claude plugin install`) e mexe em `~/.claude/settings.json` (global, com
    backup) só nas entradas do Dev Valley (os hooks de shell de `PermissionRequest` e `Notification`; o mod não vê
    quando o diálogo de permissão abre):** nunca sobrescreve agente do usuário com o mesmo nome, e o

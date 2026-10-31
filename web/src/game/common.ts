@@ -64,6 +64,10 @@ const ACTIVITY_LABEL = {
 };
 
 /** Um morador na tela: sprite, sombra, balão de status, tooltip e clique para abrir o chat. */
+/** NPCs conversando: distância entre os dois, lado a lado, e altura do balão (acima do "..." de quem trabalha). */
+export const CONVERSA_DX = 16;
+export const TALK_Y = 54;
+
 export class VillagerView {
   readonly sprite: Phaser.GameObjects.Sprite;
   readonly texture: string;
@@ -123,6 +127,18 @@ export class VillagerView {
     this.sprite.setCrop(0, 0, 16, 26);
     this.shadow.setVisible(false);
     this.place();
+  }
+
+  /** Levanta da cadeira ou do sofá (o inverso de `sit`): mostra as pernas e a sombra de novo. */
+  standUp() {
+    this.seated = false;
+    this.sprite.setCrop();
+    this.shadow.setVisible(true);
+    this.place();
+  }
+
+  get isSeated() {
+    return this.seated;
   }
 
   place() {

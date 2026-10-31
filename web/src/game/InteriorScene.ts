@@ -1,8 +1,17 @@
 import Phaser from 'phaser';
 import { activityOf, estadoLareira, getWorld, onWorld, type AgentSummary, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
-import { AgentNpc, makeInteractive, VillagerView } from './common';
+import { AgentNpc, CONVERSA_DX, makeInteractive, TALK_Y, VillagerView } from './common';
 import { generateInteriorTextures, SEED_COLORS, SHELF_BOOKS } from './interiorTextures';
+import type { Facing } from './villager';
+
+/** Visita de um morador a outro na sala: de onde saiu (para voltar) e para onde o visitado olhava. */
+interface Visita {
+  para: string;
+  volta: { x: number; y: number; sentado: Facing | null };
+  hostOlhava: Facing;
+  balao?: Phaser.GameObjects.Image;
+}
 
 const W = 288;
 const WALL_H = 40;
@@ -61,6 +70,13 @@ export class InteriorScene extends Phaser.Scene {
   private projectId = '';
   private signature = '';
   private villagers = new Map<string, VillagerView>();
+  /**
+   * NPCs conversando dentro da casa (decisão do usuário, 30/10/2026): quem citou com `@Nome` → visita em curso, com o
+   * lugar de onde saiu para voltar depois.
+   */
+  private visitas = new Map<string, Visita>();
+  /** Área de passeio da sala, para quem passeava voltar a passear depois da visita. */
+  private wanderArea = { x: 0, y: 0, w: 0, h: 0 };
   private monitors = new Map<string, Phaser.GameObjects.Image>();
   private notes: Phaser.GameObjects.Image[] = [];
   private notesKey = '';
@@ -153,6 +169,7 @@ export class InteriorScene extends Phaser.Scene {
     this.chalkboard?.setTexture(project.painel ? 'chalkboardWritten' : 'chalkboard');
     this.lightFireplace(project);
     for (const s of sessions) this.villagers.get(s.id)?.update(s);
+    this.syncConversas(world);
     for (const [id, monitor] of this.monitors) {
       const s = sessions.find((x) => x.id === id);
       const a = s ? activityOf(s) : 'offline';
@@ -166,6 +183,8 @@ export class InteriorScene extends Phaser.Scene {
   private buildRoom(project: Project, placement: Placement) {
     for (const v of this.villagers.values()) v.destroy();
     this.villagers.clear();
+    // Os balões somem com a sala; a próxima atualização do mundo recomeça as visitas.
+    this.visitas.clear();
     this.monitors.clear();
     this.notes = [];
     this.notesKey = '';
@@ -282,7 +301,7 @@ export class InteriorScene extends Phaser.Scene {
         delay: 180,
         loop: true,
         callback: () => {
-          if (!v.sprite.active) return;
+          if (!v.sprite.active || this.visitas.has(v.session.id)) return;
           const typing = v.sprite.getData('typing');
           v.sprite.y = y + 14 + (typing && Math.random() < 0.5 ? 1 : 0);
           v.place();
@@ -330,6 +349,7 @@ export class InteriorScene extends Phaser.Scene {
     });
 
     const area = { x: 24, y: loungeTop + 48, w: W - 48, h: 40 };
+    this.wanderArea = area;
     placement.wanderers.forEach((s, i) => {
       const v = this.addVillager(s, area.x + ((i * 53) % area.w), area.y + ((i * 17) % area.h));
       this.wander(v, area);
@@ -418,7 +438,7 @@ export class InteriorScene extends Phaser.Scene {
 
   private wander(v: VillagerView, area: { x: number; y: number; w: number; h: number }) {
     this.time.delayedCall(1500 + Math.random() * 4000, () => {
-      if (!v.sprite.active) return;
+      if (!v.sprite.active || this.visitas.has(v.session.id)) return;
       const tx = Math.round(area.x + Math.random() * area.w);
       const dist = Math.abs(tx - v.sprite.x);
       v.walk('side', tx < v.sprite.x);
@@ -435,5 +455,72 @@ export class InteriorScene extends Phaser.Scene {
         },
       });
     });
+  }
+  /** Só quando os dois moram nesta casa e aparecem na sala; quem citou vai até o primeiro citado daqui. */
+  private syncConversas(world: World) {
+    const quer = new Map<string, string>();
+    for (const { de, para } of world.conversas) {
+      if (!quer.has(de) && this.villagers.has(de) && this.villagers.has(para)) quer.set(de, para);
+    }
+    for (const [de, v] of this.visitas) if (quer.get(de) !== v.para) this.endVisit(de);
+    for (const [de, para] of quer) if (!this.visitas.has(de)) this.startVisit(de, para);
+  }
+
+  /** Anda em linha reta numa só direção, como na vila. */
+  private walkStraight(v: VillagerView, axis: 'x' | 'y', target: number, done: () => void) {
+    const from = v.sprite[axis];
+    const dist = Math.abs(target - from);
+    if (dist < 2) return done();
+    if (axis === 'x') v.walk('side', target < from);
+    else v.walk(target > from ? 'down' : 'up');
+    this.tweens.add({ targets: v.sprite, [axis]: target, duration: dist * 45, onUpdate: () => v.place(), onComplete: done });
+  }
+
+  private startVisit(de: string, para: string) {
+    const v = this.villagers.get(de)!;
+    const host = this.villagers.get(para)!;
+    const visita: Visita = { para, volta: { x: v.sprite.x, y: v.sprite.y, sentado: v.isSeated ? v.facing : null }, hostOlhava: host.facing };
+    this.visitas.set(de, visita);
+    this.tweens.killTweensOf(v.sprite);
+    v.standUp();
+    // Para ao lado de quem foi visitar, chegando pelo lado de onde vem; quem recebe fica onde está (sentado ou não).
+    const { x: hx, y: hy } = host.sprite;
+    const lado = v.sprite.x <= hx ? -1 : 1;
+    this.walkStraight(v, 'y', hy, () =>
+      this.walkStraight(v, 'x', hx + lado * CONVERSA_DX, () => {
+        if (!v.sprite.active || this.visitas.get(de) !== visita) return;
+        v.stand();
+        v.face('side', lado > 0);
+        host.face('side', lado < 0);
+        const balao = this.add.image(hx + (lado * CONVERSA_DX) / 2, hy - TALK_Y, 'talk').setDepth(100001);
+        this.tweens.add({ targets: balao, y: balao.y - 2, yoyo: true, repeat: -1, duration: 600, ease: 'Sine.inOut' });
+        visita.balao = balao;
+      }),
+    );
+  }
+
+  private endVisit(de: string) {
+    const visita = this.visitas.get(de);
+    if (!visita) return;
+    this.visitas.delete(de);
+    if (visita.balao) {
+      this.tweens.killTweensOf(visita.balao);
+      visita.balao.destroy();
+    }
+    // Quem recebeu volta a olhar para onde olhava: o monitor (mesa) ou a sala (sofá e passeio).
+    const host = this.villagers.get(visita.para);
+    if (host && !this.visitas.has(visita.para)) host.face(visita.hostOlhava);
+    const v = this.villagers.get(de);
+    if (!v) return;
+    this.tweens.killTweensOf(v.sprite);
+    const { x, y, sentado } = visita.volta;
+    this.walkStraight(v, 'x', x, () =>
+      this.walkStraight(v, 'y', y, () => {
+        if (!v.sprite.active || this.visitas.has(de)) return;
+        v.stand();
+        if (sentado) v.sit(sentado);
+        else this.wander(v, this.wanderArea);
+      }),
+    );
   }
 }
