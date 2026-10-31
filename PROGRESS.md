@@ -12,14 +12,15 @@ o turno da A termina justamente quando ela manda a mensagem para a B. Regra nova
 trabalhar depois da citação) e, entre uma e outra, até 20 s depois de a A terminar, esperando a B começar. A B
 terminando, a conversa fecha e não reabre se a B trabalhar de novo depois. Citado que já trabalhava antes da citação não
 segura a conversa. O `HookStore` ganhou `paradoEm` e `trabalhandoDesde` por sessão; a vila não mudou.
-**Arquivos:** `server/src/hooks.ts`, `server/tests/hooks.test.ts`, `docs-dev/a-codar/npcs-conversando.md`.
+**Arquivos:** `server/src/hooks.ts`, `server/tests/hooks.test.ts`, `docs-dev/context/npcs-conversando.md`.
 **Testes:** `npm test` 88/88; testes da conversa reescritos com relógio falso, incluindo o caso visto pelo usuário (a B
 responde 3 min: os dois juntos até o `Stop` da B). Com a condição "o citado está respondendo" desligada, esse teste
-falha; código restaurado. Typecheck sem erro. Falta conferir na vila (reinício do usuário; o mod não mudou).
+falha; código restaurado. Typecheck sem erro. Conferido na vila pelo usuário em 31/10/2026. Com isso o plano fechou:
+saiu de `docs-dev/a-codar/` para `docs-dev/context/npcs-conversando.md` e as fases do painel ficaram feitas.
 
 ## 2026-10-30 — NPCs conversando: quem cita @Nome vai até o citado
 
-**O que mudou:** plano `docs-dev/a-codar/npcs-conversando.md` (decisões do usuário em 30/10/2026), passos 1 a 4.
+**O que mudou:** plano `docs-dev/context/npcs-conversando.md` (decisões do usuário em 30/10/2026), passos 1 a 4.
 1. **Mod (0.2.0):** junto do `UserPromptSubmit`, manda à vila `citados`: os ids das sessões citadas com `@Nome` que estão
    no mapa (`idsCitados`), sem a própria e nunca o texto nem o nome digitado. **Regra 3 ampliada** no `CLAUDE.md` e no
    `README.md`. Versão subiu para o `claude plugin update` trazer a mudança (o mod instalado é cópia, em
@@ -42,7 +43,7 @@ corrige.
 `mod/.claude-plugin/plugin.json`, `server/src/hooks.ts`, `server/src/world.ts`, `server/src/index.ts`,
 `server/tests/hooks.test.ts` (novo), `server/tests/servidor.ts`, `web/src/api.ts`, `web/src/game/TownScene.ts`,
 `web/src/game/InteriorScene.ts`, `web/src/game/common.ts`, `web/src/game/textures.ts`, `web/src/sprites.ts`,
-`CLAUDE.md`, `README.md`, `docs-dev/a-codar/npcs-conversando.md`, `docs-dev/painel.json`.
+`CLAUDE.md`, `README.md`, `docs-dev/context/npcs-conversando.md`, `docs-dev/painel.json`.
 **Testes:** `npm test` 85/85 (5 novos do `HookStore`: abrir, manter, fechar, validar ids, expirar em 10 min com relógio
 falso); `claude plugin test mod` 10/10 (`idsCitados`; corpo com `@Vera` leva só `citados: ['aaaa']`, sem o nome nem o
 texto; mensagem sem `@Nome` não manda `citados`); typecheck do servidor e build do front sem erro; auditor sem achado.

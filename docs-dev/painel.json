@@ -1,12 +1,12 @@
 {
   "plano": {
     "nome": "NPCs conversando (animações e dinâmicas dos NPCs, 30/10/2026)",
-    "doc": "docs-dev/a-codar/npcs-conversando.md",
+    "doc": "docs-dev/context/npcs-conversando.md",
     "fases": [
       { "nome": "Mod manda os ids citados", "estado": "feito" },
       { "nome": "Servidor guarda as conversas", "estado": "feito" },
-      { "nome": "Visita na vila", "estado": "andamento" },
-      { "nome": "Visita dentro da casa", "estado": "andamento" }
+      { "nome": "Visita na vila", "estado": "feito" },
+      { "nome": "Visita dentro da casa", "estado": "feito" }
     ]
   },
   "entregas": [

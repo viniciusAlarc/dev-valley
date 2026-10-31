@@ -1,7 +1,6 @@
 # NPCs conversando
 
-> Plano decidido com o usuário em 30/10/2026 (G7). Ao fechar cada passo: marcar aqui e no `PROGRESS.md`; ao fechar o
-> plano, este arquivo vai para `docs-dev/context/`.
+> Plano decidido com o usuário e implementado em 30/10/2026; conferido na vila pelo usuário em 31/10/2026 (fechado).
 
 Primeiro ponto do refinamento das animações e dinâmicas dos NPCs (pedido do usuário, 30/10/2026): quando uma sessão fala
 com outra, um morador vai até o outro e os dois ficam conversando.
@@ -31,8 +30,8 @@ com outra, um morador vai até o outro e os dois ficam conversando.
 |---|---|---|
 | 1 | Mod: ids citados junto do `UserPromptSubmit`; regra 3 e teste do mod atualizados | feito (30/10/2026, `idsCitados` em `mod/hooks/moradores.ts`; mod 0.2.0) |
 | 2 | Servidor: `HookStore` guarda as conversas, `World.conversas`, testes | feito (30/10/2026, `server/src/hooks.ts`, `server/tests/hooks.test.ts`) |
-| 3 | Vila: quem cita anda até o citado, os dois se viram e o balão de conversa aparece; volta ao terminar | feito (30/10/2026, `syncConversas` na `TownScene`, textura `talk`); falta conferir na vila |
-| 4 | Dentro da casa: quem cita levanta e vai até o outro, quando os dois moram nela | feito (30/10/2026, `syncConversas` na `InteriorScene`, `standUp` no `VillagerView`); falta conferir na vila |
+| 3 | Vila: quem cita anda até o citado, os dois se viram e o balão de conversa aparece; volta ao terminar | feito (30/10/2026, `syncConversas` na `TownScene`, textura `talk`); conferido na vila |
+| 4 | Dentro da casa: quem cita levanta e vai até o outro, quando os dois moram nela | feito (30/10/2026, `syncConversas` na `InteriorScene`, `standUp` no `VillagerView`); conferido na vila |
 
 Limites conhecidos: uma visita por morador (vai até o primeiro citado que aparece na cena); citado que não aparece (fora
 da vila, dentro da casa quando quem citou está fora, ou além do limite da praça) não recebe visita; o caminho é em linha
