@@ -151,6 +151,8 @@ export interface Session {
   id: string;
   /** Nome do morador, único na vila (dado pelo servidor, server/src/moradores.ts). */
   name: string;
+  /** Marca do nome (`f`, `m` ou neutro): a aparência combina com ela. */
+  genero: 'f' | 'm' | null;
   cwd: string;
   title: string;
   gitBranch: string | null;

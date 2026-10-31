@@ -65,8 +65,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
   `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 37 rotas e o pombal; WebSockets e front
   seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor e `npm test` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 29/10/2026 (80/80).
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 31/10/2026 (96/96).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
+- Prévia dos moradores em PNG, sem navegador: `npx tsx scripts/previa-moradores.ts <saida.png> [quantos|catalogo]`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com
   `--sem-home`, em `.github/workflows/auditor.yml`)
 - Mod e agentes: `npm run hooks:install` / `npm run hooks:uninstall`
@@ -95,12 +96,15 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
    `npm run dev`, que reinicia sozinho ao salvar em `server/`) encerra todos os terminais da vila, inclusive a
    sessão que está editando. Nunca reiniciar nem rodar `npm run dev` por conta própria: avisar o usuário e ele
    reinicia quando as sessões terminarem (G21).
-7. **Pixel art é gerada em código** (`web/src/game/textures.ts`, `interiorTextures.ts`); prévia em `web/sprites.html`.
+7. **Pixel art é gerada em código** (`web/src/game/textures.ts`, `interiorTextures.ts`; moradores em `villagerArt.ts`,
+   sem Phaser); prévia em `web/sprites.html` e, dos moradores, em PNG por `scripts/previa-moradores.ts` (o `catalogo`
+   mostra cada peça). A aparência do morador combina com a marca do nome (`generoDoNome` no servidor): barba nunca em
+   nome feminino, vestido e laço nunca em masculino (decisão do usuário, 31/10/2026).
 8. **Todo agente (NPC ✦) veste o traje de agente secreto**, estilo "homens de preto": paletó e calça pretos, camisa
    branca, gravata e óculos escuros; só pele e cor do cabelo variam. É o que separa agente de sessão à primeira vista
    (decisão do usuário, 27/10/2026). Vale para os da Fábrica (automático na `AgentNpc`) e para qualquer agente da
    vila novo: desenhe com `villagerTexture(scene, id, true)`, nunca com a aparência sorteada dos moradores. Agente da vila
-   novo entra na lista que reserva a combinação de pele × cabelo em `villager.ts`, para nenhum agente sair igual a ele.
+   novo entra na lista que reserva a combinação de pele × cabelo em `villagerArt.ts`, para nenhum agente sair igual a ele.
 9. **O pombal (`server/src/pombal.ts`) faz push numa branch que outras pessoas podem usar.** Push só por clique
    confirmado no painel e só de página local, nunca `--force` (o git só aceita fast-forward). Conflito no rebase sempre
    termina em `rebase --abort` (o repositório fica como estava).

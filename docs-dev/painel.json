@@ -1,15 +1,16 @@
 {
   "plano": {
-    "nome": "NPCs conversando (animações e dinâmicas dos NPCs, 30/10/2026)",
-    "doc": "docs-dev/context/npcs-conversando.md",
+    "nome": "Moradores variados e coerentes com o nome (31/10/2026)",
+    "doc": "docs-dev/context/moradores-variados.md",
     "fases": [
-      { "nome": "Mod manda os ids citados", "estado": "feito" },
-      { "nome": "Servidor guarda as conversas", "estado": "feito" },
-      { "nome": "Visita na vila", "estado": "feito" },
-      { "nome": "Visita dentro da casa", "estado": "feito" }
+      { "nome": "Arte sem Phaser e prévia em PNG", "estado": "feito" },
+      { "nome": "Nome marcado e sorteio respeitando a marca", "estado": "feito" },
+      { "nome": "Penteados, roupas e acessórios novos", "estado": "feito" },
+      { "nome": "Testes e conferência na vila", "estado": "feito" }
     ]
   },
   "entregas": [
+    { "data": "2026-10-31", "o_que": "Moradores com aparência que combina com o nome e muito mais variados: 10 penteados, 10 roupas, 5 acessórios de cabeça, óculos, lenço, barba e bigode", "como": "villagerArt.ts sem Phaser, generoDoNome no servidor, scripts/previa-moradores.ts" },
     { "data": "2026-10-30", "o_que": "NPCs conversando: quem cita @Nome anda até o citado e os dois conversam com balão até a resposta terminar, na vila e dentro da casa", "como": "idsCitados no mod (0.2.0), citados no HookStore, World.conversas, syncConversas na TownScene e InteriorScene" },
     { "data": "2026-10-29", "o_que": "Testes no CI do GitHub junto com o auditor; plano de testes fechado (PD-8)", "como": "job testes em .github/workflows/auditor.yml: npm ci, typecheck do servidor e npm test" },
     { "data": "2026-10-29", "o_que": "Pombal testado com git de verdade: enviar, receber, arquivos escolhidos, conflito com rebase --abort, stash e dois cliques (80 testes)", "como": "server/tests/pombal.test.ts: remoto bare e dois clones em pasta temporária, git isolado do ~/.gitconfig" },

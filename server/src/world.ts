@@ -56,6 +56,8 @@ export interface Project {
 export interface WorldSession extends SessionInfo {
   /** Nome do morador, único na vila (ver moradores.ts). */
   name: string;
+  /** Marca do nome (`f`, `m` ou neutro): a aparência combina com ela (ver `generoDoNome`). */
+  genero: 'f' | 'm' | null;
   /** Id do projeto onde o NPC mora; null = mora na praça. */
   projectId: string | null;
   /** Terminal aberto pela própria vila. */
@@ -220,6 +222,7 @@ export async function buildWorld(
     return {
       ...s,
       name: '',
+      genero: null,
       lastActivity: Math.max(s.lastActivity, hook?.updatedAt ?? 0),
       projectId: ownerOf(s, projects)?.id ?? null,
       inTown: inTown.has(s.id),

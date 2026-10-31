@@ -28,6 +28,30 @@ const POOL = [
   'Amora', 'Benício', 'Clara', 'Dudu', 'Estela', 'Fernão', 'Gina', 'Ivo',
 ];
 
+/**
+ * Marca de cada nome para a aparência combinar com ele (decisão do usuário, 31/10/2026): penteado e detalhes (barba,
+ * vestido, laço) respeitam a marca. Nome fora das duas listas é neutro e pode sair com qualquer visual (os ambíguos:
+ * Rafa, Duda, Gabi, Cacau, Juju, Jade, Zuza). Nome novo na lista entra aqui também, ou fica neutro.
+ */
+const FEMININOS = new Set([
+  'Ana', 'Elis', 'Íris', 'Kika', 'Lia', 'Malu', 'Pietra', 'Sofia', 'Vivi', 'Bia', 'Nina', 'Alice', 'Flora', 'Helena',
+  'Lara', 'Mel', 'Olga', 'Rosa', 'Tati', 'Vera', 'Yara', 'Zoe', 'Bela', 'Cecília', 'Dora', 'Iara', 'Maya', 'Nara',
+  'Olívia', 'Rita', 'Teca', 'Wanda', 'Amora', 'Clara', 'Estela', 'Gina',
+]);
+const MASCULINOS = new Set([
+  'Bento', 'Caio', 'Fábio', 'Heitor', 'Joca', 'Nico', 'Otto', 'Theo', 'Zeca', 'Davi', 'Breno', 'Dante', 'Edu', 'Guto',
+  'Igor', 'Luca', 'Noah', 'Pedro', 'Quico', 'Samuel', 'Ulisses', 'Arthur', 'Enzo', 'Fred', 'Gael', 'Hugo', 'Kauã', 'Leo',
+  'Paco', 'Salvador', 'Valentim', 'Xande', 'Yuri', 'Benício', 'Dudu', 'Fernão', 'Ivo',
+]);
+
+export type Genero = 'f' | 'm' | null;
+
+/** Marca do nome do morador; "Ana2" (nome repetido com número) usa a de "Ana". */
+export function generoDoNome(name: string): Genero {
+  const base = name.replace(/\d+$/, '');
+  return FEMININOS.has(base) ? 'f' : MASCULINOS.has(base) ? 'm' : null;
+}
+
 /** Mesmo hash do front (textures.ts) — mantém o nome antigo de cada sessão. */
 function hash(s: string): number {
   let h = 2166136261;
@@ -105,7 +129,10 @@ export class Moradores {
       this.names.delete(id);
       this.claimedAt.delete(id);
     }
-    for (const s of [...sessions].sort((a, b) => a.lastActivity - b.lastActivity)) s.name = this.nameOf(s.id);
+    for (const s of [...sessions].sort((a, b) => a.lastActivity - b.lastActivity)) {
+      s.name = this.nameOf(s.id);
+      s.genero = generoDoNome(s.name);
+    }
     await this.saveNames();
 
     const byId = new Map(projects.map((p) => [p.id, p]));

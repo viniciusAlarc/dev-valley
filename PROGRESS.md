@@ -3,6 +3,35 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-10-31 — Moradores variados e com a aparência combinando com o nome
+
+**O que mudou:** plano `docs-dev/context/moradores-variados.md` (decisões do usuário em 31/10/2026).
+1. **Arte sem Phaser:** o desenho dos moradores saiu de `web/src/game/villager.ts` para `villagerArt.ts` (o `villager.ts`
+   só registra a textura no jogo); `hash` e `mulberry32` foram para `hash.ts` (o `textures.ts` reexporta). Assim a arte
+   roda no Node.
+2. **Prévia em PNG sem navegador:** `scripts/previa-moradores.ts` desenha com a mesma arte num canvas de mentira e grava
+   PNG pelo `zlib`. `catalogo` mostra cada penteado, roupa e acessório sobre o mesmo morador; um número sorteia moradores
+   alternando a marca do nome (f, m, neutro), com os agentes na última linha.
+3. **Nome marcado (ponto 1):** `generoDoNome` em `server/src/moradores.ts` (36 femininos, 37 masculinos; ambíguos como
+   Rafa, Duda e Gabi ficam neutros; "Ana2" usa a marca de "Ana"). A sessão leva `genero` no mundo e o sorteio respeita:
+   penteados de cada lista, barba e bigode nunca em nome feminino, vestido e laço nunca em masculino; neutro pode tudo.
+4. **Mais variedade (ponto 2):** penteados novos (raspado, cacheado com textura, rabo de cavalo, tranças, franja de
+   lado), roupas novas (moletom com capuz, jaqueta aberta, avental, suéter, xadrez, vestido), acessórios de cabeça
+   (boné, gorro com pompom, faixa, laço, além do chapéu de palha), óculos de grau (armação colorida, nunca escuros: são
+   dos agentes), lenço, barba e bigode (no tom escuro do cabelo, para aparecer em cabelo claro). O sorteio passou a usar
+   `mulberry32(hash(id))`: todos os moradores trocaram de visual (decisão do usuário); o nome continua. Agentes iguais.
+   Na prévia, o cacheado ganhou contorno ondulado e textura e o boné, aba larga e costura, para não parecer gorro.
+**Arquivos:** `web/src/game/villagerArt.ts` (novo), `web/src/game/hash.ts` (novo), `web/src/game/villager.ts`,
+`web/src/game/textures.ts`, `web/src/game/common.ts`, `web/src/api.ts`, `server/src/moradores.ts`, `server/src/world.ts`,
+`scripts/previa-moradores.ts` (novo), `server/tests/moradores.test.ts` (novo), `web/tests/villager-art.test.ts` (novo),
+`server/tests/servidor.ts`, `CLAUDE.md` (regra 7 e comando da prévia), `docs-dev/context/moradores-variados.md`,
+`docs-dev/painel.json`.
+**Testes:** `npm test` 96/96 (8 novos: a marca respeitada em 600 sorteios por marca, chapéu sem penteado alto, vestido
+com pernas na cor da pele, agente sem acessório, `generoDoNome`); liberando barba para nome feminino, o teste falha
+(código restaurado). Em 3.000 sorteios: masculino com barba ou bigode 33%, óculos 20%, vestido 9% e laço 7% em
+feminino. Typecheck, build do front e auditor sem erro; mod 10/10. Conferido na vila pelo usuário em 31/10/2026 ("bem
+melhor"). Plano fechado: saiu de `docs-dev/a-codar/` para `docs-dev/context/moradores-variados.md`.
+
 ## 2026-10-31 — PD-10 (permitir/negar pelo balão) descartada
 
 **O que mudou:** decisão do usuário (31/10/2026). Ganho só de UX, sem ganho de desempenho: a sessão espera a resposta do

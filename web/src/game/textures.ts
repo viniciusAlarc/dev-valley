@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import { mulberry32 } from './hash';
+
+export { hash, mulberry32 } from './hash';
 
 /**
  * Toda a pixel art é gerada em código para o MVP não depender de assets externos.
@@ -8,22 +11,6 @@ import Phaser from 'phaser';
 type Ctx = CanvasRenderingContext2D;
 
 const OUTLINE = '#2b1a0e';
-
-export function mulberry32(seed: number) {
-  return () => {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-export function hash(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
-  return h >>> 0;
-}
 
 export function makeCanvas(w: number, h: number) {
   const c = document.createElement('canvas');

@@ -35,7 +35,7 @@ export function casa(id: string, dir: string, extra: Partial<Project> = {}): Pro
 }
 
 export function sessao(id: string, extra: Partial<WorldSession> = {}): WorldSession {
-  return { id, name: 'Teste', cwd: '/tmp', projectId: null, inTown: true, live: false, status: null, context: null, ...extra } as WorldSession;
+  return { id, name: 'Teste', genero: null, cwd: '/tmp', projectId: null, inTown: true, live: false, status: null, context: null, ...extra } as WorldSession;
 }
 
 export interface Servidor {

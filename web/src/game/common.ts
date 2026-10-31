@@ -83,7 +83,7 @@ export class VillagerView {
     x: number,
     y: number,
   ) {
-    this.texture = villagerTexture(scene, session.id);
+    this.texture = villagerTexture(scene, session.id, false, session.genero);
     this.shadow = scene.add.image(x, y, 'shadow').setOrigin(0.5);
     this.sprite = scene.add.sprite(x, y, this.texture, 0).setOrigin(0.5, 1);
     this.bubble = new StatusBubble(scene);
