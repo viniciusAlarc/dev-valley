@@ -387,6 +387,42 @@ function seedPacket(scene: Phaser.Scene, key: string, color: string) {
   add(scene, key, c);
 }
 
+/**
+ * Lixeira de vime do canto da sala: o `RETRABALHO.md` (G17). Boca aberta e escura em cima, onde as bolinhas de papel
+ * (uma por retrabalho) aparecem; a frente é desenhada separada para cobrir a metade de baixo delas.
+ */
+function trashCan(scene: Phaser.Scene) {
+  const W = 16;
+  const H = 18;
+  const { c, ctx } = makeCanvas(W, H);
+  rect(ctx, 0, 0, W, 4, '#6b4a2a');
+  rect(ctx, 1, 1, W - 2, 2, '#2b1a0e');
+  outline(ctx, W, H);
+  add(scene, 'trashCanBack', c);
+  const f = makeCanvas(W, H);
+  // corpo afinando para baixo, com as tiras do vime alternadas
+  for (let y = 3; y < H - 1; y++) {
+    const inset = Math.floor((y - 3) / 6);
+    rect(f.ctx, inset, y, W - inset * 2, 1, y % 3 === 0 ? '#8f6a3c' : '#b08850');
+    for (let x = inset + (y % 2 ? 1 : 3); x < W - inset - 1; x += 4) rect(f.ctx, x, y, 1, 1, '#7a5630');
+  }
+  rect(f.ctx, 0, 3, W, 2, '#c99f62');
+  rect(f.ctx, 2, H - 1, W - 4, 1, '#6b4a2a');
+  outline(f.ctx, W, H);
+  add(scene, 'trashCan', f.c);
+}
+
+/** Bolinha de papel amassado: um retrabalho. Dentro da lixeira, ou no chão quando ela transborda. */
+function paperBall(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(6, 6);
+  disc(ctx, 3, 3, 2, '#ece4d0');
+  rect(ctx, 2, 2, 1, 1, '#c9bfa8');
+  rect(ctx, 3, 4, 2, 1, '#c9bfa8');
+  rect(ctx, 4, 2, 1, 1, '#ffffff');
+  outline(ctx, 6, 6);
+  add(scene, 'paperBall', c);
+}
+
 export const SEED_COLORS = ['#3f8a3a', '#e05a6a', '#f5d142', '#7aa8f0', '#e67e22', '#8e44ad'];
 
 export function generateInteriorTextures(scene: Phaser.Scene) {
@@ -415,6 +451,8 @@ export function generateInteriorTextures(scene: Phaser.Scene) {
   for (let p = 1; p <= NOTE_COLORS.length; p++) note(scene, p);
   seedBox(scene);
   SEED_COLORS.forEach((color, i) => seedPacket(scene, `seedPacket${i}`, color));
+  trashCan(scene);
+  paperBall(scene);
 }
 
 // ---------------- biblioteca ----------------

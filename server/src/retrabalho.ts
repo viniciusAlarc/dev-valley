@@ -15,7 +15,7 @@ const cells = (line: string) =>
     .map((c) => c.trim());
 
 /**
- * Ervas daninhas do quintal (decisão de 26/10/2026): cada linha da tabela é um retrabalho. Os projetos variam o
+ * Lixeira dentro da casa (decisão de 26/10/2026; eram ervas no quintal até 31/10/2026): cada linha da tabela é um retrabalho. Os projetos variam o
  * formato (data `AAAA-MM-DD` ou `DD/MM`, colunas extras), então o cabeçalho vem junto e nada é reinterpretado.
  * Só leitura; null quando o projeto não tem o arquivo.
  */

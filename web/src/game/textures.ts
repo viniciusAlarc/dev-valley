@@ -115,21 +115,6 @@ function bush(scene: Phaser.Scene) {
   add(scene, 'bush', c);
 }
 
-/** Erva daninha do quintal: uma linha do `RETRABALHO.md` (G17). A variante com flor só muda o desenho. */
-function weed(scene: Phaser.Scene, key: string, flower: boolean) {
-  const { c, ctx } = makeCanvas(9, 9);
-  for (const [x, top, color] of [[1, 4, '#5f7d2a'], [3, 1, '#7a9a34'], [4, 3, '#5f7d2a'], [6, 2, '#8aa83c'], [7, 5, '#5f7d2a']] as const)
-    rect(ctx, x, top, 1, 9 - top, color);
-  rect(ctx, 2, 6, 5, 3, '#4b6522');
-  if (flower) {
-    rect(ctx, 2, 1, 3, 1, '#a35bc4');
-    rect(ctx, 3, 0, 1, 3, '#a35bc4');
-    rect(ctx, 3, 1, 1, 1, '#f5d142');
-  }
-  outline(ctx, 9, 9);
-  add(scene, key, c);
-}
-
 /** Placa de vistoria fincada no quintal da frente: tabuleta numa estaca, no prazo (papel) ou vencida (amarela). */
 function plaque(scene: Phaser.Scene, key: string, face: string, lines: string) {
   const W = 13;
@@ -532,13 +517,11 @@ function factory(scene: Phaser.Scene) {
   // base de pedra
   rect(ctx, 2, 89, W - 4, 7, '#8a8478');
   rect(ctx, 2, 89, W - 4, 1, '#a39b8b');
-  // chaminé de tijolo com fumaça
+  // chaminé de tijolo (a fumaça é animada, solta pela TownScene)
   rect(ctx, 76, 14, 11, 30, '#7d3a2b');
   for (let y = 19; y < 44; y += 5) rect(ctx, 76, y, 11, 1, '#6a3124');
   rect(ctx, 85, 14, 2, 30, '#6a3124');
   rect(ctx, 74, 10, 15, 4, '#5a281d');
-  disc(ctx, 81, 6, 3, '#d9dcde');
-  disc(ctx, 87, 3, 2, '#e8eaeb');
   outline(ctx, W, H);
   add(scene, 'factory', c);
 }
@@ -813,8 +796,6 @@ export function generateTextures(scene: Phaser.Scene) {
   pigeon(scene, 'pigeon-letter', { letter: true, wingUp: false });
   pigeon(scene, 'pigeon-letter-fly', { letter: true, wingUp: true });
   letter(scene);
-  weed(scene, 'weed0', false);
-  weed(scene, 'weed1', true);
   crop(scene, 'crop-todo', 0);
   crop(scene, 'crop-growing', 1);
   crop(scene, 'crop-done', 2);

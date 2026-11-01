@@ -43,6 +43,13 @@ const WINDOW_X = 132;
 const STUDY_X = 223;
 const FIREPLACE_X = W - 21;
 const FIREPLACE_Y = WALL_H + 10;
+/**
+ * Lixeira do retrabalho (`RETRABALHO.md`, G17) no canto de baixo à direita, encostada na parede da porta: uma bolinha de
+ * papel por linha, cinco dentro (três no fundo e duas por cima) e as demais transbordando no chão, até nove.
+ */
+const TRASH_X = W - 16;
+const TRASH_IN: [number, number][] = [[-4, -14], [0, -14], [4, -14], [-2, -17], [2, -17]];
+const TRASH_FLOOR: [number, number][] = [[-12, 0], [-19, -3], [-14, -7], [-25, 1]];
 /** Mesinhas dos agentes do projeto na sala de estar: duas à direita do sofá, depois duas à esquerda (o sofá ocupa 116–172). */
 const AGENT_TABLE_X = [246, 210, 48, 84];
 
@@ -86,6 +93,9 @@ export class InteriorScene extends Phaser.Scene {
   private fireplace?: Phaser.GameObjects.Image;
   private books: Phaser.GameObjects.Image[] = [];
   private booksKey = '';
+  private trashY = 0;
+  private balls: Phaser.GameObjects.Image[] = [];
+  private ballsKey = '';
   private unsubscribe?: () => void;
 
   constructor() {
@@ -166,6 +176,7 @@ export class InteriorScene extends Phaser.Scene {
     this.pinNotes(project);
     this.fillSeedBox(project);
     this.fillShelf(project);
+    this.fillTrash(project);
     this.chalkboard?.setTexture(project.painel ? 'chalkboardWritten' : 'chalkboard');
     this.lightFireplace(project);
     for (const s of sessions) this.villagers.get(s.id)?.update(s);
@@ -192,6 +203,8 @@ export class InteriorScene extends Phaser.Scene {
     this.packetsKey = '';
     this.books = [];
     this.booksKey = '';
+    this.balls = [];
+    this.ballsKey = '';
     this.children.removeAll(true);
     this.time.removeAllEvents();
 
@@ -275,6 +288,21 @@ export class InteriorScene extends Phaser.Scene {
       },
       () => ui.openQuadro(this.project(getWorld()) ?? project),
     );
+
+    // Lixeira do retrabalho, como as outras peças de arquivo: só aparece se o projeto tem o RETRABALHO.md.
+    this.trashY = H - 5;
+    if (project.retrabalho) {
+      this.add.image(TRASH_X, this.trashY, 'trashCanBack').setOrigin(0.5, 1).setDepth(this.trashY - 1);
+      const can = this.prop('trashCan', TRASH_X, this.trashY);
+      makeInteractive(
+        can,
+        () => {
+          const n = this.project(getWorld())?.retrabalho?.rows.length ?? 0;
+          return n ? `Lixeira do retrabalho — ${n} registro(s) no RETRABALHO.md — clique para ver` : 'Lixeira do retrabalho — vazia, nenhum retrabalho registrado';
+        },
+        () => ui.openRetrabalho(this.project(getWorld()) ?? project),
+      );
+    }
 
     const mat = this.prop('doormat', W / 2, H + 2);
     makeInteractive(mat, () => 'Sair (Esc)', () => this.leave());
@@ -380,6 +408,29 @@ export class InteriorScene extends Phaser.Scene {
         .setOrigin(0.5, 1)
         .setDepth(SEEDS_Y - 0.5),
     );
+  }
+
+  /** Uma bolinha de papel por retrabalho (até 9: cinco dentro, o resto no chão); só redesenha quando muda. */
+  private fillTrash(project: Project) {
+    const slots = [...TRASH_IN, ...TRASH_FLOOR];
+    const n = Math.min(project.retrabalho?.rows.length ?? 0, slots.length);
+    const key = project.retrabalho ? String(n) : '';
+    if (key === this.ballsKey) return;
+    this.ballsKey = key;
+    for (const b of this.balls) b.destroy();
+    this.balls = slots.slice(0, n).map(([dx, dy], i) => {
+      const dentro = i < TRASH_IN.length;
+      const ball = this.add
+        .image(TRASH_X + dx, this.trashY + dy, 'paperBall')
+        .setOrigin(0.5, 1)
+        .setDepth(dentro ? this.trashY - 0.5 + i * 0.01 : this.trashY + dy);
+      makeInteractive(
+        ball,
+        () => `Lixeira do retrabalho — ${this.project(getWorld())?.retrabalho?.rows.length ?? 0} registro(s) no RETRABALHO.md — clique para ver`,
+        () => ui.openRetrabalho(this.project(getWorld()) ?? project),
+      );
+      return ball;
+    });
   }
 
   /** Um livro por documento de `docs-dev/context/` (mais do que cabe = estante cheia); só redesenha quando muda. */

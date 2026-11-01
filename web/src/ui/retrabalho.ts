@@ -7,7 +7,7 @@ function cellHtml(cell: string) {
 }
 
 /**
- * Ervas do quintal: o `RETRABALHO.md` do projeto (G17), na ordem e com as colunas do arquivo. Só leitura; agrupar
+ * Lixeira da casa: o `RETRABALHO.md` do projeto (G17), na ordem e com as colunas do arquivo. Só leitura; agrupar
  * por causa e levar ao `/nova-regra` fica com o usuário (decisão de 26/10/2026).
  */
 export function openRetrabalho(project: Project) {
@@ -15,7 +15,7 @@ export function openRetrabalho(project: Project) {
   const rows = r?.rows ?? [];
   const panel = openPanel({ title: `Retrabalho — ${project.name}`, subtitle: `${rows.length} registro(s) · RETRABALHO.md`, size: 'lg', scroll: true });
   if (!r || !rows.length) {
-    panel.body.innerHTML = '<p class="empty">Nenhum retrabalho registrado. O quintal está limpo.</p>';
+    panel.body.innerHTML = '<p class="empty">Nenhum retrabalho registrado. A lixeira está vazia.</p>';
     return;
   }
   panel.body.innerHTML = `

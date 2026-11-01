@@ -26,7 +26,7 @@ export interface Project {
   sementes: { path: string; title: string; toCheck: boolean }[] | null;
   /** `docs-dev/context/` (estante): `html` abre isolado, `md` no leitor; null = o projeto não tem a pasta. */
   estante: { path: string; title: string; kind: 'html' | 'md' }[] | null;
-  /** `RETRABALHO.md` (ervas do quintal): cabeçalho e linhas como estão no arquivo; null = sem o arquivo. */
+  /** `RETRABALHO.md` (lixeira da casa): cabeçalho e linhas como estão no arquivo; null = sem o arquivo. */
   retrabalho: { header: string[]; rows: string[][] } | null;
   /** Vencimento da auditoria das regras, `AAAA-MM-DD` (placa de vistoria); null = sem o arquivo. */
   auditoria: string | null;

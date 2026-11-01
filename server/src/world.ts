@@ -43,7 +43,7 @@ export interface Project {
   sementes: Semente[] | null;
   /** `docs-dev/context/` (estante); null = o projeto não tem a pasta. */
   estante: Livro[] | null;
-  /** `RETRABALHO.md` (ervas do quintal); null = o projeto não tem o arquivo. */
+  /** `RETRABALHO.md` (lixeira da casa); null = o projeto não tem o arquivo. */
   retrabalho: Retrabalho | null;
   /** Vencimento da auditoria das regras, `AAAA-MM-DD` (placa de vistoria); null = sem `.claude/auditoria-regras.txt`. */
   auditoria: string | null;

@@ -25,7 +25,8 @@ A vila já mostra `PENDENCIAS.md`, `PROGRESS.md` e `painel.json`. Este plano tra
    e como resolver (`instalar-projeto.sh`, `/novo-projeto`).
 4. **Caixa de sementes dentro da casa** (não no quintal, para não poluir a vila): uma semente por plano em
    `docs-dev/a-codar/` (decidido e não codado, G7). Clique abre a lista.
-5. **Ervas daninhas no quintal:** uma por linha do `RETRABALHO.md` (G17). Sem etiqueta nem IA (decisão do usuário
+5. **Lixeira dentro da casa** (eram ervas daninhas no quintal até 31/10/2026: posição de destaque demais, e empurravam
+   o pombal para longe da casa; decisão do usuário): uma bolinha de papel por linha do `RETRABALHO.md` (G17). Sem etiqueta nem IA (decisão do usuário
    de deixar a escolha comigo: o mais seguro é não mudar o template universal do G17 nem gastar token). O painel
    lista as linhas; agrupar por causa e levar ao `/nova-regra` fica com o usuário.
 6. **Placa de vistoria na fachada:** data de `.claude/auditoria-regras.txt`; vencida = placa amarela, tooltip
@@ -54,7 +55,7 @@ aparecem no quintal); `docs-conhecimento` na biblioteca (a pasta ainda não exis
 | 1 | Sino de conferência, reinício pendente e ✦ administrador da praça | feito |
 | 2 | Casa em obra | feito |
 | 3 | Caixa de sementes (`a-codar/`) dentro da casa | feito |
-| 4 | Ervas do retrabalho no quintal | feito |
+| 4 | Retrabalho: ervas no quintal, depois lixeira dentro da casa (31/10/2026) | feito |
 | 5 | Placa de vistoria | feito |
 | 6 | Outdoor dos guardrails | feito |
 | 7 | Fábrica por dentro, com skills | feito |

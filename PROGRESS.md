@@ -3,6 +3,29 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-01 — Fábrica sem as bolinhas de fumaça paradas
+
+**O que mudou:** saíram os dois discos de fumaça desenhados na textura da Fábrica, em cima da chaminé: ficavam
+parados e destoavam da fumaça animada que a `TownScene` já solta ali. Pedido do usuário.
+**Arquivos:** `web/src/game/textures.ts` (`factory`).
+**Testes:** typecheck do front sem erro (a textura não tem teste). Falta conferir na vila (reinício do usuário, regra 6).
+
+## 2026-10-31 — Retrabalho vira lixeira dentro da casa e o pombal encosta na casa
+
+**O que mudou:** as ervas daninhas do quintal (uma por linha do `RETRABALHO.md`) saíram: ficavam em posição de
+destaque demais e empurravam o pombal para longe. No lugar, uma lixeira de vime no canto de baixo à direita da sala,
+encostada na parede da porta, com uma bolinha de papel por retrabalho: cinco dentro (três no fundo, duas por cima) e
+até mais quatro transbordando no chão. Mesmo clique de antes (abre a tabela do `RETRABALHO.md`); como as outras peças
+de arquivo, só aparece se o projeto tem o arquivo. O pombal passou de x+76 para x+50 (colado à direita da casa) e as
+12 cartas foram redistribuídas em volta dele, à esquerda do poste só abaixo da linha da casa para nenhuma ficar atrás
+da parede. Pedido do usuário.
+**Arquivos:** `web/src/game/TownScene.ts` (sem `growWeeds`; `POMBAL_DX`, `POMBAL_LETTER_SLOTS`),
+`web/src/game/InteriorScene.ts` (`fillTrash`), `web/src/game/interiorTextures.ts` (`trashCan`, `paperBall`),
+`web/src/game/textures.ts` (sem `weed`), textos em `web/src/ui/retrabalho.ts`, `README.md` e
+`docs-dev/context/ambiente-de-ia-na-vila.md`.
+**Testes:** `npm test` 96/96 antes e depois, typecheck do servidor e do front e `vite build` (diretório temporário) sem
+erro, auditor só com os 2 avisos informativos que já existiam. Falta conferir na vila (reinício do usuário, regra 6).
+
 ## 2026-10-31 — Casas refinadas sem mudar o desenho
 
 **O que mudou:** acabamento sutil nas casas, como foi feito na Fábrica: mesma forma, cores, tamanho e posições

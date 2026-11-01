@@ -10,7 +10,6 @@ const ROOF_NAMES = Object.keys(ROOFS).filter((r) => r !== 'grey');
 /** Horta à esquerda da casa: um canteiro por fase do `painel.json`, 3 colunas x 3 linhas. */
 const GARDEN_COLS = 3;
 const GARDEN_MAX = 9;
-/** Ervas à direita da casa, acima das cartas do pombal: uma por linha do `RETRABALHO.md`, 3 colunas x 3 linhas. */
 /** A data do arquivo é o último dia do prazo; vence no dia seguinte (comparação pela data local). */
 function auditoriaVencida(due: string | null): boolean {
   if (!due) return false;
@@ -19,17 +18,19 @@ function auditoriaVencida(due: string | null): boolean {
   return due < today;
 }
 
-const WEEDS_COLS = 3;
-const WEEDS_MAX = 9;
-/** Pombal no quintal, à direita da casa (o lote vai até x+96; acima do chão, à esquerda dele, ficam as ervas). */
-const POMBAL_DX = 76;
 /**
- * Cartas espalhadas no chão entre a casa e o pombal, uma por arquivo que só você tem (até 12): [dx, dy, ângulo] a
- * partir do pé do pombal. Lugares fixos, para as cartas não pularem quando a contagem muda.
+ * Pombal no quintal, colado à direita da casa (a casa vai até x+32 e o lote até x+96). Antes ficava em x+76, empurrado
+ * pelas ervas do retrabalho, que viraram a lixeira de dentro da casa (decisão do usuário, 31/10/2026).
+ */
+const POMBAL_DX = 50;
+/**
+ * Cartas espalhadas no chão em volta do pombal, uma por arquivo que só você tem (até 12): [dx, dy, ângulo] a partir do
+ * pé do pombal. Lugares fixos, para as cartas não pularem quando a contagem muda; à esquerda do poste só abaixo da linha
+ * da casa (dy > 0), para nenhuma ficar escondida atrás da parede.
  */
 const POMBAL_LETTER_SLOTS: [number, number, number][] = [
-  [-22, 2, -12], [-34, -5, 8], [-12, -3, 15], [-28, 7, 3], [-42, 3, -20], [-16, 8, -6],
-  [-38, -10, 12], [12, 5, -10], [-6, 6, 22], [-24, -9, -15], [16, -3, 6], [-46, -4, 18],
+  [-14, 4, -12], [16, 3, 8], [-24, 8, 15], [26, -2, 3], [8, 9, -20], [-6, 12, -6],
+  [34, 6, 12], [20, -8, -10], [-30, 3, 22], [40, 0, -15], [24, 11, 6], [-18, 13, 18],
 ];
 
 function pombalTooltip(project: Project): string {
@@ -69,8 +70,6 @@ interface HouseView {
   plaque: Phaser.GameObjects.Image;
   crops: Phaser.GameObjects.Image[];
   cropsKey: string;
-  weeds: Phaser.GameObjects.Image[];
-  weedsKey: string;
   /** Estado da lareira (fumaça na chaminé); null = casa sem lareira. Tempo desde a última baforada. */
   smoke: EstadoLareira | null;
   smokeAcc: number;
@@ -485,7 +484,7 @@ export class TownScene extends Phaser.Scene {
       () => this.enterHouse(this.currentProject(p.id)),
     );
 
-    const view: HouseView = { plot, glows, alert, scaffold, plaque, crops: [], cropsKey: '', weeds: [], weedsKey: '', smoke: null, smokeAcc: 0 };
+    const view: HouseView = { plot, glows, alert, scaffold, plaque, crops: [], cropsKey: '', smoke: null, smokeAcc: 0 };
     if (p.isGit) view.pombal = this.buildPombal(plot);
     this.houses.set(p.id, view);
   }
@@ -677,25 +676,6 @@ export class TownScene extends Phaser.Scene {
   }
 
   /** Replanta a horta só quando as fases mudam; sem plano no `painel.json`, sem horta. */
-  /** Uma erva por retrabalho (até 9), à direita da casa; só replanta quando a contagem muda. Sem o arquivo, nada. */
-  private growWeeds(view: HouseView, project: Project) {
-    const n = Math.min(project.retrabalho?.rows.length ?? 0, WEEDS_MAX);
-    const key = String(n);
-    if (key === view.weedsKey) return;
-    view.weedsKey = key;
-    for (const w of view.weeds) w.destroy();
-    const { x, y } = view.plot.house;
-    view.weeds = Array.from({ length: n }, (_, i) => {
-      const weed = this.addSprite(i % 3 === 1 ? 'weed1' : 'weed0', x + 42 + (i % WEEDS_COLS) * 9, y - 48 + Math.floor(i / WEEDS_COLS) * 9);
-      makeInteractive(
-        weed,
-        () => `Retrabalho — ${this.currentProject(project.id).retrabalho?.rows.length ?? 0} registro(s) no RETRABALHO.md — clique para ver`,
-        () => ui.openRetrabalho(this.currentProject(project.id)),
-      );
-      return weed;
-    });
-  }
-
   private plantGarden(view: HouseView, project: Project) {
     const plano = project.painel?.plano;
     const fases = (plano?.fases ?? []).slice(0, GARDEN_MAX);
@@ -721,7 +701,6 @@ export class TownScene extends Phaser.Scene {
     view.smoke = project.lareira ? estadoLareira(project.lareira) : null;
     view.plaque.setVisible(!!project.auditoria).setTexture(auditoriaVencida(project.auditoria) ? 'plaque-due' : 'plaque-ok');
     this.plantGarden(view, project);
-    this.growWeeds(view, project);
     if (view.pombal) this.updatePombal(view.pombal, project);
     const lit = this.world.sessions.some((s) => s.projectId === project.id && s.live);
     for (const g of view.glows) {

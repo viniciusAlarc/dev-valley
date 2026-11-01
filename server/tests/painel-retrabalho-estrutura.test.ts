@@ -50,7 +50,7 @@ describe('readPainel (painel.json do G14)', () => {
   });
 });
 
-describe('readRetrabalho (ervas do quintal)', () => {
+describe('readRetrabalho (lixeira da casa)', () => {
   test('sem arquivo: null', async () => {
     assert.equal(await readRetrabalho(await projeto()), null);
   });
