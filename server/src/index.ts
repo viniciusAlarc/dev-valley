@@ -16,6 +16,7 @@ import { Library } from './library.js';
 import { Moradores } from './moradores.js';
 import { buscar } from './pombal.js';
 import { isLocalOrigin } from './seguranca.js';
+import { ambienteDoTerminal, projectsDirs } from './perfil.js';
 import { deleteSessionFiles } from './sessions.js';
 import { Skills } from './skills.js';
 import { StatusLineStore } from './statusline.js';
@@ -83,7 +84,7 @@ const app = criarApp({
   askLibrarian,
   askAdministrador,
   sugerirMensagem,
-  apagarConversa: deleteSessionFiles,
+  apagarConversa: (id: string) => deleteSessionFiles(id, projectsDirs(config)),
   abrirVscode: (args) => spawn('code', args, { detached: true, stdio: 'ignore' }).unref(),
   webDist: fs.existsSync(webDist) ? webDist : null,
 });
@@ -98,7 +99,7 @@ server.on('upgrade', (req, socket, head) => {
     return;
   }
   const url = new URL(req.url ?? '/', 'http://localhost');
-  wss.handleUpgrade(req, socket, head, (ws) => {
+  wss.handleUpgrade(req, socket, head, async (ws) => {
     if (url.pathname === '/ws/events') {
       eventClients.add(ws);
       ws.on('close', () => eventClients.delete(ws));
@@ -127,7 +128,15 @@ server.on('upgrade', (req, socket, head) => {
         ws.close(1008, 'sessão inválida');
         return;
       }
+      // Perfil pessoal abre com outro CLAUDE_CONFIG_DIR, e não abre se o perfil não está configurado (perfil.ts).
+      const ambiente = terminals.has(sessionId) ? { env: {} } : await ambienteDoTerminal(cwd, config);
+      if ('erro' in ambiente) {
+        ws.send(`\r\n\x1b[31m[${ambiente.erro} O terminal não abriu, para não usar a licença do trabalho.]\x1b[0m\r\n`);
+        ws.close(1008, 'perfil pessoal sem configuração');
+        return;
+      }
       terminals.attach(ws, {
+        env: ambiente.env,
         sessionId,
         cwd,
         mode: known ? 'resume' : 'new',

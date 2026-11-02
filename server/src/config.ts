@@ -16,6 +16,12 @@ export interface Config {
    * com a lista (`## G<n> — título`). Fica no config local (caminho pessoal); sem ele, não há outdoor.
    */
   guardrails: { plugin: string; core: string } | null;
+  /**
+   * Projetos pessoais (decisão do usuário, 01/11/2026): o que está nas `roots` abre o terminal com
+   * `CLAUDE_CONFIG_DIR=configDir`, um perfil do Claude Code que fala com outra API (DeepSeek), para não gastar a licença
+   * do trabalho. Fica no config local (caminho pessoal); sem ele, todo projeto é profissional.
+   */
+  perfilPessoal: { roots: string[]; configDir: string } | null;
 }
 
 export const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -42,6 +48,9 @@ export function loadConfig(): Config {
     ignore: merged.ignore ?? [],
     sessionMaxAgeDays: merged.sessionMaxAgeDays ?? 14,
     libraryRoots: (merged.libraryRoots ?? []).map(expandHome),
+    perfilPessoal: merged.perfilPessoal?.roots?.length && merged.perfilPessoal.configDir
+      ? { roots: merged.perfilPessoal.roots.map(expandHome), configDir: expandHome(merged.perfilPessoal.configDir) }
+      : null,
     guardrails: merged.guardrails?.plugin && merged.guardrails.core ? { plugin: merged.guardrails.plugin, core: expandHome(merged.guardrails.core) } : null,
   };
 }

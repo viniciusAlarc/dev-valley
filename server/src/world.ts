@@ -19,6 +19,7 @@ import type { Skills, SkillSummary } from './skills.js';
 import { restartPending, type RestartPending } from './reinicio.js';
 import type { AgentSummary, Agents } from './agents.js';
 import type { Moradores } from './moradores.js';
+import { perfilDe, projectsDirs, type Perfil } from './perfil.js';
 import { listSessions, type SessionInfo } from './sessions.js';
 
 export interface Project {
@@ -26,6 +27,8 @@ export interface Project {
   name: string;
   path: string;
   isGit: boolean;
+  /** Pessoal abre o terminal no perfil pessoal (outra API); ver perfil.ts. */
+  perfil: Perfil;
   branch: string | null;
   remote: string | null;
   changes: gitOps.FileChange[];
@@ -117,7 +120,7 @@ function contextOf(s: SessionInfo, statusLine: StatusLineStore, guessed: Map<str
 
 async function discoverProjectDirs(config: Config): Promise<string[]> {
   const dirs = new Set<string>(config.extraProjects);
-  for (const root of config.projectRoots) {
+  for (const root of [...config.projectRoots, ...(config.perfilPessoal?.roots ?? [])]) {
     let entries;
     try {
       entries = await fs.readdir(root, { withFileTypes: true });
@@ -150,6 +153,7 @@ async function loadProject(dir: string, config: Config, portas: Map<number, numb
     name: path.basename(dir),
     path: dir,
     isGit,
+    perfil: perfilDe(dir, config),
     branch: null,
     remote: null,
     changes: [],
@@ -204,7 +208,7 @@ export async function buildWorld(
   // Uma checagem de portas por atualização, para todas as casas.
   const portas = await portasOcupadas();
   const projects = await Promise.all(dirs.map((d) => loadProject(d, config, portas)));
-  const all = await listSessions(config.sessionMaxAgeDays);
+  const all = await listSessions(config.sessionMaxAgeDays, projectsDirs(config));
   const known = new Set(all.map((s) => s.id));
   const inTown = new Set(terminals.map((t) => t.id));
   const hookById = new Map(hooks.map((h) => [h.id, h]));

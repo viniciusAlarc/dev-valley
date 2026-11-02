@@ -3,6 +3,21 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-01 — Perfil pessoal: projeto pessoal abre o terminal com outra API (DeepSeek)
+
+**O que mudou:** projeto dentro das pastas `perfilPessoal.roots` (config local) é pessoal: o terminal abre com
+`CLAUDE_CONFIG_DIR` do perfil pessoal, que manda as chamadas para o DeepSeek, e não abre se o perfil está sem endereço
+de API ou sem chave (trava para nunca gastar a licença do trabalho). A vila lê e apaga conversas nos dois perfis, a
+placa da casa diz "· pessoal", e o `hooks:install` instala mod, hooks e agentes nos dois perfis. Os agentes da vila
+seguem como Claude. Fora do repositório: perfil pessoal criado com as mesmas regras (`instalar.sh` do repositório de
+regras) e troca de modelo pelo `/model` (rápido como padrão, forte no `opus`), testada com a chave do usuário.
+Decisões e funcionamento em `docs-dev/context/perfil-pessoal.md`.
+**Arquivos:** `server/src/perfil.ts` (novo), `config.ts`, `world.ts`, `sessions.ts`, `terminals.ts`, `index.ts`,
+`install-hooks.ts`; `web/src/api.ts`, `web/src/game/TownScene.ts`; `server/tests/perfil.test.ts` (novo),
+`server/tests/servidor.ts`.
+**Testes:** 96/96 antes, 101/101 depois; typecheck do servidor e build sem erro; auditor só com os 2 avisos informativos
+que já existiam. Conferido na vila pelo usuário em 01/11/2026: casa "· pessoal" e terminal no DeepSeek.
+
 ## 2026-11-01 — Fábrica sem as bolinhas de fumaça paradas
 
 **O que mudou:** saíram os dois discos de fumaça desenhados na textura da Fábrica, em cima da chaminé: ficavam

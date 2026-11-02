@@ -58,18 +58,22 @@ function parseSession(id: string, raw: string, mtimeMs: number, file: string): S
   return { id, cwd, title, gitBranch, lastActivity: mtimeMs, contextTokens, model, file };
 }
 
-/** Lê as sessões salvas pelo Claude Code em ~/.claude/projects/<projeto>/<id>.jsonl. */
-export async function listSessions(maxAgeDays: number): Promise<SessionInfo[]> {
+/**
+ * Lê as sessões salvas pelo Claude Code em <perfil>/projects/<projeto>/<id>.jsonl, em cada pasta de `roots` (o perfil
+ * de sempre e o pessoal, ver perfil.ts).
+ */
+export async function listSessions(maxAgeDays: number, roots: string[] = [CLAUDE_PROJECTS_DIR]): Promise<SessionInfo[]> {
   const minMtime = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
   const result: SessionInfo[] = [];
-  let projectDirs: string[];
-  try {
-    projectDirs = await fs.readdir(CLAUDE_PROJECTS_DIR);
-  } catch {
-    return [];
+  const projectDirs: string[] = [];
+  for (const root of roots) {
+    try {
+      projectDirs.push(...(await fs.readdir(root)).map((d) => path.join(root, d)));
+    } catch {
+      // perfil sem sessões ainda
+    }
   }
-  for (const dir of projectDirs) {
-    const full = path.join(CLAUDE_PROJECTS_DIR, dir);
+  for (const full of projectDirs) {
     let files: string[];
     try {
       files = (await fs.readdir(full)).filter((f) => f.endsWith('.jsonl'));
@@ -104,20 +108,22 @@ export async function listSessions(maxAgeDays: number): Promise<SessionInfo[]> {
  * pasta de ~/.claude/projects. Procura pelo id em vez de usar o caminho do mundo porque a sessão nova pode
  * ter gravado o arquivo só ao fechar.
  */
-export async function deleteSessionFiles(id: string): Promise<void> {
+export async function deleteSessionFiles(id: string, roots: string[] = [CLAUDE_PROJECTS_DIR]): Promise<void> {
   // O id vira nome de pasta no `rm` recursivo: só UUID, nunca `..` ou vazio.
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) throw new Error('id de sessão inválido');
-  let projectDirs: string[];
-  try {
-    const entries = await fs.readdir(CLAUDE_PROJECTS_DIR, { withFileTypes: true });
-    projectDirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
-  } catch {
-    return;
+  const projectDirs: string[] = [];
+  for (const root of roots) {
+    try {
+      const entries = await fs.readdir(root, { withFileTypes: true });
+      projectDirs.push(...entries.filter((e) => e.isDirectory()).map((e) => path.join(root, e.name)));
+    } catch {
+      // perfil sem sessões
+    }
   }
   for (const dir of projectDirs) {
-    const file = path.join(CLAUDE_PROJECTS_DIR, dir, `${id}.jsonl`);
+    const file = path.join(dir, `${id}.jsonl`);
     await fs.rm(file, { force: true });
-    await fs.rm(path.join(CLAUDE_PROJECTS_DIR, dir, id), { recursive: true, force: true });
+    await fs.rm(path.join(dir, id), { recursive: true, force: true });
     cache.delete(file);
   }
 }

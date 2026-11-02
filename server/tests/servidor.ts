@@ -16,6 +16,7 @@ export function casa(id: string, dir: string, extra: Partial<Project> = {}): Pro
     name: id,
     path: dir,
     isGit: false,
+    perfil: 'profissional',
     branch: null,
     remote: null,
     changes: [],

@@ -8,6 +8,8 @@ export interface Project {
   name: string;
   path: string;
   isGit: boolean;
+  /** Pessoal = o terminal abre no perfil pessoal (outra API), ver server/src/perfil.ts. */
+  perfil: 'pessoal' | 'profissional';
   branch: string | null;
   remote: string | null;
   changes: FileChange[];

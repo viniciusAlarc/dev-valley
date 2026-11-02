@@ -24,3 +24,4 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
+| PP-2 | 💻 | Biblioteca não mostra as memórias automáticas do perfil pessoal (`library.ts` lê só `~/.claude/projects`). | 2026-11-01 |

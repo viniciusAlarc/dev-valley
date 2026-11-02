@@ -448,7 +448,7 @@ export class TownScene extends Phaser.Scene {
 
     this.addSprite('bush', plot.house.x - 40, plot.house.y + 2);
     if (rnd() < 0.6) this.addSprite('bush', plot.house.x + 40, plot.house.y + 2);
-    label(this, plot.house.x, plot.house.y + 26, p.name, plot.house.y + 26);
+    label(this, plot.house.x, plot.house.y + 26, p.perfil === 'pessoal' ? `${p.name} · pessoal` : p.name, plot.house.y + 26);
 
     const alertBg = this.add.graphics();
     alertBg.fillStyle(0x2b1a0e).fillRoundedRect(-5, -8, 10, 15, 3);
