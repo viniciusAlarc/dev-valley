@@ -21,11 +21,13 @@ as mensagens de commit do usuário ("Você fez") e as do time ("O time fez"), co
 3. **Junte o que é a mesma coisa.** Dez commits arrumando a mesma tela viram uma frase.
 4. **Só o que está na pauta.** Não invente motivo, resultado ou impacto que as mensagens não dizem.
 5. **Manchete:** a notícia mais importante do dia, numa frase curta, citando o projeto.
+6. **Título de cada notícia:** curto, como título de jornal, de 3 a 7 palavras, sem ponto final ("Pedidos agora aceitam
+   desconto"). Mesmas regras: nada técnico, nada inventado.
 
 ## O que responder
 
 **Só um JSON**, sem bloco de código e sem explicação, neste formato (o nome do projeto exatamente como veio na pauta):
 
-{"manchete": "...", "noticias": [{"projeto": "...", "voce": "...", "time": "..."}]}
+{"manchete": "...", "noticias": [{"projeto": "...", "titulo": "...", "voce": "...", "time": "..."}]}
 
 Não use ferramentas: a pauta basta.

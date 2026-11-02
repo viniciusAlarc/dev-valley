@@ -19,15 +19,35 @@ export function ritmo(total: number, anterior: number, decorrido: number): numbe
   return total / (anterior * Math.min(1, decorrido));
 }
 
+/** Título da comparação com a semana passada: curto, serve também ao balão do moinho. */
 export function comparacao(total: number, anterior: number, decorrido: number): string {
   const r = ritmo(total, anterior, decorrido);
   if (r === null) return total > 0 ? 'Sem registro da semana passada para comparar.' : 'Nada gasto ainda nesta semana.';
-  if (r >= 2.5) return `Ritmo ${Math.round(r)} vezes maior que o da semana passada.`;
-  if (r >= 1.8) return 'Ritmo dobrado em relação à semana passada.';
-  if (r >= 1.15) return `Ritmo ${Math.round((r - 1) * 100)}% maior que o da semana passada.`;
-  if (r > 0.85) return 'Ritmo parecido com o da semana passada.';
-  if (r >= 0.4 && r <= 0.6) return 'Ritmo pela metade em relação à semana passada.';
-  return `Ritmo ${Math.round((1 - r) * 100)}% menor que o da semana passada.`;
+  if (r >= 1.15) return 'Gastando mais rápido que na semana passada.';
+  if (r > 0.85) return 'No mesmo ritmo da semana passada.';
+  return 'Gastando mais devagar que na semana passada.';
+}
+
+/**
+ * Detalhe concreto da comparação (02/11/2026): a projeção de como a semana fecha, que é exatamente o que o `ritmo` mede
+ * ("1,4×" ou "20% da anterior"). Vazio quando não há com o que comparar.
+ */
+export function projecao(total: number, anterior: number, decorrido: number): string {
+  const r = ritmo(total, anterior, decorrido);
+  if (r === null) return '';
+  if (r >= 1.15) return `No ritmo de agora, esta semana fecha em ${r.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}× o que foi a anterior.`;
+  if (r > 0.85) return 'No ritmo de agora, esta semana fecha perto do que foi a anterior.';
+  return `No ritmo de agora, esta semana fecha em ${Math.max(1, Math.round(r * 100))}% do que foi a anterior.`;
+}
+
+/** "faltam 2 dias", "falta 1 dia", "termina em 5 h", "termina em menos de 1 h". */
+export function faltam(fim: number, agora = Date.now()): string {
+  const ms = Math.max(0, fim - agora);
+  const dias = Math.floor(ms / 86_400_000);
+  if (dias >= 2) return `faltam ${dias} dias`;
+  if (dias === 1) return 'falta 1 dia';
+  const horas = Math.floor(ms / 3_600_000);
+  return horas >= 1 ? `termina em ${horas} h` : 'termina em menos de 1 h';
 }
 
 /** Duração de uma volta das pás (ms): 6 s no ritmo da semana passada, mais rápido quando o ritmo sobe. */

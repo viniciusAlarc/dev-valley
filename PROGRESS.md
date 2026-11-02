@@ -3,6 +3,52 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-02 — Moinho: painel mais claro
+
+**O que mudou:** pedido do usuário ("está meio confuso"), proposta aprovada. No topo, só a janela ("Semana do plano: seg
+27/10 → seg 03/11 · faltam 2 dias"). Por perfil ("Trabalho (Claude)", "Pessoal (DeepSeek)"), a comparação vira título
+curto ("Gastando mais rápido que na semana passada.") com a projeção concreta ("No ritmo de agora, esta semana fecha em
+1,4× o que foi a anterior."). Cada projeto é uma linha com nome, barra e % sempre à vista; o clique abre as conversas que
+mais gastaram. Peso, cache ÷ 10, pás e totais em tokens foram para "Como é calculado", recolhido no fim. O balão do
+moinho na vila usa o mesmo título curto.
+**Arquivos:** `web/src/ui/gasto.ts`, `web/src/ui/gasto-texto.ts` (`comparacao`, `projecao`, `faltam`),
+`web/tests/gasto-texto.test.ts`, `web/src/style.css` (seção `.gasto-*`), `docs-dev/context/moinho-gasto-por-projeto.md`.
+**Testes:** 138/138 antes, 140/140 depois; typecheck e build sem erro. Falta conferir na vila (reinício do usuário,
+regra 6), com atenção a nome de projeto comprido na linha e à tela estreita.
+
+## 2026-11-02 — Gazeta do Vale: o jornal da banca com cara de jornal
+
+**O que mudou:** pedido do usuário, com as 3 decisões aprovadas (título por notícia, nome "Gazeta do Vale", fonte de
+jornal). O clique na banca abre uma folha de jornal no lugar do painel de pergaminho: papel creme com granulado,
+cabeçalho em letra gótica, linha da data com filete duplo, manchete na largura toda, notícias em colunas com título,
+capitular na primeira, "Achados e perdidos" (projetos parados) num quadro de contorno inteiro e "Sem novidade em" como
+nota de rodapé. Abre desdobrando (sem animação com `prefers-reduced-motion`). O jornaleiro passa a mandar `titulo` por
+notícia; edição antiga sem título usa o nome do projeto.
+**Arquivos:** `server/src/jornal.ts` (`titulo`), `server/agents/jornaleiro.md`, `server/tests/jornal.test.ts`,
+`web/src/ui/jornal.ts`, `web/src/api.ts`, `web/src/style.css` (seção Gazeta), `web/package.json` e `package-lock.json`
+(`@fontsource/old-standard-tt` e `@fontsource/unifrakturmaguntia` 5.3.0), `README.md`,
+`docs-dev/context/gazeta-do-vale.md`.
+**Testes:** 138/138 antes e depois (o teste do jornaleiro ganhou o caso do título); typecheck e build sem erro. **Não
+renderizado aqui:** sem navegador sem interface instalado. Falta conferir na vila (reinício do usuário, regra 6), com
+atenção a: colunas com 1 e com muitas notícias, cabeçalho em tela estreita, botões no canto da folha.
+
+## 2026-11-02 — Banca de jornal: o que mudou nos projetos, em linguagem de gente
+
+**O que mudou:** último dos planos da parte de cima da vila. A banca fica ao lado da praça, com o jornaleiro ✦ (agente da
+vila, traje de agente secreto). O jornal conta o que mudou desde a última leitura (piso de 24h, teto de 7 dias), "Você" e
+"o time" separados, com manchete, projetos sem novidade e projetos parados há 14 dias ou mais. Uma edição por dia, que sai
+sozinha depois das 6h com a vila aberta ou no botão "Imprimir"; a pilha no balcão aparece quando a de hoje já saiu. O
+jornaleiro recebe só assunto do commit e nome de arquivo (nunca o diff) e devolve JSON; sem commit, não é chamado.
+O servidor da banca entrou no commit `7511263`; o desenho, a cena e a documentação, agora. As duas respostas longas que
+caíram no meio ("Connection lost mid-response") foram retomadas em passos pequenos.
+**Arquivos:** `server/src/jornal.ts`, `server/agents/jornaleiro.md`, `server/tests/jornal.test.ts` (8 testes),
+`server/src/app.ts` (3 rotas), `server/src/index.ts`, `web/src/api.ts`, `web/src/ui/jornal.ts`, `web/src/ui/actions.ts`,
+`web/src/game/textures.ts` (`newsstand`), `web/src/game/TownScene.ts` (`buildNewsstand`), `web/src/game/villagerArt.ts`,
+`README.md`, `CLAUDE.md` (regra 5 cita o jornaleiro), `docs-dev/context/banca-de-jornal.md` (saiu de `a-codar/`).
+**Testes:** 130/130 antes, 138/138 depois; typecheck do servidor e build sem erro. Prévia da arte em PNG conferida. O
+jornaleiro de verdade (`claude -p`) não foi chamado nos testes (imitado). Falta conferir na vila (reinício do usuário,
+regra 6).
+
 ## 2026-11-02 — Moinho: com o que o Claude gastou na semana
 
 **O que mudou:** terceiro plano da parte de cima da vila. O moinho fica entre a praça e a Fábrica; as pás giram no ritmo
@@ -59,8 +105,7 @@ lugar do painel do canto), moinho (gasto de token por projeto), banca de jornal 
 humana, por um agente jornaleiro) e plugins e MCP dentro da Fábrica. Ficaram de fora a prefeitura (repetia o quadro de
 avisos da praça, que já junta as decisões 👤 de todos os projetos) e o cemitério de sessões órfãs (o Claude Code já apaga
 as conversas antigas). Cada plano tem as decisões em aberto, com recomendação; elas estão no `PENDENCIAS.md` (VC-1 a VC-4).
-**Arquivos:** `docs-dev/a-codar/banca-de-jornal.md`,
-`PENDENCIAS.md` (os da torre, dos plugins e do moinho, já codados, foram para `docs-dev/context/`).
+**Arquivos:** `PENDENCIAS.md` (os quatro planos já foram codados e estão em `docs-dev/context/`).
 **Testes:** não se aplica (sem código); auditor de referências rodado.
 
 ## 2026-11-02 — Morador do Claude veste tons quentes, do DeepSeek tons frios

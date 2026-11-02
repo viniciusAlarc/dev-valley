@@ -1142,6 +1142,81 @@ h3 {
   margin: 0;
 }
 
+/* Moinho: uma linha por projeto (nome · barra · %), sempre à vista; o clique abre as conversas. */
+.gasto-janela {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.gasto-ritmo {
+  margin: 0 0 8px;
+}
+
+.gasto-row > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 11em) 1fr 3.6em 1em;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 4px;
+}
+
+.gasto-row > summary::-webkit-details-marker {
+  display: none;
+}
+
+.gasto-row > summary::after {
+  content: '›';
+  color: var(--muted);
+}
+
+.gasto-row[open] > summary::after {
+  content: '⌄';
+}
+
+.gasto-row > summary:hover {
+  background: var(--parchment-dark);
+}
+
+.gasto-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gasto-barra {
+  display: block;
+  margin-top: 0;
+}
+
+.gasto-barra > .usage-fill {
+  display: block;
+}
+
+.gasto-pct {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.gasto-sessoes {
+  margin: 0 0 8px;
+}
+
+.gasto-row > .usage-reset:first-of-type {
+  margin: 4px 0 2px;
+}
+
+.gasto-como {
+  margin-top: 18px;
+}
+
+.gasto-como > summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
 .usage-updated {
   text-align: right;
 }
@@ -1238,4 +1313,162 @@ h3 {
 
 .book-link:hover {
   background: #fff1a8 !important;
+}
+
+/* ---------- Gazeta do Vale (jornal da banca, 02/11/2026) ---------- */
+/* A moldura de madeira vira folha de jornal: papel creme com granulado, letra de imprensa. */
+
+.panel.gazeta {
+  --gz-tinta: #1d1a14;
+  --gz-apagado: #6b5a3e;
+  --gz-filete: #b8ad90;
+  width: min(1040px, 94vw);
+  height: auto;
+  max-height: 92vh;
+  padding: 18px 30px 24px;
+  color: var(--gz-tinta);
+  font-family: 'Old Standard TT', Georgia, 'Times New Roman', serif;
+  background-color: #f3ead3;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.28 0 0 0 0 0.18 0 0 0 0.08 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
+  border: none;
+  border-radius: 2px;
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.08),
+    6px 8px 24px rgba(0, 0, 0, 0.45);
+  transform-origin: 50% 0;
+  animation: gz-desdobrar 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes gz-desdobrar {
+  from {
+    opacity: 0;
+    transform: perspective(1200px) rotateX(65deg) scaleY(0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel.gazeta {
+    animation: none;
+  }
+}
+
+/* Título do painel fica só para leitor de tela; sobram os botões no canto. */
+.gazeta .panel-header {
+  border-bottom: none;
+  margin: 0 0 -8px;
+  padding: 0;
+}
+
+.gazeta .panel-header h2,
+.gazeta .panel-header .subtitle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.gazeta .panel-body {
+  font-size: 16px;
+}
+
+.gz-cabecalho h1 {
+  margin: 0;
+  font-family: 'UnifrakturMaguntia', 'Old Standard TT', serif;
+  font-weight: 400;
+  font-size: clamp(40px, 7vw, 78px);
+  line-height: 1.05;
+  text-align: center;
+}
+
+.gz-linha-data {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 6px 0 0;
+  padding: 4px 0;
+  border-top: 1px solid var(--gz-tinta);
+  border-bottom: 3px double var(--gz-tinta);
+  font-size: 14px;
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+}
+
+.gz-manchete {
+  margin: 14px 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--gz-tinta);
+  font-size: clamp(26px, 4vw, 42px);
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.gz-colunas {
+  column-width: 260px;
+  column-gap: 28px;
+  column-rule: 1px solid var(--gz-filete);
+}
+
+.gz-noticia,
+.gz-achados {
+  break-inside: avoid;
+  margin: 0 0 18px;
+}
+
+.gz-noticia h3 {
+  margin: 0 0 2px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.gz-projeto {
+  margin: 0 0 6px;
+  color: var(--gz-apagado);
+  font-size: 13px;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+}
+
+.gz-noticia p:not(.gz-projeto),
+.gz-achados p {
+  margin: 0 0 8px;
+  line-height: 1.45;
+  text-align: justify;
+  hyphens: auto;
+}
+
+/* Capitular na primeira notícia, como abertura de jornal. */
+.gz-noticia:first-child p:nth-of-type(2)::first-letter {
+  float: left;
+  margin: 4px 6px 0 0;
+  font-size: 46px;
+  line-height: 0.8;
+  font-weight: 700;
+}
+
+.gz-achados {
+  padding: 8px 12px 4px;
+  border: 1px solid var(--gz-tinta);
+}
+
+.gz-achados h4 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.gz-nota {
+  margin: 4px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--gz-filete);
+  color: var(--gz-apagado);
+  font-size: 14px;
+  font-style: italic;
 }

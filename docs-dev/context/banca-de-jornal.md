@@ -1,7 +1,6 @@
 # Banca de jornal: o que mudou desde ontem, em linguagem de gente
 
-> Plano decidido em 02/11/2026, ainda não codado (G7). Ao implementar: marcar aqui, registrar no `PROGRESS.md` e
-> mover este arquivo para `docs-dev/context/`.
+> **Implementado em 02/11/2026.** Planejado e codado no mesmo dia; saiu de `docs-dev/a-codar/`.
 
 ## Por que
 
@@ -47,11 +46,20 @@ o agente ("Dia calmo na vila").
 5. Painel `web/src/ui/jornal.ts` com cara de jornal (título, data por extenso, seções).
 6. `README.md`, `CLAUDE.md` (regra 5 passa a citar o jornaleiro entre as consultas `claude -p`), `PROGRESS.md`.
 
-## Decisões em aberto (👤, antes de codar)
+## Decisões (usuário, 02/11/2026: "segue as recomendações")
 
-1. **Janela:** "últimas 24h" ou "desde a última vez que você abriu o jornal"? **Recomendação:** desde a última leitura,
-   com piso de 24h. Segunda-feira cobre o fim de semana sem esforço.
-2. **Seus commits** entram ou só os do time? **Recomendação:** entram, separados ("Você fez" / "O time fez"); ajuda a
-   lembrar onde parou.
-3. **Projeto parado há muito tempo** ("X sem movimento há 3 semanas") vai no rodapé do jornal? Foi sugerido no lugar da
-   prefeitura, que não entrou. **Recomendação:** sim, uma linha só, a partir de 14 dias.
+1. Período: desde a última leitura do jornal, com piso de 24h (e teto de 7 dias). Abrir uma edição marca como lido.
+2. Seus commits entram, separados dos do time (pelo `user.email` do repositório).
+3. Projeto sem commit nem conversa há 14 dias ou mais vai numa linha no rodapé.
+
+## Como ficou
+
+- `server/src/jornal.ts` (`Jornal`): coleta do git (`--all --no-merges`, sem rede própria), pauta só com assunto e nomes
+  de arquivo, resposta do jornaleiro em JSON (`lerResposta` descarta projeto que não estava na pauta). Edição em
+  `~/.cache/dev-valley/jornal/AAAA-MM-DD.json`, leitura em `lido.json`. O `index.ts` chama `garantirDoDia` um minuto
+  depois de subir e a cada meia hora. Rotas `GET /api/jornal`, `POST /api/jornal/imprimir` e `POST /api/jornal/lido`
+  (as duas últimas só de página local). Testes em `server/tests/jornal.test.ts`.
+- `server/agents/jornaleiro.md`: `tools: Read`, como o escrevente. Com o campo vazio, a `consulta.ts` passaria um item
+  vazio em `--allowedTools` (não testado); o texto do agente manda não usar ferramenta.
+- Arte em `textures.ts` (`newsstand`, `NEWSSTAND`, `newspaper-pile`); `TownScene.buildNewsstand` põe a banca, a pilha
+  (visível só com a edição de hoje) e o jornaleiro ✦, reservado em `villagerArt.ts`. Painel em `web/src/ui/jornal.ts`.

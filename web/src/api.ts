@@ -362,7 +362,8 @@ export interface Edicao {
   geradaEm: number;
   desde: number;
   manchete: string;
-  noticias: { nome: string; voce: string; time: string }[];
+  /** `titulo` falta nas edições impressas antes da Gazeta do Vale (02/11/2026). */
+  noticias: { nome: string; titulo?: string; voce: string; time: string }[];
   semNovidade: string[];
   parados: { nome: string; dias: number }[];
 }

@@ -37,6 +37,8 @@ export interface Movimento {
 
 export interface Noticia {
   nome: string;
+  /** Título curto da notícia (Gazeta do Vale, 02/11/2026); sem título na resposta, o nome do projeto. */
+  titulo: string;
   voce: string;
   time: string;
 }
@@ -109,7 +111,10 @@ export function lerResposta(texto: string, nomes: string[]): { manchete: string;
     const j = JSON.parse(texto.slice(ini, fim + 1));
     const s = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
     const noticias: Noticia[] = (Array.isArray(j.noticias) ? j.noticias : [])
-      .map((n: any) => ({ nome: s(n?.projeto ?? n?.nome), voce: s(n?.voce), time: s(n?.time) }))
+      .map((n: any) => {
+        const nome = s(n?.projeto ?? n?.nome);
+        return { nome, titulo: s(n?.titulo) || nome, voce: s(n?.voce), time: s(n?.time) };
+      })
       .filter((n: Noticia) => nomes.includes(n.nome) && (n.voce || n.time));
     const manchete = s(j.manchete);
     return manchete && noticias.length ? { manchete, noticias } : null;

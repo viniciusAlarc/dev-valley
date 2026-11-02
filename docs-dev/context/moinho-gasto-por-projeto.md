@@ -12,8 +12,8 @@ quanto do plano foi usado; o moinho diz **com o quê**.
 | Na vila | Por baixo |
 |---|---|
 | Moinho girando; velocidade das pás | Total de tokens da semana em todos os projetos (gira devagar em semana calma) |
-| Clique | Painel com uma barra por projeto: "X ficou com 45% do gasto da semana", do maior para o menor |
-| Dentro da barra, ao expandir | As 3 sessões que mais gastaram naquele projeto (nome do morador, não o id) |
+| Clique | Painel: a janela no topo; por perfil, a comparação com a semana passada e uma linha por projeto (nome, barra, %), do maior para o menor |
+| Clique na linha do projeto | As 3 sessões que mais gastaram naquele projeto (nome do morador, não o id) |
 | Sessões fora de projeto | Linha "Praça (sessões avulsas)" |
 
 Texto humano: porcentagem e comparação ("o dobro da semana passada"), nunca número cru de token como destaque. O número
@@ -60,3 +60,6 @@ cada evento.
   de 1,5 s a 16 s.
 - Arte em `textures.ts` (`windmill`, `WINDMILL`), pás numa peça separada; `TownScene.buildWindmill` lê a rota ao montar e a
   cada 5 minutos. Painel em `web/src/ui/gasto.ts`.
+- **Painel refeito em 02/11/2026** (o primeiro estava confuso): no topo só a janela e quanto falta; comparação em título
+  curto (`comparacao`, também no balão) + projeção concreta (`projecao`: "fecha em 1,4× a anterior"); barra e % sempre à
+  vista; peso, cache, pás e totais em tokens recolhidos em "Como é calculado".

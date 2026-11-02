@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import { bellCount, estadoLareira, gasto, type GastoView, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
+import { bellCount, estadoLareira, gasto, jornal, type GastoView, type JornalView, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, CONVERSA_DX, label, makeInteractive, TALK_Y, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
-import { generateTextures, hash, mulberry32, ROOFS, TOWER, WINDMILL } from './textures';
+import { generateTextures, hash, mulberry32, NEWSSTAND, ROOFS, TOWER, WINDMILL } from './textures';
 import { comparacao, fatia, voltaDasPas } from '../ui/gasto-texto';
 import { decorrido } from '../ui/gasto';
 import { estadoTorre } from './torre';
@@ -117,6 +117,7 @@ export class TownScene extends Phaser.Scene {
   private billboard?: { board: Phaser.GameObjects.Image; title: Phaser.GameObjects.Text; status: Phaser.GameObjects.Text };
   /** Sino da praça: balança de tempos em tempos enquanto há algo para conferir. */
   private bell?: Phaser.GameObjects.Image;
+  private stand?: { pile: Phaser.GameObjects.Image; view: JornalView | null };
   private mill?: { blades: Phaser.GameObjects.Image; spin?: Phaser.Tweens.Tween; volta: number; view: GastoView | null };
   private tower?: { body: Phaser.GameObjects.Image; sky: Phaser.GameObjects.Image; bell: Phaser.GameObjects.Image; hand: Phaser.GameObjects.Graphics };
   private pendingWorld: World | null = null;
@@ -306,6 +307,52 @@ export class TownScene extends Phaser.Scene {
     this.time.addEvent({ delay: 5 * 60_000, loop: true, callback: ler });
   }
 
+  /**
+   * Banca de jornal (02/11/2026): pilha no balcão = a edição de hoje já saiu. O jornaleiro ✦ (agente da vila, traje de
+   * agente secreto, regra 8) fica ao lado; a banca e ele abrem o jornal. Lê `/api/jornal` ao montar e a cada 5 minutos.
+   */
+  private buildNewsstand(layout: Layout) {
+    const { x, y } = layout.newsstand;
+    const body = this.addSprite('newsstand', x, y);
+    const left = Math.round(x) - NEWSSTAND.w / 2;
+    const top = Math.round(y) - NEWSSTAND.h;
+    const pile = this.add
+      .image(left + NEWSSTAND.pile.x, top + NEWSSTAND.pile.y, 'newspaper-pile')
+      .setOrigin(0.5, 1)
+      .setDepth(body.depth + 1)
+      .setVisible(false);
+    this.stand = { pile, view: null };
+    const hoje = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const atualizar = (v: JornalView) => {
+      if (!this.stand) return;
+      this.stand.view = v;
+      pile.setVisible(v.edicao?.data === hoje());
+    };
+    const texto = () => {
+      const e = this.stand?.view?.edicao;
+      return e?.data === hoje() ? `Banca de jornal — ${e.manchete}\nclique para ler` : 'Banca de jornal — a edição de hoje ainda não saiu — clique para imprimir';
+    };
+    const abrir = () => ui.openJornal(atualizar);
+    makeInteractive(body, texto, abrir);
+    label(this, x, y + 10, 'Banca', y + 10);
+
+    // ✦ Jornaleiro, do lado esquerdo do balcão.
+    const npcX = left - 6;
+    const npcY = Math.round(y);
+    const npc = this.add.sprite(npcX, npcY, villagerTexture(this, 'jornaleiro-dev-valley', true), 0).setOrigin(0.5, 1).setDepth(npcY);
+    makeInteractive(npc, () => '✦ Jornaleiro — agente da vila\n"Quer saber o que mudou nos projetos? Pegue o jornal."', abrir);
+    const star = this.add.text(npcX + 7, npcY - 34, '✦', { fontFamily: 'serif', fontSize: '10px', color: '#f7d046', resolution: 4 }).setOrigin(0.5).setDepth(100000);
+    star.setStroke('#5e3a1c', 2);
+    this.tweens.add({ targets: star, y: star.y - 3, alpha: 0.6, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut' });
+
+    const ler = () => void jornal.ver().then(atualizar).catch(() => {});
+    ler();
+    this.time.addEvent({ delay: 5 * 60_000, loop: true, callback: ler });
+  }
+
   /** Troca a velocidade das pás sem dar tranco: continua do ângulo em que estão. 0 = paradas. */
   private girar(volta: number) {
     const m = this.mill;
@@ -440,6 +487,7 @@ export class TownScene extends Phaser.Scene {
     this.buildBillboard(layout);
     this.buildTower(layout);
     this.buildWindmill(layout);
+    this.buildNewsstand(layout);
     label(this, layout.fountain.x, layout.plaza.y + layout.plaza.h - 4, 'Praça', layout.plaza.y + layout.plaza.h);
   }
 

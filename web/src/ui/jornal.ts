@@ -1,3 +1,7 @@
+import '@fontsource/old-standard-tt/400.css';
+import '@fontsource/old-standard-tt/400-italic.css';
+import '@fontsource/old-standard-tt/700.css';
+import '@fontsource/unifrakturmaguntia/400.css';
 import { jornal, type Edicao, type JornalView } from '../api';
 import { button, escapeHtml, openPanel, type Panel } from './panel';
 
@@ -14,20 +18,29 @@ function edicaoHtml(e: Edicao) {
   const noticias = e.noticias
     .map(
       (n) => `
-      <h3>${escapeHtml(n.nome)}</h3>
-      ${n.voce ? `<p><b>Você:</b> ${escapeHtml(n.voce)}</p>` : ''}
-      ${n.time ? `<p><b>O time:</b> ${escapeHtml(n.time)}</p>` : ''}`,
+      <article class="gz-noticia">
+        <h3>${escapeHtml(n.titulo || n.nome)}</h3>
+        <p class="gz-projeto">${escapeHtml(n.nome)}</p>
+        ${n.voce ? `<p><b>Você</b> — ${escapeHtml(n.voce)}</p>` : ''}
+        ${n.time ? `<p><b>O time</b> — ${escapeHtml(n.time)}</p>` : ''}
+      </article>`,
     )
     .join('');
-  const rodape = [
-    e.semNovidade.length && e.noticias.length ? `Sem novidade em: ${e.semNovidade.map(escapeHtml).join(', ')}.` : '',
-    ...e.parados.map((p) => `${escapeHtml(p.nome)} está parado há ${p.dias} dias.`),
-  ].filter(Boolean);
+  const achados = e.parados.length
+    ? `<aside class="gz-achados">
+        <h4>Achados e perdidos</h4>
+        ${e.parados.map((p) => `<p>Procura-se movimento em <b>${escapeHtml(p.nome)}</b>, parado há ${p.dias} dias.</p>`).join('')}
+      </aside>`
+    : '';
+  const nota = e.semNovidade.length && e.noticias.length ? `<p class="gz-nota">Sem novidade em: ${e.semNovidade.map(escapeHtml).join(', ')}.</p>` : '';
   return `
-    <p class="muted">${escapeHtml(porExtenso(e.data))} · o que mudou desde ${escapeHtml(desdeTexto(e.desde))}</p>
-    <h2>${escapeHtml(e.manchete)}</h2>
-    ${noticias}
-    ${rodape.length ? `<p class="muted">${rodape.join(' ')}</p>` : ''}`;
+    <header class="gz-cabecalho">
+      <h1>Gazeta do Vale</h1>
+      <p class="gz-linha-data"><span>${escapeHtml(porExtenso(e.data))}</span><span>O que mudou desde ${escapeHtml(desdeTexto(e.desde))}</span></p>
+    </header>
+    <h2 class="gz-manchete">${escapeHtml(e.manchete)}</h2>
+    <div class="gz-colunas">${noticias}${achados}</div>
+    ${nota}`;
 }
 
 /**
@@ -35,7 +48,9 @@ function edicaoHtml(e: Edicao) {
  * próxima começa daqui (piso de 24h). "Imprimir" pede uma edição nova ao jornaleiro, que leva alguns segundos.
  */
 export async function openJornal(onChange?: (v: JornalView) => void) {
-  const panel = openPanel({ title: 'Jornal da vila', subtitle: 'O que mudou nos projetos, contado pelo jornaleiro', size: 'lg', scroll: true });
+  const panel = openPanel({ title: 'Gazeta do Vale', subtitle: 'O que mudou nos projetos, contado pelo jornaleiro', size: 'lg', scroll: true });
+  // A moldura de madeira vira folha de jornal (CSS `.gazeta` em style.css).
+  panel.root.querySelector('.panel')!.classList.add('gazeta');
   let timer: ReturnType<typeof setTimeout> | undefined;
   const root = panel.root;
 

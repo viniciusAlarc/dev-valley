@@ -795,6 +795,44 @@ function windmill(scene: Phaser.Scene) {
   add(scene, 'windmill-blades', b.c);
 }
 
+/** Banca de jornal (02/11/2026): quiosque de madeira com toldo listrado. A pilha de jornais é peça separada. */
+export const NEWSSTAND = { w: 56, h: 50, pile: { x: 28, y: 33 } };
+
+function newsstand(scene: Phaser.Scene) {
+  const { w: W, h: H } = NEWSSTAND;
+  const { c, ctx } = makeCanvas(W, H);
+  // fundo do quiosque, com revistas penduradas
+  rect(ctx, 6, 14, W - 12, 20, '#8d5f30');
+  rect(ctx, 8, 16, W - 16, 16, '#6b4423');
+  const capas = ['#d64545', '#7aa8f0', '#f5d142', '#5aa64a', '#e8e0cc'];
+  for (let i = 0; i < 5; i++) rect(ctx, 11 + i * 7, 18, 5, 7, capas[i]!);
+  // toldo listrado
+  for (let x = 2; x < W - 2; x++) rect(ctx, x, 6, 1, 8, Math.floor((x - 2) / 4) % 2 ? '#f2ead6' : '#3f8a5a');
+  for (let x = 2; x < W - 2; x += 4) rect(ctx, x, 14, 4, 2, Math.floor((x - 2) / 4) % 2 ? '#f2ead6' : '#3f8a5a');
+  rect(ctx, 2, 4, W - 4, 2, '#2f6b45');
+  // balcão
+  rect(ctx, 3, 33, W - 6, 4, '#b9854a');
+  rect(ctx, 3, 33, W - 6, 1, '#d8a868');
+  rect(ctx, 5, 37, W - 10, 11, '#8d5f30');
+  for (let x = 9; x < W - 6; x += 8) rect(ctx, x, 37, 1, 11, '#6b4423');
+  // pés
+  rect(ctx, 5, 48, 3, 2, '#4a2a12');
+  rect(ctx, W - 8, 48, 3, 2, '#4a2a12');
+  outline(ctx, W, H);
+  add(scene, 'newsstand', c);
+
+  // pilha de jornais no balcão: só aparece com a edição do dia pronta
+  const p = makeCanvas(16, 8);
+  for (let i = 0; i < 3; i++) {
+    rect(p.ctx, 1 + (i % 2), 5 - i * 2, 13, 2, '#efe9db');
+    rect(p.ctx, 1 + (i % 2), 6 - i * 2, 13, 1, '#b8ad90');
+  }
+  rect(p.ctx, 3, 1, 6, 1, '#5a4630'); // manchete
+  rect(p.ctx, 10, 1, 3, 1, '#b8ad90');
+  outline(p.ctx, 16, 8);
+  add(scene, 'newspaper-pile', p.c);
+}
+
 function bench(scene: Phaser.Scene) {
   const W = 38;
   const { c, ctx } = makeCanvas(W, 15);
@@ -979,6 +1017,7 @@ export function generateTextures(scene: Phaser.Scene) {
   bell(scene);
   clockTower(scene);
   windmill(scene);
+  newsstand(scene);
   bench(scene);
   lamppost(scene);
   smokePuff(scene, 'smoke', '#eeeae2', '#c9c4ba');

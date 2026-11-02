@@ -78,8 +78,10 @@ describe('banca de jornal', () => {
   });
 
   test('resposta do jornaleiro: JSON com projeto conhecido; o resto vira null', () => {
-    const ok = lerResposta('Aqui: {"manchete": "M", "noticias": [{"projeto": "a", "voce": "V", "time": ""}, {"projeto": "x", "voce": "inventado"}]}', ['a']);
-    assert.deepEqual(ok, { manchete: 'M', noticias: [{ nome: 'a', voce: 'V', time: '' }] });
+    const ok = lerResposta('Aqui: {"manchete": "M", "noticias": [{"projeto": "a", "titulo": "T", "voce": "V", "time": ""}, {"projeto": "x", "voce": "inventado"}]}', ['a']);
+    assert.deepEqual(ok, { manchete: 'M', noticias: [{ nome: 'a', titulo: 'T', voce: 'V', time: '' }] });
+    const semTitulo = lerResposta('{"manchete": "M", "noticias": [{"projeto": "a", "voce": "V"}]}', ['a']);
+    assert.equal(semTitulo!.noticias[0]!.titulo, 'a', 'sem título, usa o nome do projeto');
     assert.equal(lerResposta('sem json', ['a']), null);
     assert.equal(lerResposta('{"manchete": "M", "noticias": []}', ['a']), null);
   });
