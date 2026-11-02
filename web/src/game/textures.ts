@@ -627,6 +627,174 @@ function bell(scene: Phaser.Scene) {
   add(scene, 'bell', b.c);
 }
 
+/**
+ * Torre do relógio (02/11/2026): limites do plano. O vão do campanário fica vazado para o céu (sprite `tower-sky-*`,
+ * atrás) aparecer, e o sino (`tower-bell-*`) e o ponteiro são peças separadas, desenhadas pela cena.
+ * Coordenadas usadas pela cena: vão em x 15–28, y 22–36; centro do mostrador em (22, 54).
+ */
+export const TOWER = { w: 44, h: 118, sky: { x: 15, y: 22, w: 14, h: 15 }, face: { x: 22, y: 54, r: 9 } };
+
+function clockTower(scene: Phaser.Scene) {
+  const { w: W, h: H, sky, face } = TOWER;
+  const { c, ctx } = makeCanvas(W, H);
+  // corpo de pedra com fiadas desencontradas
+  rect(ctx, 10, 20, 24, 90, '#b3ab9c');
+  rect(ctx, 30, 20, 4, 90, '#a39b8b');
+  for (let y = 24; y < 108; y += 6) {
+    rect(ctx, 10, y, 24, 1, '#8f877a');
+    for (let x = 10 + ((y / 6) % 2) * 4; x < 34; x += 8) rect(ctx, x, y + 1, 1, 5, '#8f877a');
+  }
+  // cunhais claros nas quinas
+  for (let y = 40; y < 108; y += 12) {
+    rect(ctx, 10, y, 3, 6, '#cfc7b6');
+    rect(ctx, 31, y + 6, 3, 6, '#cfc7b6');
+  }
+  // campanário: arco vazado (o céu aparece por trás) com moldura
+  rect(ctx, 13, 20, 18, 19, '#e3dccb');
+  ctx.clearRect(sky.x, sky.y + 3, sky.w, sky.h - 3);
+  ctx.clearRect(sky.x + 2, sky.y + 1, sky.w - 4, 2);
+  ctx.clearRect(sky.x + 4, sky.y, sky.w - 8, 1);
+  rect(ctx, 11, 38, 22, 2, '#cfc7b6');
+  rect(ctx, 11, 38, 22, 1, '#efe9db');
+  // telhado em agulha, com as telhas em faixas
+  const pal = ['#4b6e5a', '#355246', '#6a907a'];
+  for (let i = 0; i < 20; i++) {
+    const hw = 1 + Math.round((i * 14) / 19);
+    rect(ctx, 22 - hw, 1 + i, hw * 2, 1, i % 4 === 3 ? pal[1] : pal[0]);
+    if (i % 4 === 0 && hw > 2) rect(ctx, 22 - hw + 1, 1 + i, hw - 1, 1, pal[2]);
+  }
+  rect(ctx, 21, 0, 2, 2, '#e8b84a');
+  // mostrador: aro de bronze, face creme e as quatro marcas das horas
+  disc(ctx, face.x, face.y, face.r + 1, '#8a6a2a');
+  disc(ctx, face.x, face.y, face.r, '#f7f0dc');
+  for (const [dx, dy] of [[0, -7], [7, 0], [0, 7], [-7, 0]]) rect(ctx, face.x + dx, face.y + dy, 1, 1, '#5a4630');
+  for (const [dx, dy] of [[4, -6], [6, -4], [6, 4], [4, 6], [-4, 6], [-6, 4], [-6, -4], [-4, -6]])
+    rect(ctx, face.x + dx, face.y + dy, 1, 1, '#b8ad90');
+  // seteira
+  rect(ctx, 21, 72, 3, 12, '#3a2a1a');
+  rect(ctx, 20, 71, 5, 1, '#cfc7b6');
+  rect(ctx, 20, 84, 5, 1, '#cfc7b6');
+  // porta em arco
+  rect(ctx, 18, 93, 8, 1, '#4a2a12');
+  rect(ctx, 17, 94, 10, 16, '#4a2a12');
+  rect(ctx, 18, 94, 8, 16, '#6b3f1f');
+  rect(ctx, 22, 94, 1, 16, '#4a2a12');
+  rect(ctx, 24, 102, 1, 2, '#e8c252');
+  // base
+  rect(ctx, 6, 110, 32, 8, '#8a8478');
+  rect(ctx, 6, 110, 32, 1, '#a39b8b');
+  rect(ctx, 15, 110, 14, 3, '#cfc7b6');
+  outline(ctx, W, H);
+  add(scene, 'clock-tower', c);
+
+  // céu do vão, um por fase da semana
+  const skies: Record<string, (k: Ctx) => void> = {
+    manha: (k) => {
+      for (let y = 0; y < sky.h; y++) rect(k, 0, y, sky.w, 1, y < 6 ? '#9fd0f0' : y < 11 ? '#f7c6a8' : '#f4a27c');
+      disc(k, 4, 13, 3, '#ffe27a');
+    },
+    dia: (k) => {
+      for (let y = 0; y < sky.h; y++) rect(k, 0, y, sky.w, 1, y < 8 ? '#6fb8ec' : '#9fd0f0');
+      disc(k, 7, 5, 3, '#ffe27a');
+      rect(k, 6, 4, 2, 1, '#fff6c8');
+    },
+    tarde: (k) => {
+      for (let y = 0; y < sky.h; y++) rect(k, 0, y, sky.w, 1, y < 5 ? '#8a6aa8' : y < 10 ? '#e88a5a' : '#f2b44a');
+      disc(k, 10, 13, 3, '#ffcf5a');
+    },
+    noite: (k) => {
+      rect(k, 0, 0, sky.w, sky.h, '#1e2650');
+      disc(k, 9, 5, 3, '#f2ecd0');
+      disc(k, 10, 4, 2, '#1e2650');
+      for (const [x, y] of [[2, 3], [4, 10], [12, 11], [6, 2]]) rect(k, x, y, 1, 1, '#f7f0dc');
+    },
+  };
+  for (const [name, paint] of Object.entries(skies)) {
+    const s = makeCanvas(sky.w, sky.h);
+    paint(s.ctx);
+    add(scene, `tower-sky-${name}`, s.c);
+  }
+
+  // sino do campanário, na cor do pior limite
+  const bells: Record<string, [string, string, string]> = {
+    normal: ['#c99a3a', '#f2d68a', '#8a6a2a'],
+    warning: ['#f0b030', '#fff1a8', '#b87a10'],
+    critical: ['#d0402c', '#f5a090', '#8c2018'],
+  };
+  for (const [name, [body, light, shade]] of Object.entries(bells)) {
+    const b = makeCanvas(10, 11);
+    rect(b.ctx, 4, 0, 2, 1, '#3f464c');
+    rect(b.ctx, 3, 1, 4, 2, body);
+    rect(b.ctx, 2, 3, 6, 4, body);
+    rect(b.ctx, 1, 7, 8, 2, body);
+    rect(b.ctx, 3, 2, 1, 5, light);
+    rect(b.ctx, 6, 3, 2, 6, shade);
+    rect(b.ctx, 4, 9, 2, 1, '#6b4423');
+    outline(b.ctx, 10, 11);
+    add(scene, `tower-bell-${name}`, b.c);
+  }
+}
+
+/**
+ * Moinho (02/11/2026): gasto por projeto. Corpo e pás separados; as pás (`windmill-blades`) giram em volta do centro,
+ * preso no cubo do corpo em (20, 20).
+ */
+export const WINDMILL = { w: 40, h: 84, hub: { x: 20, y: 20 }, blades: 64 };
+
+function windmill(scene: Phaser.Scene) {
+  const { w: W, h: H, hub, blades: B } = WINDMILL;
+  const { c, ctx } = makeCanvas(W, H);
+  // corpo afunilado de reboco, com as tábuas da base
+  for (let y = 22; y < 78; y++) {
+    const hw = 11 + Math.round(((y - 22) * 6) / 55);
+    rect(ctx, 20 - hw, y, hw * 2, 1, '#efe4cc');
+    rect(ctx, 20 + hw - 4, y, 4, 1, '#d8caa8');
+  }
+  for (let y = 30; y < 78; y += 9) for (let x = 6; x < 34; x += 1) if ((x + y) % 11 === 0) rect(ctx, x, y, 2, 1, '#d8caa8');
+  // capota de madeira com telhado arredondado
+  rect(ctx, 7, 14, 26, 9, '#8d5f30');
+  rect(ctx, 7, 14, 26, 2, '#b9854a');
+  for (let i = 0; i < 8; i++) {
+    const hw = 13 - Math.round((i * i) / 6);
+    rect(ctx, 20 - hw, 13 - i, hw * 2, 1, i % 3 === 0 ? '#6b2a20' : '#8c3a2c');
+  }
+  // janela redonda e porta
+  disc(ctx, 20, 36, 3, '#5a4630');
+  disc(ctx, 20, 36, 2, '#9fd6ec');
+  rect(ctx, 15, 64, 10, 1, '#4a2a12');
+  rect(ctx, 14, 65, 12, 13, '#4a2a12');
+  rect(ctx, 15, 65, 10, 13, '#6b3f1f');
+  rect(ctx, 20, 65, 1, 13, '#4a2a12');
+  rect(ctx, 22, 71, 1, 2, '#e8c252');
+  // base de pedra
+  rect(ctx, 2, 78, W - 4, 6, '#8a8478');
+  rect(ctx, 2, 78, W - 4, 1, '#a39b8b');
+  // cubo onde as pás encaixam
+  disc(ctx, hub.x, hub.y, 3, '#5a4630');
+  outline(ctx, W, H);
+  add(scene, 'windmill', c);
+
+  // pás: quatro velas de lona em grade de madeira, em cruz
+  const b = makeCanvas(B, B);
+  const m = B / 2;
+  const vela = (x: number, y: number, w: number, h: number) => {
+    rect(b.ctx, x, y, w, h, '#f2ead6');
+    for (let i = 0; i < Math.max(w, h); i += 4)
+      if (w > h) rect(b.ctx, x + i, y, 1, h, '#a8875a');
+      else rect(b.ctx, x, y + i, w, 1, '#a8875a');
+  };
+  rect(b.ctx, m - 1, 2, 2, B - 4, '#6b4423');
+  rect(b.ctx, 2, m - 1, B - 4, 2, '#6b4423');
+  vela(m + 1, 3, 7, m - 6); // de cima, à direita do braço
+  vela(m - 8, m + 3, 7, m - 6); // de baixo, à esquerda
+  vela(3, m - 8, m - 6, 7); // da esquerda, em cima
+  vela(m + 3, m + 1, m - 6, 7); // da direita, embaixo
+  disc(b.ctx, m, m, 3, '#5a4630');
+  rect(b.ctx, m - 1, m - 1, 2, 2, '#e8b84a');
+  outline(b.ctx, B, B);
+  add(scene, 'windmill-blades', b.c);
+}
+
 function bench(scene: Phaser.Scene) {
   const W = 38;
   const { c, ctx } = makeCanvas(W, 15);
@@ -809,6 +977,8 @@ export function generateTextures(scene: Phaser.Scene) {
   noticeBoard(scene);
   billboard(scene);
   bell(scene);
+  clockTower(scene);
+  windmill(scene);
   bench(scene);
   lamppost(scene);
   smokePuff(scene, 'smoke', '#eeeae2', '#c9c4ba');

@@ -201,7 +201,7 @@ function agentCombo(id: string): number {
   return combo;
 }
 
-for (const id of ['administrador-dev-valley', 'bibliotecaria-dev-valley']) agentCombo(id);
+for (const id of ['administrador-dev-valley', 'bibliotecaria-dev-valley', 'jornaleiro-dev-valley']) agentCombo(id);
 
 // ---------------- primitivas ----------------
 

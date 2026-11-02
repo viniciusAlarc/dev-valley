@@ -53,4 +53,30 @@ describe('layout da vila ocupa a tela (pedido do usuário, 02/11/2026)', () => {
       }
     }
   });
+
+  test('linha cívica: torre, banca e moinho cabem entre biblioteca, praça e Fábrica sem se encostar (02/11/2026)', () => {
+    for (const [n, view] of [[1, LARGA], [3, ESTREITA], [5, LARGA], [10, LARGA]] as const) {
+      const l = computeLayout(casas(n), view);
+      // largura em tiles de cada peça, em volta da âncora (x no centro)
+      const pecas = [
+        ['biblioteca', l.library.x, 7],
+        ['torre', l.clockTower.x, 4],
+        ['praça', l.plaza.x + l.plaza.w / 2, l.plaza.w / TILE],
+        ['banca', l.newsstand.x, 5],
+        ['moinho', l.windmill.x, 6],
+        ['Fábrica', l.factory.x, 7],
+      ] as const;
+      for (let i = 1; i < pecas.length; i++) {
+        const [a, ax, aw] = pecas[i - 1]!;
+        const [b, bx, bw] = pecas[i]!;
+        assert.ok(bx / TILE - bw / 2 >= ax / TILE + aw / 2 + 1, `${n} casas: ${a} encosta em ${b}`);
+      }
+    }
+  });
+
+  test('com poucas casas, a linha de casas fica no meio da vila', () => {
+    const l = computeLayout(casas(2), LARGA);
+    const meio = (l.plots[0]!.house.x + l.plots[1]!.house.x) / 2;
+    assert.equal(meio / TILE, l.village.x + l.village.w / 2);
+  });
 });

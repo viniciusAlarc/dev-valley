@@ -18,6 +18,9 @@ import { buscar } from './pombal.js';
 import { isLocalOrigin } from './seguranca.js';
 import { ambienteDoTerminal, projectsDirs } from './perfil.js';
 import { deleteSessionFiles } from './sessions.js';
+import { Gasto } from './gasto.js';
+import { Jornal } from './jornal.js';
+import { Plugins } from './plugins.js';
 import { Skills } from './skills.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
@@ -43,6 +46,9 @@ const internalSessions = new Set<string>();
 const moradores = new Moradores();
 const agents = new Agents(() => world.projects);
 const skills = new Skills(() => world.projects);
+const plugins = new Plugins(config, () => world.projects);
+const gasto = new Gasto(config, () => world.projects);
+const jornal = new Jornal(() => world, internalSessions);
 /** Sessões novas de conversa com um agente, esperando o terminal abrir: id → pasta e agente (o front não escolhe). */
 const agentSessions = new Map<string, { cwd: string; agent: string }>();
 /** Sessões avulsas novas (banco da praça), esperando o terminal abrir: nascem na home, fora de qualquer projeto. */
@@ -78,6 +84,9 @@ const app = criarApp({
   moradores,
   agents,
   skills,
+  plugins,
+  gasto,
+  jornal,
   internalSessions,
   agentSessions,
   avulsaSessions,
@@ -162,6 +171,10 @@ async function buscarPombais() {
 }
 void buscarPombais();
 setInterval(() => void buscarPombais(), POMBAL_FETCH_MS);
+// Banca de jornal: a edição do dia sai sozinha depois das 6h, com a vila aberta (um minuto depois de subir, para o
+// pombal ter buscado o remoto, e depois a cada meia hora). Já impressa, não chama o jornaleiro de novo.
+setTimeout(() => void jornal.garantirDoDia(), 60_000);
+setInterval(() => void jornal.garantirDoDia(), 30 * 60_000);
 
 server.listen(config.port, HOST, () => {
   console.log(`🌾 Dev Valley rodando em http://localhost:${config.port}`);

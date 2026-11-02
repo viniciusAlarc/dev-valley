@@ -1,4 +1,4 @@
-import { agents, api, getWorld, type AgentSummary, type Project, type Session, type World } from '../api';
+import { agents, api, getWorld, type AgentSummary, type GastoView, type JornalView, type Project, type Session, type World } from '../api';
 import { villagerName } from '../game/names';
 import { openConferir } from './conferir';
 import { openGuardrails } from './guardrails';
@@ -17,6 +17,10 @@ import { openQuadro } from './quadro';
 import { openPombal } from './pombal';
 import { openLareira } from './lareira';
 import { openSkills } from './skills';
+import { openPlugins } from './plugins';
+import { openGasto } from './gasto';
+import { openJornal } from './jornal';
+import { openUsage } from './usage';
 import { openSessionTerminal, openTerminal } from './terminal';
 
 const tooltip = () => document.getElementById('tooltip')!;
@@ -78,6 +82,22 @@ export const ui = {
   openGuardrails(g: NonNullable<World['guardrails']>) {
     this.hideTooltip();
     openGuardrails(g);
+  },
+  openJornal(onChange?: (v: JornalView) => void) {
+    this.hideTooltip();
+    void openJornal(onChange);
+  },
+  openGasto(v: GastoView | null) {
+    this.hideTooltip();
+    openGasto(v);
+  },
+  openPlugins() {
+    this.hideTooltip();
+    void openPlugins();
+  },
+  openUsage(usage: World['usage']) {
+    this.hideTooltip();
+    openUsage(usage);
   },
   openConferir(world: World) {
     this.hideTooltip();

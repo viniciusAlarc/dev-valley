@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { getWorld } from '../api';
+import { getWorld, plugins } from '../api';
 import { ui } from '../ui/actions';
 import { label, makeInteractive } from './common';
-import { generateFactoryTextures, generateInteriorTextures } from './interiorTextures';
+import { generateFactoryTextures, generateInteriorTextures, SWITCHBOARD } from './interiorTextures';
 
 const W = 240;
 const WALL_H = 40;
@@ -27,7 +27,7 @@ export class FactoryScene extends Phaser.Scene {
     generateInteriorTextures(this);
     generateFactoryTextures(this);
     this.cameras.main.setBackgroundColor('#1a120b');
-    ui.setLocation('Fábrica', 'Bancada: agentes · parede de ferramentas: skills · Esc ou tapete para sair');
+    ui.setLocation('Fábrica', 'Bancada: agentes · parede de ferramentas: skills · quadro de força: plugins · Esc ou tapete para sair');
 
     const onResize = () => this.frameCamera();
     this.scale.on(Phaser.Scale.Events.RESIZE, onResize);
@@ -54,6 +54,9 @@ export class FactoryScene extends Phaser.Scene {
     );
     label(this, 168, WALL_H + 8, 'Skills', WALL_H + 8);
 
+    // ---- quadro de força (plugins e MCP, só leitura), entre a janela e a parede de ferramentas ----
+    this.buildSwitchboard(112, WALL_H - 6);
+
     // ---- bancada (agentes) ----
     const benchY = WALL_H + 62;
     const bench = this.prop('workbench', 80, benchY);
@@ -71,6 +74,33 @@ export class FactoryScene extends Phaser.Scene {
     const mat = this.prop('doormat', W / 2, H + 2);
     makeInteractive(mat, () => 'Sair (Esc)', () => this.leave());
     this.frameCamera();
+  }
+
+  /** Uma alavanca por plugin (até cinco): para cima e verde = ligado, para baixo e vermelha = desligado. */
+  private buildSwitchboard(x: number, y: number) {
+    const box = this.prop('switchboard', x, y);
+    let resumo = 'Quadro de força — plugins e MCP — clique para ver';
+    makeInteractive(box, () => resumo, () => ui.openPlugins());
+    label(this, x, WALL_H + 8, 'Plugins', WALL_H + 8);
+    void plugins
+      .list()
+      .then((v) => {
+        if (!this.scene.isActive()) return;
+        const ligados = v.plugins.filter((p) => p.enabled).length;
+        resumo = `Quadro de força — ${v.plugins.length} plugin(s), ${ligados} ligado(s), ${v.mcp.length} servidor(es) MCP — clique para ver`;
+        const g = this.add.graphics().setDepth(box.depth + 1);
+        const left = Math.round(x) - SWITCHBOARD.w / 2;
+        const top = Math.round(y) - SWITCHBOARD.h;
+        v.plugins.slice(0, SWITCHBOARD.slots.length).forEach((p, i) => {
+          const sx = left + SWITCHBOARD.slots[i]!;
+          const ky = top + (p.enabled ? SWITCHBOARD.top : SWITCHBOARD.bottom - 4);
+          g.fillStyle(0xc9d1d8).fillRect(sx, ky + (p.enabled ? 3 : -1), 2, 2);
+          g.fillStyle(p.enabled ? 0x4f9a32 : 0xc0392b).fillRect(sx - 1, ky, 4, 3);
+        });
+      })
+      .catch(() => {
+        resumo = 'Quadro de força — não deu para ler os plugins agora';
+      });
   }
 
   private prop(key: string, x: number, y: number) {

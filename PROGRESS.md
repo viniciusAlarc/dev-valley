@@ -3,6 +3,66 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-02 — Moinho: com o que o Claude gastou na semana
+
+**O que mudou:** terceiro plano da parte de cima da vila. O moinho fica entre a praça e a Fábrica; as pás giram no ritmo
+da semana do plano comparado com o da semana passada (6 s por volta no mesmo ritmo, paradas sem gasto). O clique mostra,
+por perfil (trabalho e pessoal, separados), cada projeto com a fatia dele do gasto e, ao abrir, os moradores que mais
+gastaram; o número de tokens fica em letra miúda. Peso = entrada + saída + criação de cache + leitura ÷ 10. A leitura dos
+`.jsonl` é incremental e conta cada resposta uma vez (o Claude Code repete o `usage` em várias linhas da mesma resposta).
+**Arquivos:** `server/src/gasto.ts` (novo), `server/src/app.ts` (`GET /api/gasto`), `server/src/index.ts`,
+`server/tests/gasto.test.ts` (novo, 5 testes), `server/tests/servidor.ts`, `web/src/api.ts`, `web/src/ui/gasto.ts` e
+`gasto-texto.ts` (novos), `web/tests/gasto-texto.test.ts` (novo, 4 testes), `web/src/ui/actions.ts`,
+`web/src/game/textures.ts` (`windmill`), `web/src/game/TownScene.ts` (`buildWindmill`, `girar`), `README.md`, `CLAUDE.md`,
+`docs-dev/context/moinho-gasto-por-projeto.md` (saiu de `a-codar/`).
+**Testes:** 121/121 antes, 130/130 depois; typecheck do servidor e build sem erro. Conferido nos dados reais (1ª leitura
+155 ms, depois 10 ms). Prévia da arte em PNG conferida. Falta conferir na vila (reinício do usuário, regra 6).
+
+## 2026-11-02 — Quadro de força na Fábrica: plugins e MCP (só leitura)
+
+**O que mudou:** segundo plano da parte de cima da vila. Na parede da Fábrica, entre a janela e as skills, um quadro de
+força com uma alavanca por plugin (verde para cima = ligado, vermelha para baixo = desligado). O clique abre os plugins
+dos dois perfis (trabalho e pessoal), com descrição, versão, loja e o que cada um traz ("hooks", "2 skills e 1
+comando"…), e os servidores MCP (global, por projeto e `.mcp.json` do repositório). Só leitura: o painel manda usar
+`/plugin` para ligar e desligar. Do MCP sai só nome, tipo e onde (comando, URL e variáveis podem ter chave, G13).
+Conectores do claude.ai não ficam em arquivo e o painel avisa que não aparecem. Hoje: 2 plugins nos 2 perfis, nenhum MCP.
+**Arquivos:** `server/src/plugins.ts` (novo), `server/src/app.ts` (`GET /api/plugins`, `plugins` no `Contexto`),
+`server/src/index.ts`, `server/tests/plugins.test.ts` (novo, 4 testes), `server/tests/servidor.ts`, `web/src/api.ts`,
+`web/src/ui/plugins.ts` (novo), `web/src/ui/actions.ts`, `web/src/game/interiorTextures.ts` (`switchboard`),
+`web/src/game/FactoryScene.ts`, `README.md`, `CLAUDE.md`, `docs-dev/context/fabrica-plugins-e-mcp.md` (saiu de
+`a-codar/`).
+**Testes:** 117/117 antes, 121/121 depois; typecheck do servidor e build sem erro. Prévia da arte em PNG conferida.
+Falta conferir na vila (reinício do usuário, regra 6).
+
+## 2026-11-02 — Torre do relógio no lugar do painel "Uso do Claude"
+
+**O que mudou:** primeiro dos planos da parte de cima da vila (usuário: "segue as recomendações", do mais simples ao mais
+complexo). A torre fica entre a biblioteca e a praça: ponteiro = sessão de 5h (uma volta = limite), céu do campanário =
+semana (manhã, dia, tarde, noite em faixas de 25%), sino dourado/amarelo/vermelho pelo pior limite (balança no vermelho).
+Clique abre os limites num painel; o painel fixo do canto inferior esquerdo saiu (e o CSS dele). Para caber torre, banca e
+moinho, a linha cívica ganhou largura mínima de 5 lotes; casas ficam centralizadas quando a linha é mais estreita, e o
+desempate das colunas passou a contar os lotes vazios na largura real (com 5 casas em tela larga continua uma linha só;
+em 1366×768 vira 3 + 2 em vez de 4 + 1). Lotes da banca e do moinho já reservados.
+**Arquivos:** `web/src/game/torre.ts` (novo), `web/src/game/textures.ts` (`clockTower`, `TOWER`), `web/src/game/TownScene.ts`
+(`buildTower`, `updateTower`), `web/src/game/layout.ts` (`CIVIC_MIN_W`, `clockTower`, `newsstand`, `windmill`),
+`web/src/ui/usage.ts` (`openUsage`), `web/src/ui/actions.ts`, `web/src/main.ts`, `web/src/style.css`,
+`web/tests/torre.test.ts` (novo, 5 testes), `web/tests/layout.test.ts` (2 testes novos), `README.md`,
+`docs-dev/context/torre-do-relogio.md` (saiu de `a-codar/`).
+**Testes:** 110/110 antes, 117/117 depois; typecheck do servidor e build sem erro. Prévia da arte em PNG conferida (4
+estados). Falta conferir na vila (reinício do usuário, regra 6).
+
+## 2026-11-02 — Planos para preencher a parte de cima da vila
+
+**O que mudou:** só documentação, nenhum código. A faixa da biblioteca, da praça e da Fábrica estava vazia. Das 6 ideias
+discutidas, o usuário aprovou 4, que viraram planos em `docs-dev/a-codar/`: torre do relógio (os limites do plano, no
+lugar do painel do canto), moinho (gasto de token por projeto), banca de jornal (o que mudou desde ontem, em linguagem
+humana, por um agente jornaleiro) e plugins e MCP dentro da Fábrica. Ficaram de fora a prefeitura (repetia o quadro de
+avisos da praça, que já junta as decisões 👤 de todos os projetos) e o cemitério de sessões órfãs (o Claude Code já apaga
+as conversas antigas). Cada plano tem as decisões em aberto, com recomendação; elas estão no `PENDENCIAS.md` (VC-1 a VC-4).
+**Arquivos:** `docs-dev/a-codar/banca-de-jornal.md`,
+`PENDENCIAS.md` (os da torre, dos plugins e do moinho, já codados, foram para `docs-dev/context/`).
+**Testes:** não se aplica (sem código); auditor de referências rodado.
+
 ## 2026-11-02 — Morador do Claude veste tons quentes, do DeepSeek tons frios
 
 **O que mudou:** pedido do usuário: diferenciar sessões do Claude e do DeepSeek só pela roupa. Cada sessão recebe o

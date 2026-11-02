@@ -14,6 +14,9 @@ import type { Moradores } from './moradores.js';
 import { buscar, cartas, PombalError, voar } from './pombal.js';
 import { markChecked, readProgress } from './progress.js';
 import { arquivoPermitido, isLocalOrigin } from './seguranca.js';
+import type { Gasto } from './gasto.js';
+import type { Jornal } from './jornal.js';
+import type { Plugins } from './plugins.js';
 import { skillInput, type Skills } from './skills.js';
 import type { StatusLineStore } from './statusline.js';
 import type { TerminalManager } from './terminals.js';
@@ -35,6 +38,12 @@ export interface Contexto {
   moradores: Pick<Moradores, 'claim'>;
   agents: Pick<Agents, 'read' | 'create' | 'save' | 'remove'>;
   skills: Pick<Skills, 'read' | 'create' | 'save' | 'remove'>;
+  /** Plugins e MCP dos dois perfis, só leitura (Fábrica, 02/11/2026). */
+  plugins: Pick<Plugins, 'list'>;
+  /** Gasto por projeto na semana do plano (moinho, 02/11/2026). */
+  gasto: Pick<Gasto, 'resumo'>;
+  /** Banca de jornal: a edição do dia, imprimir e marcar como lido (02/11/2026). */
+  jornal: Pick<Jornal, 'view' | 'imprimir' | 'marcarLido'>;
   /** Sessões que a própria vila abre por baixo (consultas à bibliotecária e ao administrador) — não viram moradores. */
   internalSessions: Set<string>;
   /** Sessões novas de conversa com um agente, esperando o terminal abrir: id → pasta e agente (o front não escolhe). */
@@ -68,7 +77,7 @@ function sendIsolatedHtml(res: express.Response, doc: { path: string; kind: stri
 }
 
 export function criarApp(ctx: Contexto): express.Express {
-  const { terminals, lareiras, hooks, library, statusLine, moradores, agents, skills, internalSessions, agentSessions, avulsaSessions } = ctx;
+  const { terminals, lareiras, hooks, library, statusLine, moradores, agents, skills, plugins, gasto, jornal, internalSessions, agentSessions, avulsaSessions } = ctx;
   const refreshWorld = ctx.refreshWorld;
   const findProject = (id: unknown): Project | undefined => ctx.world().projects.find((p) => p.id === id);
   let lastStatusLine: unknown = null;
@@ -138,6 +147,31 @@ export function criarApp(ctx: Contexto): express.Express {
     if ('error' in result) return res.status(result.status).json({ error: result.error });
     void refreshWorld();
     res.json(result);
+  });
+
+  // ---- Banca de jornal: a edição do dia (o jornaleiro roda em segundo plano; a página pergunta de novo) ----
+  app.get('/api/jornal', async (_req, res) => {
+    res.json(await jornal.view());
+  });
+  app.post('/api/jornal/imprimir', async (req, res) => {
+    if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+    void jornal.imprimir();
+    res.status(202).json(await jornal.view());
+  });
+  app.post('/api/jornal/lido', async (req, res) => {
+    if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+    await jornal.marcarLido();
+    res.json({ ok: true });
+  });
+
+  // ---- Moinho: gasto por projeto na semana do plano, só leitura ----
+  app.get('/api/gasto', async (_req, res) => {
+    res.json(await gasto.resumo(ctx.world().usage));
+  });
+
+  // ---- Plugins e MCP na Fábrica (quadro de força): só leitura ----
+  app.get('/api/plugins', async (_req, res) => {
+    res.json(await plugins.list());
   });
 
   // ---- Skills na Fábrica (parede de ferramentas): só nas pastas de skills (global e dos projetos) ----

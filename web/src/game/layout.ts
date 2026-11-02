@@ -5,6 +5,11 @@ const MARGIN = 4; // faixa de floresta ao redor da vila
 const CIVIC_H = 12; // linha de cima: biblioteca, praça e fábrica
 const PLOT_W = 12;
 const PLOT_H = 11;
+/**
+ * Largura mínima da vila (sem a floresta), em tiles: a linha cívica precisa caber biblioteca, torre do relógio, praça,
+ * banca de jornal, moinho e Fábrica (02/11/2026). Com menos casas por linha, as linhas de casas ficam centralizadas.
+ */
+const CIVIC_MIN_W = 5 * PLOT_W;
 
 export interface Rect {
   x: number;
@@ -38,6 +43,12 @@ export interface Layout {
   /** Outdoor dos guardrails, atrás da praça (âncora embaixo-centro). */
   billboard: { x: number; y: number };
   factory: { x: number; y: number };
+  /** Torre do relógio (limites do plano), entre a biblioteca e a praça (âncora embaixo-centro). */
+  clockTower: { x: number; y: number };
+  /** Banca de jornal, entre a praça e o moinho (âncora embaixo-centro). */
+  newsstand: { x: number; y: number };
+  /** Moinho (gasto por projeto), entre a banca e a Fábrica (âncora embaixo-centro). */
+  windmill: { x: number; y: number };
   fountain: { x: number; y: number };
   plaza: Rect;
   /** Regiões onde não plantamos árvores nem flores (em tiles). */
@@ -54,7 +65,8 @@ const key = (x: number, y: number) => `${x},${y}`;
 const ZOOM_MIN = 1.5;
 const ZOOM_MAX = 3;
 
-const villageTiles = (cols: number, rows: number) => ({ w: MARGIN * 2 + cols * PLOT_W, h: MARGIN * 2 + CIVIC_H + rows * PLOT_H });
+const innerW = (cols: number) => Math.max(cols * PLOT_W, CIVIC_MIN_W);
+const villageTiles = (cols: number, rows: number) => ({ w: MARGIN * 2 + innerW(cols), h: MARGIN * 2 + CIVIC_H + rows * PLOT_H });
 
 /** Zoom da visão geral: a vila inteira cabe, com só um tile de floresta de cada lado (era o enquadramento antigo). */
 export function fitZoom(wTiles: number, hTiles: number, view: View): number {
@@ -65,7 +77,7 @@ export function fitZoom(wTiles: number, hTiles: number, view: View): number {
 /**
  * Quantas casas por linha (pedido do usuário, 02/11/2026): a que deixa a vila ocupar mais da tela na visão geral. Com 5
  * casas numa tela larga, uma linha de 5 em vez de 4 + 1 (que deixava a tela com uma faixa vazia ao lado). Empate:
- * menos lotes vazios, depois menos colunas.
+ * menos lotes vazios, depois menos colunas. Diferença de até 2% de tela conta como empate.
  */
 export function chooseCols(n: number, view: View): number {
   let best = { cols: 3, fill: -1, empty: 0 };
@@ -74,8 +86,9 @@ export function chooseCols(n: number, view: View): number {
     const { w, h } = villageTiles(cols, rows);
     const zoom = fitZoom(w, h, view);
     const fill = Math.min(1, ((w - 6) * TILE * zoom) / view.w) * Math.min(1, ((h - 4) * TILE * zoom) / view.h);
-    const empty = cols * rows - n;
-    const better = fill > best.fill + 0.01 || (Math.abs(fill - best.fill) <= 0.01 && empty < best.empty);
+    // Lotes vazios contados na largura real da linha (a mínima da linha cívica vale para qualquer número de colunas).
+    const empty = rows * Math.max(cols, CIVIC_MIN_W / PLOT_W) - n;
+    const better = fill > best.fill + 0.02 || (Math.abs(fill - best.fill) <= 0.02 && empty < best.empty);
     if (better) best = { cols, fill, empty };
   }
   return best.cols;
@@ -130,11 +143,22 @@ export function computeLayout(projects: Project[], view: View = { w: 1600, h: 90
   reserved.push({ ...libraryTile, w: 7, h: 9 }, { ...factoryTile, w: 7, h: 9 });
   vLine(libraryTile.x + 3, libraryTile.y + 6, civicRoadY);
   vLine(factoryTile.x + 3, factoryTile.y + 7, civicRoadY);
+  // Torre no meio do vão biblioteca → praça; banca e moinho dividem o vão praça → Fábrica (02/11/2026).
+  const leftGap = { from: libraryTile.x + 7, to: plaza.x };
+  const rightGap = { from: plaza.x + plaza.w, to: factoryTile.x };
+  const towerTile = { x: Math.floor((leftGap.from + leftGap.to) / 2) - 2, y: civicTop + 1, w: 4, h: 9 };
+  const spacing = Math.max(1, Math.floor((rightGap.to - rightGap.from - 11) / 3));
+  const standTile = { x: rightGap.from + spacing, y: civicTop + 3, w: 5, h: 7 };
+  const millTile = { x: rightGap.to - spacing - 6, y: civicTop + 1, w: 6, h: 9 };
+  reserved.push(towerTile, standTile, millTile);
+  vLine(towerTile.x + 1, towerTile.y + 7, civicRoadY);
+  vLine(standTile.x + 2, standTile.y + 5, civicRoadY);
+  vLine(millTile.x + 2, millTile.y + 7, civicRoadY);
 
   // ---- lotes das casas ----
   const inRow = (row: number) => Math.min(cols, projects.length - row * cols);
   // Linha incompleta fica no meio, não encostada à esquerda (02/11/2026).
-  const rowStart = (row: number) => x0 + ((cols - inRow(row)) * PLOT_W) / 2;
+  const rowStart = (row: number) => x0 + (innerW(cols) - inRow(row) * PLOT_W) / 2;
   const rowTop = (row: number) => y0 + CIVIC_H + row * PLOT_H;
   const rowRoad = (row: number) => rowTop(row) + PLOT_H - 2;
   const plots: Plot[] = projects.map((project, i) => {
@@ -171,6 +195,9 @@ export function computeLayout(projects: Project[], view: View = { w: 1600, h: 90
     library: { x: (libraryTile.x + 3.5) * TILE, y: (libraryTile.y + 6) * TILE },
     billboard: { x: (plaza.x + plaza.w / 2) * TILE, y: plaza.y * TILE - 2 },
     factory: { x: (factoryTile.x + 3.5) * TILE, y: (factoryTile.y + 7) * TILE },
+    clockTower: { x: (towerTile.x + 2) * TILE, y: (towerTile.y + 7) * TILE },
+    newsstand: { x: (standTile.x + 2.5) * TILE, y: (standTile.y + 5) * TILE },
+    windmill: { x: (millTile.x + 3) * TILE, y: (millTile.y + 7) * TILE },
     fountain: { x: (plaza.x + plaza.w / 2) * TILE, y: (plaza.y + 3) * TILE },
     plaza: { x: plaza.x * TILE, y: plaza.y * TILE, w: plaza.w * TILE, h: plaza.h * TILE },
     reserved,

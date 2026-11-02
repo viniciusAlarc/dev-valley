@@ -316,6 +316,69 @@ export const skills = {
   remove: (path: string) => request('DELETE', `/api/skills?path=${encodeURIComponent(path)}`),
 };
 
+/** Plugins e servidores MCP dos dois perfis (Fábrica, quadro de força; só leitura). Espelha `server/src/plugins.ts`. */
+export interface PluginInfo {
+  id: string;
+  name: string;
+  marketplace: string;
+  version: string;
+  description: string;
+  enabled: boolean;
+  perfil: 'pessoal' | 'profissional';
+  scope: string;
+  installedAt: string | null;
+  traz: { skills: number; comandos: number; agentes: number; hooks: boolean; mcp: string[] };
+}
+
+export interface McpInfo {
+  name: string;
+  type: string;
+  perfil: 'pessoal' | 'profissional';
+  onde: string;
+}
+
+export const plugins = {
+  list: () => request<{ plugins: PluginInfo[]; mcp: McpInfo[] }>('GET', '/api/plugins'),
+};
+
+/** Gasto por projeto na semana do plano (moinho). Espelha `server/src/gasto.ts`. */
+export interface GastoView {
+  janela: { inicio: number; fim: number; fonte: 'plano' | '7dias' };
+  perfis: {
+    perfil: 'pessoal' | 'profissional';
+    total: number;
+    anterior: number;
+    projetos: { projectId: string | null; nome: string; peso: number; sessoes: { id: string; peso: number }[] }[];
+  }[];
+}
+
+export const gasto = {
+  resumo: () => request<GastoView>('GET', '/api/gasto'),
+};
+
+/** Banca de jornal: a edição do dia. Espelha `server/src/jornal.ts`. */
+export interface Edicao {
+  data: string;
+  geradaEm: number;
+  desde: number;
+  manchete: string;
+  noticias: { nome: string; voce: string; time: string }[];
+  semNovidade: string[];
+  parados: { nome: string; dias: number }[];
+}
+
+export interface JornalView {
+  edicao: Edicao | null;
+  gerando: boolean;
+  erro: string | null;
+}
+
+export const jornal = {
+  ver: () => request<JornalView>('GET', '/api/jornal'),
+  imprimir: () => request<JornalView>('POST', '/api/jornal/imprimir', {}),
+  lido: () => request('POST', '/api/jornal/lido', {}),
+};
+
 export type SectionKind = 'global' | 'memory' | 'project' | 'root';
 
 export interface LibraryFile {

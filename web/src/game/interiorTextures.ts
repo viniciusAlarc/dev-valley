@@ -675,10 +675,38 @@ function pegboard(scene: Phaser.Scene) {
   add(scene, 'pegboard', c);
 }
 
+/**
+ * Quadro de força (plugins, 02/11/2026): caixa de aço com cinco fendas. As alavancas são desenhadas pela cena, uma
+ * por plugin, para cima (ligado) ou para baixo (desligado). Fendas em x = 5, 10, 15, 20, 25; de y = 9 a 21.
+ */
+export const SWITCHBOARD = { w: 32, h: 30, slots: [5, 10, 15, 20, 25], top: 9, bottom: 21 };
+
+function switchboard(scene: Phaser.Scene) {
+  const { w: W, h: H, slots, top, bottom } = SWITCHBOARD;
+  const { c, ctx } = makeCanvas(W, H);
+  rect(ctx, 0, 0, W, H, '#4c545c');
+  rect(ctx, 0, 0, W, 1, '#66717b');
+  rect(ctx, 2, 2, W - 4, H - 4, '#7c868f');
+  rect(ctx, 2, 2, W - 4, 1, '#98a2ab');
+  // raio na plaquinha do alto
+  rect(ctx, 11, 3, 10, 4, '#e8d9a8');
+  rect(ctx, 16, 3, 2, 2, '#e0a800');
+  rect(ctx, 15, 5, 2, 1, '#e0a800');
+  rect(ctx, 14, 6, 2, 1, '#e0a800');
+  for (const x of slots) rect(ctx, x, top, 2, bottom - top, '#2b3035');
+  // parafusos
+  for (const [x, y] of [[3, 3], [W - 4, 3], [3, H - 4], [W - 4, H - 4]]) rect(ctx, x, y, 1, 1, '#c9d1d8');
+  // cabo descendo para o chão
+  rect(ctx, W / 2 - 1, H - 2, 2, 2, '#2b3035');
+  outline(ctx, W, H);
+  add(scene, 'switchboard', c);
+}
+
 export function generateFactoryTextures(scene: Phaser.Scene) {
-  if (scene.textures.exists('workbench')) return;
+  if (scene.textures.exists('switchboard')) return;
   factoryWall(scene);
   factoryFloor(scene);
   workbench(scene);
   pegboard(scene);
+  switchboard(scene);
 }

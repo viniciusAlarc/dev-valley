@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
-import { bellCount, estadoLareira, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
+import { bellCount, estadoLareira, gasto, type GastoView, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, CONVERSA_DX, label, makeInteractive, TALK_Y, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
-import { generateTextures, hash, mulberry32, ROOFS } from './textures';
+import { generateTextures, hash, mulberry32, ROOFS, TOWER, WINDMILL } from './textures';
+import { comparacao, fatia, voltaDasPas } from '../ui/gasto-texto';
+import { decorrido } from '../ui/gasto';
+import { estadoTorre } from './torre';
 import { villagerTexture } from './villager';
 
 const ROOF_NAMES = Object.keys(ROOFS).filter((r) => r !== 'grey');
@@ -114,6 +117,8 @@ export class TownScene extends Phaser.Scene {
   private billboard?: { board: Phaser.GameObjects.Image; title: Phaser.GameObjects.Text; status: Phaser.GameObjects.Text };
   /** Sino da praça: balança de tempos em tempos enquanto há algo para conferir. */
   private bell?: Phaser.GameObjects.Image;
+  private mill?: { blades: Phaser.GameObjects.Image; spin?: Phaser.Tweens.Tween; volta: number; view: GastoView | null };
+  private tower?: { body: Phaser.GameObjects.Image; sky: Phaser.GameObjects.Image; bell: Phaser.GameObjects.Image; hand: Phaser.GameObjects.Graphics };
   private pendingWorld: World | null = null;
   private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT', Phaser.Input.Keyboard.Key>;
 
@@ -189,6 +194,7 @@ export class TownScene extends Phaser.Scene {
     this.syncConversas();
     this.syncAgents();
     this.updateBillboard();
+    this.updateTower();
   }
 
   private buildBillboard(layout: Layout) {
@@ -216,6 +222,100 @@ export class TownScene extends Phaser.Scene {
     const { board, title, status } = this.billboard;
     for (const o of [board, title, status]) o.setVisible(!!g);
     if (g) status.setText(g.enabled ? '✓ ligado' : '✗ desligado').setColor(g.enabled ? '#2f6e30' : '#b8241c');
+  }
+
+  /**
+   * Torre do relógio (02/11/2026): ponteiro = sessão de 5h, céu do campanário = semana, sino = o pior limite. Clique
+   * abre os limites (o painel que antes ficava fixo no canto). Estado calculado em `torre.ts`, sem Phaser.
+   */
+  private buildTower(layout: Layout) {
+    const { x, y } = layout.clockTower;
+    const left = Math.round(x) - TOWER.w / 2;
+    const top = Math.round(y) - TOWER.h;
+    const body = this.addSprite('clock-tower', x, y);
+    const sky = this.add.image(left + TOWER.sky.x, top + TOWER.sky.y, 'tower-sky-dia').setOrigin(0, 0).setDepth(body.depth - 1);
+    const bell = this.add.image(left + 22, top + TOWER.sky.y + 2, 'tower-bell-normal').setOrigin(0.5, 0).setDepth(body.depth + 1);
+    const hand = this.add.graphics().setDepth(body.depth + 1);
+    makeInteractive(body, () => estadoTorre(this.world.usage).texto, () => ui.openUsage(this.world.usage));
+    label(this, x, y + 10, 'Torre do relógio', y + 10);
+    this.tower = { body, sky, bell, hand };
+    this.updateTower();
+    // Sino balança a cada poucos segundos só no vermelho (limite perto de acabar).
+    this.time.addEvent({
+      delay: 5000,
+      loop: true,
+      callback: () => {
+        const t = this.tower;
+        if (!t || !this.world || estadoTorre(this.world.usage).sino !== 'critical' || this.tweens.isTweening(t.bell)) return;
+        this.tweens.add({ targets: t.bell, angle: { from: -16, to: 16 }, duration: 160, yoyo: true, repeat: 3, onComplete: () => t.bell.setAngle(0) });
+      },
+    });
+  }
+
+  private updateTower() {
+    const t = this.tower;
+    if (!t || !this.world) return;
+    const estado = estadoTorre(this.world.usage);
+    t.sky.setTexture(`tower-sky-${estado.ceu ?? 'dia'}`);
+    t.bell.setTexture(`tower-bell-${estado.sino}`);
+    // Ponteiro pixel a pixel (sem linha suavizada): do centro do mostrador até 7px, no ângulo do relógio.
+    t.hand.clear();
+    if (estado.angulo === null) return;
+    const cx = t.body.x - TOWER.w / 2 + TOWER.face.x;
+    const cy = t.body.y - TOWER.h + TOWER.face.y;
+    const rad = ((estado.angulo - 90) * Math.PI) / 180;
+    t.hand.fillStyle(0x2b1a0e);
+    for (let r = 0; r <= 7; r++) t.hand.fillRect(cx + Math.round(Math.cos(rad) * r), cy + Math.round(Math.sin(rad) * r), 1, 1);
+    t.hand.fillStyle(0xb8241c).fillRect(cx, cy, 1, 1);
+  }
+
+  /**
+   * Moinho (02/11/2026): gasto por projeto na semana do plano. As pás giram no ritmo da semana comparado com o da
+   * passada (paradas sem gasto). Lê `/api/gasto` ao montar e a cada 5 minutos; o servidor guarda o cálculo por 2.
+   */
+  private buildWindmill(layout: Layout) {
+    const { x, y } = layout.windmill;
+    const body = this.addSprite('windmill', x, y);
+    const hubX = Math.round(x) - WINDMILL.w / 2 + WINDMILL.hub.x;
+    const hubY = Math.round(y) - WINDMILL.h + WINDMILL.hub.y;
+    const blades = this.add.image(hubX, hubY, 'windmill-blades').setDepth(body.depth + 1);
+    this.mill = { blades, volta: 0, view: null };
+    const texto = () => {
+      const v = this.mill?.view;
+      const p = v?.perfis.find((x) => x.perfil === 'profissional') ?? v?.perfis[0];
+      if (!v || !p) return 'Moinho — com o que o Claude gastou nesta semana — clique para ver';
+      const top = p.projetos[0];
+      const lider = top ? `${top.nome} ficou com ${fatia(top.peso, p.total)} do gasto. ` : '';
+      return `Moinho — gasto da semana\n${lider}${comparacao(p.total, p.anterior, decorrido(v))} — clique para ver`;
+    };
+    makeInteractive(body, texto, () => ui.openGasto(this.mill?.view ?? null));
+    makeInteractive(blades, texto, () => ui.openGasto(this.mill?.view ?? null));
+    label(this, x, y + 10, 'Moinho', y + 10);
+    const ler = () =>
+      void gasto
+        .resumo()
+        .then((v) => {
+          if (!this.mill) return;
+          this.mill.view = v;
+          const total = v.perfis.reduce((a, p) => a + p.total, 0);
+          const anterior = v.perfis.reduce((a, p) => a + p.anterior, 0);
+          this.girar(voltaDasPas(total, anterior, decorrido(v)));
+        })
+        .catch(() => {});
+    ler();
+    this.time.addEvent({ delay: 5 * 60_000, loop: true, callback: ler });
+  }
+
+  /** Troca a velocidade das pás sem dar tranco: continua do ângulo em que estão. 0 = paradas. */
+  private girar(volta: number) {
+    const m = this.mill;
+    if (!m || m.volta === volta) return;
+    m.volta = volta;
+    m.spin?.stop();
+    m.spin = undefined;
+    if (!volta) return;
+    const from = m.blades.angle;
+    m.spin = this.tweens.add({ targets: m.blades, angle: { from, to: from + 360 }, duration: volta, repeat: -1 });
   }
 
   /** Três balanços curtos a cada poucos segundos, só enquanto há entrega a conferir ou reinício pendente. */
@@ -338,6 +438,8 @@ export class TownScene extends Phaser.Scene {
 
     this.buildPlaza(layout);
     this.buildBillboard(layout);
+    this.buildTower(layout);
+    this.buildWindmill(layout);
     label(this, layout.fountain.x, layout.plaza.y + layout.plaza.h - 4, 'Praça', layout.plaza.y + layout.plaza.h);
   }
 
