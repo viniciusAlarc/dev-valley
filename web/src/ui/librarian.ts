@@ -2,7 +2,8 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { library } from '../api';
 import { ui } from './actions';
-import { button, escapeHtml, openPanel } from './panel';
+import { button, escapeHtml, openPanel, type Panel } from './panel';
+import { atalhosDoJornaleiro } from './jornaleiro';
 
 interface Exchange {
   question: string;
@@ -25,6 +26,8 @@ interface ChatAgent {
   /** A conversa fica guardada enquanto a vila está aberta — fechar o painel não apaga. */
   conversation: Exchange[];
   pending: AbortController | null;
+  /** Botões extras no topo do painel (atalhos do jornaleiro). */
+  atalhos?: (panel: Panel) => void;
 }
 
 const LIBRARIAN: ChatAgent = {
@@ -55,6 +58,25 @@ const ADMINISTRADOR: ChatAgent = {
   who: 'o administrador',
   conversation: [],
   pending: null,
+};
+
+const JORNALEIRO: ChatAgent = {
+  endpoint: '/api/jornaleiro/ask',
+  title: '✦ Jornaleiro',
+  subtitle: 'Agente da vila: conta o que mudou nos projetos, pelos últimos 30 dias de commits',
+  placeholder: 'ex.: o que o time fez no login? · quem mexeu no projeto X esta semana?',
+  hello: `
+    <p><b>Bom dia!</b> Eu escrevo a <i>Gazeta do Vale</i>. Pergunte o que mudou em qualquer projeto da vila nos últimos 30 dias,
+    seu ou do time, que eu conto sem tecniquês.</p>
+    <p>Quer o resumo de outro período ou de um projeto só? Use <b>A semana de um projeto</b> ou <b>Desde uma data</b>, aqui
+    em cima, e eu imprimo uma edição extra.</p>
+    <p class="muted">Eu leio só as mensagens de commit, nunca o código. Se a resposta estiver no código, sugiro abrir uma
+    sessão na casa do projeto.</p>`,
+  working: 'Folheando a pauta…',
+  who: 'o jornaleiro',
+  conversation: [],
+  pending: null,
+  atalhos: atalhosDoJornaleiro,
 };
 
 async function ask(agent: ChatAgent, question: string, onUpdate: () => void) {
@@ -127,6 +149,10 @@ export function openAdministrador() {
   openChat(ADMINISTRADOR);
 }
 
+export function openJornaleiro() {
+  openChat(JORNALEIRO);
+}
+
 function openChat(agent: ChatAgent) {
   const { conversation } = agent;
   const panel = openPanel({ title: agent.title, subtitle: agent.subtitle, size: 'lg' });
@@ -137,6 +163,7 @@ function openChat(agent: ChatAgent) {
       render();
     }),
   );
+  agent.atalhos?.(panel);
   panel.body.innerHTML = `
     <div class="librarian">
       <div class="librarian-log"></div>

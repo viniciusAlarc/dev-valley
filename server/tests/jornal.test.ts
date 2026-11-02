@@ -32,6 +32,11 @@ async function repo(commits: { arquivo: string; assunto: string; email: string; 
   return dir;
 }
 
+/** Espera a impressão em segundo plano acabar (até 10 s). */
+async function terminou(jornal: Jornal) {
+  for (let i = 0; i < 200 && (await jornal.view(AGORA)).gerando; i++) await new Promise((ok) => setTimeout(ok, 50));
+}
+
 async function vila() {
   const ativo = await repo([
     { arquivo: 'velho.txt', assunto: 'Coisa da semana passada', email: 'eu@exemplo.com', quando: AGORA - 5 * 24 * HORA },
@@ -118,6 +123,36 @@ describe('banca de jornal', () => {
     assert.match(v.erro!, /não entendeu/);
   });
 
+  test('edição extra: um projeto só, não troca a edição do dia nem marca lido; projeto de fora = fora; uma por vez', async () => {
+    const { jornal, pautas } = await vila();
+    await jornal.imprimir(AGORA);
+    assert.equal(jornal.imprimirExtra({ desde: AGORA - 7 * 24 * HORA, projectId: 'x' }, AGORA), 'fora');
+    assert.equal(jornal.imprimirExtra({ desde: AGORA - 7 * 24 * HORA, projectId: 'a' }, AGORA), 'ok');
+    assert.equal(jornal.imprimirExtra({ desde: AGORA - 7 * 24 * HORA }, AGORA), 'ocupado', 'uma edição por vez');
+    await terminou(jornal);
+    const v = await jornal.view(AGORA);
+    assert.equal(v.extra!.extra, true);
+    assert.equal(v.edicao!.extra, undefined, 'a edição do dia continua a mesma');
+    assert.match(pautas[1]!, /Coisa da semana passada/, 'a extra pega os 7 dias');
+    assert.ok(!pautas[1]!.includes('## parado'), 'só o projeto pedido');
+  });
+
+  test('edição extra: data mais antiga que 30 dias vira 30 dias atrás', async () => {
+    const { jornal } = await vila();
+    jornal.imprimirExtra({ desde: 0 }, AGORA);
+    await terminou(jornal);
+    assert.equal((await jornal.view(AGORA)).extra!.desde, AGORA - 30 * 24 * HORA);
+  });
+
+  test('pauta da conversa: 30 dias de commits, sem hash', async () => {
+    const { jornal, ativo } = await vila();
+    const texto = await jornal.pautaDaConversa(AGORA);
+    assert.match(texto, /Coisa da semana passada/);
+    assert.match(texto, /## parado/, 'commit de 30 dias atrás ainda entra');
+    const { voce } = await commitsDesde(ativo, AGORA - 24 * HORA);
+    assert.ok(!texto.includes(voce[0]!.hash));
+  });
+
   test('rotas: GET entrega a edição; imprimir e marcar lido só de página local', async () => {
     const { jornal } = await vila();
     const s = await subir({}, { jornal });
@@ -125,5 +160,32 @@ describe('banca de jornal', () => {
     assert.equal((await s.enviar('POST', '/api/jornal/lido', {}, 'http://evil.example')).status, 403);
     assert.equal((await s.enviar('POST', '/api/jornal/imprimir', {}, 'http://evil.example')).status, 403);
     assert.equal((await s.enviar('POST', '/api/jornal/lido', {}, 'http://localhost:4777')).status, 200);
+  });
+
+  test('rota da edição extra: só de página local, data válida, projeto da vila (de fora = 404)', async () => {
+    const { jornal } = await vila();
+    const s = await subir({}, { jornal });
+    const local = 'http://localhost:4777';
+    assert.equal((await s.enviar('POST', '/api/jornal/extra', { desde: AGORA }, 'http://evil.example')).status, 403);
+    assert.equal((await s.enviar('POST', '/api/jornal/extra', { desde: 'ontem' }, local)).status, 400);
+    assert.equal((await s.enviar('POST', '/api/jornal/extra', { desde: AGORA, projectId: 'x' }, local)).status, 404);
+    assert.equal((await s.enviar('POST', '/api/jornal/extra', { desde: Date.now() - 24 * HORA, projectId: 'a' }, local)).status, 202);
+    await terminou(jornal);
+  });
+
+  test('rota da conversa: só de página local, pergunta vazia = 400, resposta em NDJSON', async () => {
+    const s = await subir({}, {
+      askJornaleiro: (_q, _h, _j, onEvent) => {
+        onEvent({ type: 'step', text: 'lendo' });
+        onEvent({ type: 'answer', text: 'O time destravou o login.' });
+        return () => {};
+      },
+    });
+    const local = 'http://localhost:4777';
+    assert.equal((await s.enviar('POST', '/api/jornaleiro/ask', { question: 'oi' }, 'http://evil.example')).status, 403);
+    assert.equal((await s.enviar('POST', '/api/jornaleiro/ask', { question: '  ' }, local)).status, 400);
+    const r = await s.enviar('POST', '/api/jornaleiro/ask', { question: 'o que mudou?' }, local);
+    const linhas = (await r.text()).trim().split('\n').map((l) => JSON.parse(l));
+    assert.deepEqual(linhas.map((l) => l.type), ['step', 'answer']);
   });
 });

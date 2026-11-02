@@ -343,7 +343,7 @@ export class TownScene extends Phaser.Scene {
     const npcX = left - 6;
     const npcY = Math.round(y);
     const npc = this.add.sprite(npcX, npcY, villagerTexture(this, 'jornaleiro-dev-valley', true), 0).setOrigin(0.5, 1).setDepth(npcY);
-    makeInteractive(npc, () => '✦ Jornaleiro — agente da vila\n"Quer saber o que mudou nos projetos? Pegue o jornal."', abrir);
+    makeInteractive(npc, () => '✦ Jornaleiro — agente da vila\n"Quer saber o que mudou nos projetos? Pergunte para mim."', () => ui.openJornaleiro());
     const star = this.add.text(npcX + 7, npcY - 34, '✦', { fontFamily: 'serif', fontSize: '10px', color: '#f7d046', resolution: 4 }).setOrigin(0.5).setDepth(100000);
     star.setStroke('#5e3a1c', 2);
     this.tweens.add({ targets: star, y: star.y - 3, alpha: 0.6, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut' });

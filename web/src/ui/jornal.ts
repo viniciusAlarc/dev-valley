@@ -36,7 +36,7 @@ function edicaoHtml(e: Edicao) {
   return `
     <header class="gz-cabecalho">
       <h1>Gazeta do Vale</h1>
-      <p class="gz-linha-data"><span>${escapeHtml(porExtenso(e.data))}</span><span>O que mudou desde ${escapeHtml(desdeTexto(e.desde))}</span></p>
+      <p class="gz-linha-data"><span>${e.extra ? '<b>Edição extra</b> · ' : ''}${escapeHtml(porExtenso(e.data))}</span><span>O que mudou desde ${escapeHtml(desdeTexto(e.desde))}</span></p>
     </header>
     <h2 class="gz-manchete">${escapeHtml(e.manchete)}</h2>
     <div class="gz-colunas">${noticias}${achados}</div>
@@ -47,7 +47,7 @@ function edicaoHtml(e: Edicao) {
  * Jornal da banca (02/11/2026): a edição do dia em linguagem de gente. Abrir uma edição marca o jornal como lido: a
  * próxima começa daqui (piso de 24h). "Imprimir" pede uma edição nova ao jornaleiro, que leva alguns segundos.
  */
-export async function openJornal(onChange?: (v: JornalView) => void) {
+export async function openJornal(onChange?: (v: JornalView) => void, modo: 'dia' | 'extra' = 'dia') {
   const panel = openPanel({ title: 'Gazeta do Vale', subtitle: 'O que mudou nos projetos, contado pelo jornaleiro', size: 'lg', scroll: true });
   // A moldura de madeira vira folha de jornal (CSS `.gazeta` em style.css).
   panel.root.querySelector('.panel')!.classList.add('gazeta');
@@ -65,7 +65,7 @@ export async function openJornal(onChange?: (v: JornalView) => void) {
   const draw = (v: JornalView) => {
     onChange?.(v);
     clearTimeout(timer);
-    actions(panel, v, imprimir);
+    if (modo === 'dia') actions(panel, v, imprimir);
     if (v.gerando) {
       panel.body.innerHTML = '<p class="empty">O jornaleiro está escrevendo a edição…</p>';
       // Pergunta de novo até a edição sair (enquanto o painel estiver aberto).
@@ -73,6 +73,11 @@ export async function openJornal(onChange?: (v: JornalView) => void) {
       return;
     }
     const erro = v.erro ? `<p class="empty error">${escapeHtml(v.erro)}</p>` : '';
+    // Edição extra (pedida na conversa com o jornaleiro): só mostra; não marca o jornal como lido.
+    if (modo === 'extra') {
+      panel.body.innerHTML = erro + (v.extra ? edicaoHtml(v.extra) : '<p class="empty">Nenhuma edição extra ainda.</p>');
+      return;
+    }
     if (!v.edicao) {
       panel.body.innerHTML = `${erro}<p class="empty">A edição de hoje ainda não saiu. Ela sai sozinha depois das 6h, com a vila aberta, ou agora em "Imprimir a edição".</p>`;
       return;

@@ -366,10 +366,13 @@ export interface Edicao {
   noticias: { nome: string; titulo?: string; voce: string; time: string }[];
   semNovidade: string[];
   parados: { nome: string; dias: number }[];
+  /** Edição extra, pedida na conversa com o jornaleiro. */
+  extra?: boolean;
 }
 
 export interface JornalView {
   edicao: Edicao | null;
+  extra: Edicao | null;
   gerando: boolean;
   erro: string | null;
 }
@@ -378,6 +381,7 @@ export const jornal = {
   ver: () => request<JornalView>('GET', '/api/jornal'),
   imprimir: () => request<JornalView>('POST', '/api/jornal/imprimir', {}),
   lido: () => request('POST', '/api/jornal/lido', {}),
+  extra: (desde: number, projectId?: string) => request<JornalView>('POST', '/api/jornal/extra', { desde, projectId }),
 };
 
 export type SectionKind = 'global' | 'memory' | 'project' | 'root';

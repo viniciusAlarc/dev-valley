@@ -16,6 +16,35 @@ moinho na vila usa o mesmo título curto.
 **Testes:** 138/138 antes, 140/140 depois; typecheck e build sem erro. Falta conferir na vila (reinício do usuário,
 regra 6), com atenção a nome de projeto comprido na linha e à tela estreita.
 
+## 2026-11-02 — Conversa com o jornaleiro e edição extra da Gazeta
+
+**O que mudou:** o clique no jornaleiro ✦ abre uma conversa (mesmo painel da bibliotecária); a banca continua abrindo a
+Gazeta do dia. Ele responde pelo que mudou nos últimos 30 dias de commits de todos os projetos (seus e do time), sem
+ferramenta e sem código, em linguagem de gente; pergunta que exige código vira sugestão de abrir sessão na casa. Dois
+atalhos no topo ("A semana de um projeto", "Desde uma data") imprimem uma edição extra, que abre na folha da Gazeta com o
+selo "Edição extra", sem marcar o jornal como lido nem trocar a edição do dia. Na base dos agentes, `argsDaConsulta`
+passa `--tools ""` para agente sem ferramenta, e a leitura do cabeçalho deixou de pular para a linha de baixo quando o
+campo está vazio (erro latente que teria dado ao agente uma "ferramenta" chamada `model: sonnet`).
+**Arquivos:** `server/src/consulta.ts` (`argsDaConsulta`, `agentDefinition`), `server/src/jornal.ts` (`imprimirExtra`,
+`pautaDaConversa`, `askJornaleiro`, `extra` no `view`), `server/agents/jornaleiro-conversa.md` (novo),
+`server/src/app.ts` (`POST /api/jornal/extra`, `POST /api/jornaleiro/ask`), `server/src/index.ts`,
+`server/tests/consulta.test.ts` (novo, 3 testes), `server/tests/jornal.test.ts` (5 testes novos),
+`server/tests/servidor.ts`, `web/src/api.ts`, `web/src/ui/jornaleiro.ts` (novo), `web/src/ui/librarian.ts`
+(`JORNALEIRO`), `web/src/ui/jornal.ts` (modo extra), `web/src/ui/actions.ts`, `web/src/game/TownScene.ts`, `README.md`,
+`CLAUDE.md`, `docs-dev/context/conversa-com-o-jornaleiro.md` (saiu de `a-codar/`).
+**Testes:** 138/138 antes, 148/148 depois; typecheck do servidor e build sem erro. O jornaleiro de verdade (`claude -p`
+com `--tools ""`) não foi chamado aqui: a imitação cobre a rota, a montagem dos argumentos tem teste. Falta conferir na
+vila (reinício do usuário, regra 6).
+
+## 2026-11-02 — Plano: conversa com o jornaleiro e edição extra
+
+**O que mudou:** só plano, nenhum código. O jornaleiro ✦ era o único agente da vila sem conversa. Decidido ("segue as
+recomendações"): clique nele abre a conversa (a banca continua abrindo a Gazeta); ele enxerga 30 dias de commits, sem
+ferramenta e sem diff; dois atalhos imprimem uma edição extra (a semana de um projeto, ou desde uma data). Antes, a banca
+e a Gazeta foram commitadas (`bd69230`).
+**Arquivos:** `docs-dev/context/conversa-com-o-jornaleiro.md` (era `a-codar/`), `PENDENCIAS.md` (JN-1).
+**Testes:** não se aplica (sem código).
+
 ## 2026-11-02 — Gazeta do Vale: o jornal da banca com cara de jornal
 
 **O que mudou:** pedido do usuário, com as 3 decisões aprovadas (título por notícia, nome "Gazeta do Vale", fonte de

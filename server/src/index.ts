@@ -19,7 +19,7 @@ import { isLocalOrigin } from './seguranca.js';
 import { ambienteDoTerminal, projectsDirs } from './perfil.js';
 import { deleteSessionFiles } from './sessions.js';
 import { Gasto } from './gasto.js';
-import { Jornal } from './jornal.js';
+import { askJornaleiro, Jornal } from './jornal.js';
 import { Plugins } from './plugins.js';
 import { Skills } from './skills.js';
 import { StatusLineStore } from './statusline.js';
@@ -93,6 +93,7 @@ const app = criarApp({
   askLibrarian,
   askAdministrador,
   sugerirMensagem,
+  askJornaleiro,
   apagarConversa: (id: string) => deleteSessionFiles(id, projectsDirs(config)),
   abrirVscode: (args) => spawn('code', args, { detached: true, stdio: 'ignore' }).unref(),
   webDist: fs.existsSync(webDist) ? webDist : null,

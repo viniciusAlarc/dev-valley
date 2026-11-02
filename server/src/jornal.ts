@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { askAgent } from './consulta.js';
+import { askAgent, type AgentEvent, type Exchange } from './consulta.js';
 import { git } from './git.js';
 import type { World } from './world.js';
 
@@ -21,6 +21,9 @@ const DIA = 24 * HORA;
 const PARADO_DIAS = 14;
 const MAX_COMMITS = 40;
 const MAX_ARQUIVOS = 8;
+/** Conversa com o jornaleiro: até onde ele enxerga, e quantos commits por lado e por projeto. */
+const JANELA_CONVERSA = 30 * DIA;
+const MAX_COMMITS_CONVERSA = 150;
 
 export interface Commit {
   hash: string;
@@ -54,10 +57,14 @@ export interface Edicao {
   semNovidade: string[];
   /** Projetos sem commit nem conversa há 14 dias ou mais. */
   parados: { nome: string; dias: number }[];
+  /** Edição extra, pedida na conversa com o jornaleiro: outro período ou um projeto só (02/11/2026). */
+  extra?: boolean;
 }
 
 export interface JornalView {
   edicao: Edicao | null;
+  /** A última edição extra pedida ao jornaleiro; null = nenhuma. */
+  extra: Edicao | null;
   gerando: boolean;
   erro: string | null;
 }
@@ -75,7 +82,7 @@ export function desdeQuando(lidoEm: number | null, agora: number): number {
 }
 
 /** Commits do período em todas as branches (inclusive o que o pombal já trouxe do remoto), sem merge, sem repetir. */
-export async function commitsDesde(dir: string, desde: number): Promise<{ voce: Commit[]; time: Commit[] }> {
+export async function commitsDesde(dir: string, desde: number, limite = MAX_COMMITS): Promise<{ voce: Commit[]; time: Commit[] }> {
   const meuEmail = (await git(dir, ['config', 'user.email']).catch(() => '')).trim().toLowerCase();
   const out = await git(dir, ['log', '--all', '--no-merges', `--since=${new Date(desde).toISOString()}`, '--name-only', '--format=%x1e%H%x1f%ae%x1f%ct%x1f%s']).catch(() => '');
   const voce: Commit[] = [];
@@ -89,7 +96,7 @@ export async function commitsDesde(dir: string, desde: number): Promise<{ voce: 
     const c = { hash, quando: Number(ct) * 1000, assunto, arquivos: resto.filter(Boolean).slice(0, MAX_ARQUIVOS) };
     (meuEmail && email?.toLowerCase() === meuEmail ? voce : time).push(c);
   }
-  return { voce: voce.slice(0, MAX_COMMITS), time: time.slice(0, MAX_COMMITS) };
+  return { voce: voce.slice(0, limite), time: time.slice(0, limite) };
 }
 
 /** O que a vila manda ao jornaleiro: só assunto e nomes de arquivo. */
@@ -151,6 +158,7 @@ export class Jornal {
 
   private arquivo = (data: string) => path.join(this.dir, `${data}.json`);
   private lidoFile = () => path.join(this.dir, 'lido.json');
+  private extraFile = () => path.join(this.dir, 'extra.json');
 
   private async lerJson<T>(file: string): Promise<T | null> {
     try {
@@ -170,7 +178,7 @@ export class Jornal {
   }
 
   async view(agora = Date.now()): Promise<JornalView> {
-    return { edicao: await this.ultima(agora), gerando: !!this.gerando, erro: this.erro };
+    return { edicao: await this.ultima(agora), extra: await this.lerJson<Edicao>(this.extraFile()), gerando: !!this.gerando, erro: this.erro };
   }
 
   /** O usuário abriu o jornal: a próxima edição começa daqui (com piso de 24h). */
@@ -200,10 +208,46 @@ export class Jornal {
     return this.gerando;
   }
 
-  private async montar(agora: number) {
-    const lido = await this.lerJson<{ em: number }>(this.lidoFile());
-    const desde = desdeQuando(lido?.em ?? null, agora);
-    const { projects, sessions } = this.world();
+  /** Edição do dia (sem `extra`) ou edição extra: outro período e, se pedido, um projeto só. */
+  /**
+   * Edição extra (conversa com o jornaleiro, 02/11/2026): desde uma data (no máximo 30 dias atrás) e, se pedido, só um
+   * projeto. Não marca o jornal como lido nem troca a edição do dia. Projeto que não é da vila: `fora` (a rota dá 404);
+   * outra edição sendo escrita: `ocupado` (409), para a página não mostrar a extra antiga como se fosse a nova.
+   */
+  imprimirExtra(opcoes: { desde: number; projectId?: string }, agora = Date.now()): 'ok' | 'fora' | 'ocupado' {
+    if (opcoes.projectId && !this.world().projects.some((p) => p.id === opcoes.projectId)) return 'fora';
+    if (this.gerando) return 'ocupado';
+    const desde = Math.min(agora - HORA, Math.max(Number(opcoes.desde) || 0, agora - JANELA_CONVERSA));
+    this.gerando ??= this.montar(agora, { desde, projectId: opcoes.projectId })
+      .then(() => {
+        this.erro = null;
+      })
+      .catch((err: Error) => {
+        this.erro = err.message;
+      })
+      .finally(() => {
+        this.gerando = null;
+      });
+    return 'ok';
+  }
+
+  /** O que o jornaleiro sabe na conversa: os commits dos últimos 30 dias de todos os projetos (sem hash, sem diff). */
+  async pautaDaConversa(agora = Date.now()): Promise<string> {
+    const desde = agora - JANELA_CONVERSA;
+    const movimentos: Movimento[] = [];
+    for (const p of this.world().projects) {
+      if (!p.isGit) continue;
+      const { voce, time } = await commitsDesde(p.path, desde, MAX_COMMITS_CONVERSA);
+      if (voce.length || time.length) movimentos.push({ nome: p.name, voce, time });
+    }
+    return movimentos.length ? pauta(movimentos, desde) : 'Nenhum commit nos últimos 30 dias em nenhum projeto da vila.';
+  }
+
+  private async montar(agora: number, extra?: { desde: number; projectId?: string }) {
+    const lido = extra ? null : await this.lerJson<{ em: number }>(this.lidoFile());
+    const desde = extra ? extra.desde : desdeQuando(lido?.em ?? null, agora);
+    const { sessions } = this.world();
+    const projects = this.world().projects.filter((p) => !extra?.projectId || p.id === extra.projectId);
     const movimentos: Movimento[] = [];
     const semNovidade: string[] = [];
     const parados: Edicao['parados'] = [];
@@ -225,7 +269,44 @@ export class Jornal {
       ({ manchete, noticias } = lida);
     }
     const edicao: Edicao = { data: dataLocal(agora), geradaEm: agora, desde, manchete, noticias, semNovidade, parados: parados.sort((a, b) => b.dias - a.dias) };
+    if (extra) edicao.extra = true;
     await fs.mkdir(this.dir, { recursive: true });
-    await fs.writeFile(this.arquivo(edicao.data), JSON.stringify(edicao, null, 2));
+    await fs.writeFile(extra ? this.extraFile() : this.arquivo(edicao.data), JSON.stringify(edicao, null, 2));
   }
+}
+
+/** A edição do dia em texto corrido, para o contexto da conversa. */
+function edicaoEmTexto(e: Edicao | null): string {
+  if (!e) return 'A edição de hoje ainda não saiu.';
+  const noticias = e.noticias.map((n) => [`- ${n.nome}: ${n.titulo}`, n.voce && `  Você: ${n.voce}`, n.time && `  O time: ${n.time}`].filter(Boolean).join('\n'));
+  return [`Manchete: ${e.manchete}`, ...noticias, e.parados.length ? `Parados: ${e.parados.map((p) => `${p.nome} (${p.dias} dias)`).join(', ')}` : ''].filter(Boolean).join('\n');
+}
+
+/**
+ * Conversa com o jornaleiro (02/11/2026): a vila monta o contexto (data, edição do dia e pauta de 30 dias) e pergunta ao
+ * agente `jornaleiro-conversa`, sem ferramenta (`--tools ""`), pela base comum (`consulta.ts`, regra 5).
+ */
+export function askJornaleiro(
+  question: string,
+  history: Exchange[],
+  jornal: Pick<Jornal, 'view' | 'pautaDaConversa'>,
+  onEvent: (e: AgentEvent) => void,
+  hooksToIgnore: Set<string>,
+): () => void {
+  let cancelado = false;
+  let cancelar = () => {
+    cancelado = true;
+  };
+  void Promise.all([jornal.view(), jornal.pautaDaConversa()])
+    .then(([v, pautaTexto]) => {
+      if (cancelado) return;
+      const preamble = [
+        `Hoje é ${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}.`,
+        `## Edição de hoje da Gazeta do Vale\n\n${edicaoEmTexto(v.edicao)}`,
+        `## Pauta dos últimos 30 dias\n\n${pautaTexto}`,
+      ].join('\n\n');
+      cancelar = askAgent({ name: 'jornaleiro-conversa', who: 'O jornaleiro', preamble, stepFor: (tool) => `🔧 ${tool}` }, question, history, onEvent, hooksToIgnore);
+    })
+    .catch((err: Error) => onEvent({ type: 'error', text: `O jornaleiro não conseguiu ler a pauta: ${err.message}` }));
+  return () => cancelar();
 }

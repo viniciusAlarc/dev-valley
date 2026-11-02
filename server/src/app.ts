@@ -15,7 +15,7 @@ import { buscar, cartas, PombalError, voar } from './pombal.js';
 import { markChecked, readProgress } from './progress.js';
 import { arquivoPermitido, isLocalOrigin } from './seguranca.js';
 import type { Gasto } from './gasto.js';
-import type { Jornal } from './jornal.js';
+import type { askJornaleiro, Jornal } from './jornal.js';
 import type { Plugins } from './plugins.js';
 import { skillInput, type Skills } from './skills.js';
 import type { StatusLineStore } from './statusline.js';
@@ -43,7 +43,8 @@ export interface Contexto {
   /** Gasto por projeto na semana do plano (moinho, 02/11/2026). */
   gasto: Pick<Gasto, 'resumo'>;
   /** Banca de jornal: a edição do dia, imprimir e marcar como lido (02/11/2026). */
-  jornal: Pick<Jornal, 'view' | 'imprimir' | 'marcarLido'>;
+  jornal: Pick<Jornal, 'view' | 'imprimir' | 'marcarLido' | 'imprimirExtra' | 'pautaDaConversa'>;
+  askJornaleiro: typeof askJornaleiro;
   /** Sessões que a própria vila abre por baixo (consultas à bibliotecária e ao administrador) — não viram moradores. */
   internalSessions: Set<string>;
   /** Sessões novas de conversa com um agente, esperando o terminal abrir: id → pasta e agente (o front não escolhe). */
@@ -162,6 +163,41 @@ export function criarApp(ctx: Contexto): express.Express {
     if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
     await jornal.marcarLido();
     res.json({ ok: true });
+  });
+
+  // Edição extra pedida na conversa com o jornaleiro: outro período (até 30 dias) ou um projeto só. Projeto que não é
+  // da vila responde 404, como inexistente (G9).
+  app.post('/api/jornal/extra', async (req, res) => {
+    if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+    const desde = Number(req.body?.desde);
+    if (!Number.isFinite(desde)) return res.status(400).json({ error: 'data inválida' });
+    const projectId = typeof req.body?.projectId === 'string' ? req.body.projectId : undefined;
+    const r = jornal.imprimirExtra({ desde, projectId });
+    if (r === 'fora') return res.status(404).json({ error: 'projeto não encontrado' });
+    if (r === 'ocupado') return res.status(409).json({ error: 'O jornaleiro está escrevendo outra edição. Tente de novo em instantes.' });
+    res.status(202).json(await jornal.view());
+  });
+
+  // Conversa com o jornaleiro: mesmo formato NDJSON da bibliotecária e do administrador.
+  app.post('/api/jornaleiro/ask', (req, res) => {
+    if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+    const question = String(req.body?.question ?? '').trim();
+    if (!question) return res.status(400).json({ error: 'pergunta vazia' });
+    const history = Array.isArray(req.body?.history) ? req.body.history : [];
+    res.setHeader('Content-Type', 'application/x-ndjson');
+    const cancel = ctx.askJornaleiro(
+      question,
+      history,
+      jornal,
+      (event) => {
+        res.write(JSON.stringify(event) + '\n');
+        if (event.type !== 'step') res.end();
+      },
+      internalSessions,
+    );
+    res.on('close', () => {
+      if (!res.writableEnded) cancel();
+    });
   });
 
   // ---- Moinho: gasto por projeto na semana do plano, só leitura ----

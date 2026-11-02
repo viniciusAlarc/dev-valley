@@ -3,7 +3,7 @@ import { villagerName } from '../game/names';
 import { openConferir } from './conferir';
 import { openGuardrails } from './guardrails';
 import { openLibrary } from './library';
-import { openAdministrador, openLibrarian } from './librarian';
+import { openAdministrador, openJornaleiro, openLibrarian } from './librarian';
 import { escapeHtml, isPanelOpen, openPanel } from './panel';
 import { openDiary } from './diario';
 import { openFactory } from './factory';
@@ -83,9 +83,13 @@ export const ui = {
     this.hideTooltip();
     openGuardrails(g);
   },
-  openJornal(onChange?: (v: JornalView) => void) {
+  openJornaleiro() {
     this.hideTooltip();
-    void openJornal(onChange);
+    openJornaleiro();
+  },
+  openJornal(onChange?: (v: JornalView) => void, modo: 'dia' | 'extra' = 'dia') {
+    this.hideTooltip();
+    void openJornal(onChange, modo);
   },
   openGasto(v: GastoView | null) {
     this.hideTooltip();

@@ -38,15 +38,17 @@ export interface AgentQuery {
 }
 
 /** Lê o modelo do agente do repositório — a vila usa sempre a versão atual, instalada ou não. */
-function agentDefinition(name: string, replacements: Record<string, string> = {}) {
+export function agentDefinition(name: string, replacements: Record<string, string> = {}) {
   let raw = fs.readFileSync(path.join(ROOT_DIR, 'server', 'agents', `${name}.md`), 'utf8');
   for (const [key, value] of Object.entries(replacements)) raw = raw.replaceAll(key, value);
   const fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/)!;
-  const field = (f: string) => fm[1].match(new RegExp(`^${f}:\\s*(.+)$`, 'm'))?.[1].trim() ?? '';
+  // `[ \t]*` e não `\s*`: com o campo vazio (`tools:`), `\s` pularia a quebra de linha e leria o campo de baixo.
+  const field = (f: string) => fm[1].match(new RegExp(`^${f}:[ \\t]*(.*)$`, 'm'))?.[1].trim() ?? '';
   return {
     description: field('description'),
     prompt: raw.slice(fm[0].length).replace(/<!--[\s\S]*?-->\s*/, ''),
-    tools: field('tools').split(',').map((t) => t.trim()),
+    // Campo vazio = agente sem ferramenta nenhuma (jornaleiro da conversa, 02/11/2026).
+    tools: field('tools').split(',').map((t) => t.trim()).filter(Boolean),
     model: field('model') || 'sonnet',
   };
 }
@@ -59,6 +61,25 @@ function buildPrompt(question: string, history: Exchange[], preamble?: string) {
     parts.push(`Conversa anterior (só para contexto):\n\n${context}`);
   }
   return parts.length ? `${parts.join('\n\n')}\n\nNova pergunta: ${question}` : question;
+}
+
+/**
+ * Argumentos do `claude -p` de uma consulta. Agente sem ferramenta vai com `--tools ""` (o Claude Code desliga todas) e
+ * sem `--allowedTools`: omitir a lista não basta, porque a definição sem `tools` herda as ferramentas padrão.
+ */
+export function argsDaConsulta(
+  name: string,
+  agent: { description: string; prompt: string; tools: string[]; model: string },
+  prompt: string,
+  sessionId: string,
+  allow: string[] = [],
+): string[] {
+  const base = ['-p', prompt, '--agents', JSON.stringify({ [name]: agent }), '--agent', name, '--session-id', sessionId];
+  const fixos = ['--no-session-persistence', '--output-format', 'stream-json', '--verbose'];
+  // Edit nunca vai liberado inteiro: só os caminhos de `allow` (o resto é negado, sem diálogo no -p).
+  const liberadas = [...agent.tools.filter((t) => t !== 'Edit'), ...allow];
+  if (!agent.tools.length && !allow.length) return [...base, ...fixos, '--tools', ''];
+  return [...base, ...fixos, '--allowedTools', ...liberadas];
 }
 
 export function askAgent(
@@ -74,24 +95,7 @@ export function askAgent(
   const agent = agentDefinition(query.name, query.replacements);
   const child = spawn(
     'claude',
-    [
-      '-p',
-      buildPrompt(question, history, query.preamble),
-      '--agents',
-      JSON.stringify({ [query.name]: agent }),
-      '--agent',
-      query.name,
-      '--session-id',
-      sessionId,
-      '--no-session-persistence',
-      '--output-format',
-      'stream-json',
-      '--verbose',
-      '--allowedTools',
-      // Edit nunca vai liberado inteiro: só os caminhos de `allow` (o resto é negado, sem diálogo no -p).
-      ...agent.tools.filter((t) => t !== 'Edit'),
-      ...(query.allow ?? []),
-    ],
+    argsDaConsulta(query.name, agent, buildPrompt(question, history, query.preamble), sessionId, query.allow),
     { cwd: os.homedir(), env: process.env, stdio: ['ignore', 'pipe', 'pipe'] },
   );
 
