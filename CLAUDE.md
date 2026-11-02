@@ -65,7 +65,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
   `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 37 rotas e o pombal; WebSockets e front
   seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor e `npm test` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 01/11/2026 (101/101).
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 02/11/2026 (110/110).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Prévia dos moradores em PNG, sem navegador: `npx tsx scripts/previa-moradores.ts <saida.png> [quantos|catalogo]`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com
@@ -99,7 +99,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 7. **Pixel art é gerada em código** (`web/src/game/textures.ts`, `interiorTextures.ts`; moradores em `villagerArt.ts`,
    sem Phaser); prévia em `web/sprites.html` e, dos moradores, em PNG por `scripts/previa-moradores.ts` (o `catalogo`
    mostra cada peça). A aparência do morador combina com a marca do nome (`generoDoNome` no servidor): barba nunca em
-   nome feminino, vestido e laço nunca em masculino (decisão do usuário, 31/10/2026).
+   nome feminino, vestido e laço nunca em masculino (decisão do usuário, 31/10/2026). A roupa (camisa, calça, jaqueta,
+   acessório, lenço) segue o perfil da sessão: tons quentes no Claude, frios no pessoal/DeepSeek (`paletaDo`); pele,
+   cabelo e penteado nunca mudam com o perfil (decisão do usuário, 02/11/2026).
 8. **Todo agente (NPC ✦) veste o traje de agente secreto**, estilo "homens de preto": paletó e calça pretos, camisa
    branca, gravata e óculos escuros; só pele e cor do cabelo variam. É o que separa agente de sessão à primeira vista
    (decisão do usuário, 27/10/2026). Vale para os da Fábrica (automático na `AgentNpc`) e para qualquer agente da

@@ -61,6 +61,8 @@ export interface WorldSession extends SessionInfo {
   name: string;
   /** Marca do nome (`f`, `m` ou neutro): a aparência combina com ela (ver `generoDoNome`). */
   genero: 'f' | 'm' | null;
+  /** Perfil pela pasta da conversa, como o terminal abre (perfil.ts): pessoal = DeepSeek, o morador veste tons frios. */
+  perfil: Perfil;
   /** Id do projeto onde o NPC mora; null = mora na praça. */
   projectId: string | null;
   /** Terminal aberto pela própria vila. */
@@ -227,6 +229,7 @@ export async function buildWorld(
       ...s,
       name: '',
       genero: null,
+      perfil: perfilDe(s.cwd, config),
       lastActivity: Math.max(s.lastActivity, hook?.updatedAt ?? 0),
       projectId: ownerOf(s, projects)?.id ?? null,
       inTown: inTown.has(s.id),

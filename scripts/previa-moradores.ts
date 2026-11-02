@@ -3,7 +3,8 @@
  * da vila, regra 6). Desenha com a mesma arte do jogo (`web/src/game/villagerArt.ts`) num canvas de mentira que entende
  * só o que ela usa: retângulos e leitura/escrita de pixels (contorno colorido).
  *
- * Uso: npx tsx scripts/previa-moradores.ts <saida.png> [quantos=24 | catalogo] [escala=4]
+ * Uso: npx tsx scripts/previa-moradores.ts <saida.png> [quantos=24 | catalogo] [escala=4] [perfil=profissional | pessoal]
+ * `perfil`: paleta das roupas, quente (Claude) ou fria (pessoal, DeepSeek); mesmos ids, só a roupa muda.
  * `catalogo`: cada penteado, roupa e acessório sobre o mesmo morador, para conferir peça por peça.
  * Cada morador aparece de frente, de lado e de costas; a última linha são agentes ✦. As colunas alternam a marca do
  * nome: feminino, masculino e neutro (f, m, n). Rótulo do sorteio no console.
@@ -100,8 +101,8 @@ function png(w: number, h: number, rgba: Uint8ClampedArray): Buffer {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
-const [saida, quantos = '24', escala = '4'] = process.argv.slice(2);
-if (!saida) throw new Error('uso: npx tsx scripts/previa-moradores.ts <saida.png> [quantos] [escala]');
+const [saida, quantos = '24', escala = '4', perfil = 'profissional'] = process.argv.slice(2);
+if (!saida) throw new Error('uso: npx tsx scripts/previa-moradores.ts <saida.png> [quantos] [escala] [perfil]');
 const s = Number(escala);
 const COLS = 8;
 const CELL_W = VILLAGER_W * 3 + 6;
@@ -140,7 +141,7 @@ function catalogo(): [string, Look][] {
 const sorteio = (n: number): [string, Look][] =>
   Array.from({ length: n }, (_, i): [string, Look] => {
     const genero = (['f', 'm', null] as Genero[])[i % 3];
-    return [`morador-${i} (${genero ?? 'n'})`, lookFor(`morador-${i}`, genero)];
+    return [`morador-${i} (${genero ?? 'n'})`, lookFor(`morador-${i}`, genero, perfil === 'pessoal' ? 'pessoal' : 'profissional')];
   });
 const agentes = Array.from({ length: COLS }, (_, i): [string, Look] => [`agente-${i}`, agentLookFor(`agente-${i}`)]);
 const moradores = quantos === 'catalogo' ? catalogo() : sorteio(Number(quantos));

@@ -155,6 +155,8 @@ export interface Session {
   name: string;
   /** Marca do nome (`f`, `m` ou neutro): a aparência combina com ela. */
   genero: 'f' | 'm' | null;
+  /** Pessoal = conversa no perfil pessoal (DeepSeek): o morador veste tons frios; profissional, quentes. */
+  perfil: 'pessoal' | 'profissional';
   cwd: string;
   title: string;
   gitBranch: string | null;

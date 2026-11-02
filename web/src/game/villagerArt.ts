@@ -50,12 +50,29 @@ export const tone = (c: string): Tone => ({ base: c, dark: shade(c), light: ligh
 
 const SKINS = ['#f7d3b0', '#eab48a', '#c98e62', '#9a6340', '#6e4429'];
 const HAIRS = ['#4a2c17', '#e0b252', '#a3431f', '#26201f', '#efe4d2', '#7b4fb0', '#d0662f', '#3f6fb5', '#e48aa8'];
-const SHIRTS = ['#d9534f', '#3b8fd6', '#4caf50', '#9b59b6', '#f0932b', '#1abc9c', '#f6c945', '#e86fa0', '#f4efe3', '#5d6d7e'];
-const PANTS = ['#3c4a7d', '#5a4130', '#33585a', '#6a4f8a', '#2f3640', '#7a5a3a'];
+/**
+ * Roupas por perfil (decisão do usuário, 02/11/2026): sessão do Claude veste tons quentes (laranja da Anthropic) e sessão
+ * do perfil pessoal, que fala com o DeepSeek, veste tons frios (azul do DeepSeek). Vale para camisa, calça, jaqueta,
+ * acessório e lenço; pele, cabelo e olhos não mudam. Peças neutras (avental, cinto, sapato, palha do chapéu) ficam.
+ */
+type Paleta = { shirts: string[]; pants: string[]; accents: string[]; jackets: string[] };
+const QUENTE: Paleta = {
+  shirts: ['#d97757', '#d9534f', '#f0932b', '#f6c945', '#e86fa0', '#c0603a', '#e8a33a', '#b5452f'],
+  pants: ['#5a4130', '#7a5a3a', '#8a3b2a', '#6b3a2e', '#7a4a1f', '#5e2f2a'],
+  /** Boné, gorro, faixa, laço, lenço, fita do rabo de cavalo e das tranças, e a fita do chapéu de palha. */
+  accents: ['#c0392b', '#e8a33a', '#e86fa0', '#d97757', '#f0932b', '#8a3b2a'],
+  jackets: ['#6b4426', '#7a2e3a', '#a0522d', '#8a5a2b', '#b5452f'],
+};
+const FRIA: Paleta = {
+  shirts: ['#4d6bfe', '#3b8fd6', '#1abc9c', '#5d6d7e', '#2e86ab', '#48c9d6', '#6c8ebf', '#2c6e8a'],
+  pants: ['#3c4a7d', '#33585a', '#2f3640', '#2c3e66', '#3d5a73', '#25475e'],
+  accents: ['#2e6fb5', '#4d6bfe', '#1abc9c', '#48c9d6', '#5d6d7e', '#2c3e66'],
+  jackets: ['#3b5b8c', '#2c4a5e', '#33585a', '#2c3e66', '#3a55c8'],
+};
+/** Perfil da sessão (servidor, `perfil.ts`): pessoal = DeepSeek. */
+export type Perfil = 'pessoal' | 'profissional';
+export const paletaDo = (perfil: Perfil): Paleta => (perfil === 'pessoal' ? FRIA : QUENTE);
 const EYES = ['#2b1d14', '#2f4f7a', '#2f6a3a', '#5a3a1a'];
-/** Boné, gorro, faixa, laço, lenço e a fita do rabo de cavalo e das tranças. */
-const ACCENTS = ['#c0392b', '#2e6fb5', '#3f8f4a', '#e8a33a', '#7b4fb0', '#e86fa0', '#26201f', '#f4efe3'];
-const JACKETS = ['#3b5b8c', '#6b4426', '#5b6b3a', '#2b2b30', '#7a2e3a'];
 /** Armação dos óculos de grau (os escuros são só dos agentes, regra 8). */
 const FRAMES = ['#2b1d14', '#7a5a3a', '#c9a227', '#8a8f98'];
 
@@ -107,8 +124,10 @@ export interface Look {
 /**
  * Sorteio da aparência pelo id da sessão, combinando com a marca do nome (decisão do usuário, 31/10/2026): barba e
  * bigode nunca em nome feminino; vestido e laço nunca em nome masculino; penteados de cada lista; neutro pode tudo.
+ * `perfil` escolhe só a paleta das roupas; a sequência do sorteio é a mesma, então pele, cabelo e penteado não mudam.
  */
-export function lookFor(id: string, genero: Genero = null): Look {
+export function lookFor(id: string, genero: Genero = null, perfil: Perfil = 'profissional'): Look {
+  const P = paletaDo(perfil);
   const r = mulberry32(hash(id));
   const pick = <T>(a: readonly T[]): T => a[Math.floor(r() * a.length)];
   const chance = (p: number) => r() < p;
@@ -121,16 +140,16 @@ export function lookFor(id: string, genero: Genero = null): Look {
     agent: false,
     skin,
     hair: tone(pick(HAIRS)),
-    shirt: tone(pick(SHIRTS)),
-    pants: outfit === 'dress' ? skin : tone(pick(PANTS)),
+    shirt: tone(pick(P.shirts)),
+    pants: outfit === 'dress' ? skin : tone(pick(P.pants)),
     eye: pick(EYES),
     style,
     outfit,
     headwear,
-    accent: tone(pick(ACCENTS)),
-    jacket: tone(pick(JACKETS)),
+    accent: tone(pick(P.accents)),
+    jacket: tone(pick(P.jackets)),
     glasses: chance(0.2) ? pick(FRAMES) : null,
-    scarf: chance(0.12) ? tone(pick(ACCENTS)) : null,
+    scarf: chance(0.12) ? tone(pick(P.accents)) : null,
     beard: genero !== 'f' && chance(genero === 'm' ? 0.3 : 0.15) ? pick<Beard>(['mustache', 'beard']) : null,
   };
 }
@@ -195,7 +214,6 @@ const SHOE_DEFAULT = tone('#6b4426');
 const BELT = '#4a2f1a';
 const BUCKLE = '#e8c252';
 const HAT = tone('#e6c46e');
-const HAT_BAND = '#c0392b';
 const SCLERA = '#fbf6ea';
 const AGENT_SHOE = tone('#141418');
 const WHITE_SHIRT = '#f4f1ea';
@@ -692,14 +710,14 @@ function headwear(ctx: Ctx, L: Look, facing: Facing, u: number) {
         px(ctx, 2, y(6), 13, 1, HAT.base);
         px(ctx, 2, y(7), 13, 1, HAT.dark);
         px(ctx, 4, y(2), 8, 4, HAT.base);
-        px(ctx, 4, y(5), 8, 1, HAT_BAND);
+        px(ctx, 4, y(5), 8, 1, a.base);
         px(ctx, 5, y(2), 4, 1, HAT.light);
         return;
       }
       px(ctx, 1, y(6), 14, 1, HAT.base);
       px(ctx, 1, y(7), 14, 1, HAT.dark);
       px(ctx, 4, y(2), 8, 4, HAT.base);
-      px(ctx, 4, y(5), 8, 1, HAT_BAND);
+      px(ctx, 4, y(5), 8, 1, a.base);
       px(ctx, 5, y(2), 3, 1, HAT.light);
       px(ctx, 10, y(2), 2, 3, HAT.dark);
       return;

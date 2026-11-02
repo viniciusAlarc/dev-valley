@@ -26,6 +26,10 @@ export interface Layout {
   width: number;
   height: number;
   cols: number;
+  /** Zoom que enquadra a vila inteira na tela (visão geral). */
+  zoom: number;
+  /** A vila sem a floresta extra que completa a tela, em tiles. */
+  village: Rect;
   /** Tiles de terra/pedra, em coordenadas de tile. */
   dirt: Set<string>;
   stone: Set<string>;
@@ -40,13 +44,53 @@ export interface Layout {
   reserved: Rect[];
 }
 
-const key = (x: number, y: number) => `${x},${y}`;
+/** Tamanho da tela (px) para a qual a vila é montada. */
+export interface View {
+  w: number;
+  h: number;
+}
 
-export function computeLayout(projects: Project[]): Layout {
-  const cols = Math.max(3, Math.min(4, projects.length));
+const key = (x: number, y: number) => `${x},${y}`;
+const ZOOM_MIN = 1.5;
+const ZOOM_MAX = 3;
+
+const villageTiles = (cols: number, rows: number) => ({ w: MARGIN * 2 + cols * PLOT_W, h: MARGIN * 2 + CIVIC_H + rows * PLOT_H });
+
+/** Zoom da visão geral: a vila inteira cabe, com só um tile de floresta de cada lado (era o enquadramento antigo). */
+export function fitZoom(wTiles: number, hTiles: number, view: View): number {
+  const fit = Math.min(view.w / ((wTiles - 6) * TILE), view.h / ((hTiles - 4) * TILE));
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, fit));
+}
+
+/**
+ * Quantas casas por linha (pedido do usuário, 02/11/2026): a que deixa a vila ocupar mais da tela na visão geral. Com 5
+ * casas numa tela larga, uma linha de 5 em vez de 4 + 1 (que deixava a tela com uma faixa vazia ao lado). Empate:
+ * menos lotes vazios, depois menos colunas.
+ */
+export function chooseCols(n: number, view: View): number {
+  let best = { cols: 3, fill: -1, empty: 0 };
+  for (let cols = 3; cols <= Math.max(3, n); cols++) {
+    const rows = Math.max(1, Math.ceil(n / cols));
+    const { w, h } = villageTiles(cols, rows);
+    const zoom = fitZoom(w, h, view);
+    const fill = Math.min(1, ((w - 6) * TILE * zoom) / view.w) * Math.min(1, ((h - 4) * TILE * zoom) / view.h);
+    const empty = cols * rows - n;
+    const better = fill > best.fill + 0.01 || (Math.abs(fill - best.fill) <= 0.01 && empty < best.empty);
+    if (better) best = { cols, fill, empty };
+  }
+  return best.cols;
+}
+
+export function computeLayout(projects: Project[], view: View = { w: 1600, h: 900 }): Layout {
+  const cols = chooseCols(projects.length, view);
   const rows = Math.max(1, Math.ceil(projects.length / cols));
-  const wTiles = MARGIN * 2 + cols * PLOT_W;
-  const hTiles = MARGIN * 2 + CIVIC_H + rows * PLOT_H;
+  const { w: vwTiles, h: vhTiles } = villageTiles(cols, rows);
+  const zoom = fitZoom(vwTiles, vhTiles, view);
+  // Floresta extra em volta para a vila ocupar a tela toda, centralizada, sem fundo vazio (02/11/2026).
+  const ox = Math.max(0, Math.ceil((view.w / zoom / TILE - vwTiles) / 2) + 1);
+  const oy = Math.max(0, Math.ceil((view.h / zoom / TILE - vhTiles) / 2) + 1);
+  const wTiles = vwTiles + ox * 2;
+  const hTiles = vhTiles + oy * 2;
   const dirt = new Set<string>();
   const stone = new Set<string>();
   const reserved: Rect[] = [];
@@ -64,12 +108,14 @@ export function computeLayout(projects: Project[]): Layout {
     }
   };
 
-  const left = MARGIN - 1;
-  const right = wTiles - MARGIN;
-  const midX = Math.floor(wTiles / 2) - 1;
+  const x0 = ox + MARGIN; // primeiro tile da vila depois da floresta
+  const y0 = oy + MARGIN;
+  const left = x0 - 1;
+  const right = ox + vwTiles - MARGIN;
+  const midX = ox + Math.floor(vwTiles / 2) - 1;
 
   // ---- linha cívica ----
-  const civicTop = MARGIN;
+  const civicTop = y0;
   const plaza: Rect = { x: midX - 5, y: civicTop + 3, w: 12, h: 7 };
   for (let y = plaza.y; y < plaza.y + plaza.h; y++) for (let x = plaza.x; x < plaza.x + plaza.w; x++) stone.add(key(x, y));
   reserved.push(plaza);
@@ -79,18 +125,22 @@ export function computeLayout(projects: Project[]): Layout {
   hLine(civicRoadY, left, right);
   vLine(midX, plaza.y + plaza.h, civicRoadY);
 
-  const libraryTile = { x: MARGIN + 3, y: civicTop + 1 };
-  const factoryTile = { x: wTiles - MARGIN - 10, y: civicTop + 1 };
+  const libraryTile = { x: x0 + 3, y: civicTop + 1 };
+  const factoryTile = { x: ox + vwTiles - MARGIN - 10, y: civicTop + 1 };
   reserved.push({ ...libraryTile, w: 7, h: 9 }, { ...factoryTile, w: 7, h: 9 });
   vLine(libraryTile.x + 3, libraryTile.y + 6, civicRoadY);
   vLine(factoryTile.x + 3, factoryTile.y + 7, civicRoadY);
 
   // ---- lotes das casas ----
+  const inRow = (row: number) => Math.min(cols, projects.length - row * cols);
+  // Linha incompleta fica no meio, não encostada à esquerda (02/11/2026).
+  const rowStart = (row: number) => x0 + ((cols - inRow(row)) * PLOT_W) / 2;
+  const rowTop = (row: number) => y0 + CIVIC_H + row * PLOT_H;
+  const rowRoad = (row: number) => rowTop(row) + PLOT_H - 2;
   const plots: Plot[] = projects.map((project, i) => {
-    const col = i % cols;
     const row = Math.floor(i / cols);
-    const px = MARGIN + col * PLOT_W;
-    const py = MARGIN + CIVIC_H + row * PLOT_H;
+    const px = rowStart(row) + (i % cols) * PLOT_W;
+    const py = rowTop(row);
     const doorX = px + Math.floor(PLOT_W / 2) - 1;
     const roadY = py + PLOT_H - 2;
     vLine(doorX, py + 6, roadY);
@@ -102,14 +152,19 @@ export function computeLayout(projects: Project[]): Layout {
       yard: { x: (px + 1) * TILE, y: (py + 6) * TILE + 8, w: (PLOT_W - 2) * TILE, h: 2 * TILE },
     };
   });
-  for (let r = 0; r < rows; r++) hLine(MARGIN + CIVIC_H + r * PLOT_H + PLOT_H - 2, left, right);
-  // estrada central ligando todas as ruas
-  vLine(midX, civicRoadY, MARGIN + CIVIC_H + rows * PLOT_H - 1);
+  for (let r = 0; r < rows; r++) {
+    hLine(rowRoad(r), left, right);
+    // Estrada que desce da rua de cima até a desta linha, no vão entre dois lotes (nunca por cima de uma casa).
+    const gapX = rowStart(r) + Math.floor(inRow(r) / 2) * PLOT_W - 1;
+    vLine(gapX, r === 0 ? civicRoadY : rowRoad(r - 1), rowRoad(r));
+  }
 
   return {
     width: wTiles * TILE,
     height: hTiles * TILE,
     cols,
+    zoom,
+    village: { x: ox, y: oy, w: vwTiles, h: vhTiles },
     dirt,
     stone,
     plots,

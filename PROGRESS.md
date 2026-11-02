@@ -3,6 +3,37 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-02 — Morador do Claude veste tons quentes, do DeepSeek tons frios
+
+**O que mudou:** pedido do usuário: diferenciar sessões do Claude e do DeepSeek só pela roupa. Cada sessão recebe o
+`perfil` pela pasta da conversa (o mesmo critério do terminal, `perfilDe`); profissional (Claude) veste a paleta quente
+(laranja da Anthropic: coral, laranja, vermelho, âmbar; calças marrom/ferrugem) e pessoal (DeepSeek) a fria (azul do
+DeepSeek, azuis, turquesa, ardósia; calças marinho/petróleo). Vale para camisa, calça, jaqueta, acessório (boné, gorro,
+faixa, laço, fitas) e lenço; a fita do chapéu de palha passou a usar a cor do acessório. Pele, cabelo, olhos e penteado
+não mudam: o sorteio faz as mesmas chamadas, só a lista de cores muda. Peças neutras (avental, cinto, sapato, palha)
+ficaram como estavam. Agentes ✦ seguem de preto (regra 8). Efeito colateral esperado: as roupas de todos os moradores
+mudam uma vez, porque as listas de cores mudaram.
+**Arquivos:** `web/src/game/villagerArt.ts` (`QUENTE`, `FRIA`, `paletaDo`, `lookFor(id, genero, perfil)`),
+`web/src/game/villager.ts`, `web/src/game/common.ts`, `web/src/api.ts`, `server/src/world.ts` (`perfil` na sessão),
+`scripts/previa-moradores.ts` (4º argumento `pessoal`), `web/tests/villager-art.test.ts` (4 testes novos).
+**Testes:** 106/106 antes (último registro do dia, não rodado de novo antes de mexer), 110/110 depois; typecheck do servidor e build sem erro; auditor só com os 2 avisos
+informativos antigos. Prévia em PNG dos dois perfis conferida. Falta conferir na vila (reinício do usuário, regra 6).
+
+## 2026-11-02 — Vila ocupa a tela toda na visão geral
+
+**O que mudou:** com a 5ª casa a vila ia para 4 + 1 e ficava "quadrada" numa tela larga: o zoom enquadrava pela altura,
+a câmera encostava na esquerda e sobrava uma faixa vazia à direita, mais três lotes vazios. Agora (pedido do usuário):
+(1) casas por linha escolhidas pelo formato da tela, a que ocupa mais tela no zoom de visão geral (5 casas numa tela
+larga = uma linha de 5); (2) linha incompleta centralizada, com a estrada que desce até ela sempre no vão entre dois
+lotes; (3) floresta extra em volta até a borda da tela, com a vila no centro, sem fundo vazio. O zoom inicial vem do
+layout. A vila é montada para o tamanho da janela no momento em que a lista de casas muda (redimensionar a janela não
+remonta).
+**Arquivos:** `web/src/game/layout.ts` (`chooseCols`, `fitZoom`, `village`, `zoom`), `web/src/game/TownScene.ts`
+(tamanho da tela no layout, floresta na faixa extra, zoom); `web/tests/layout.test.ts` (novo).
+**Testes:** 101/101 antes, 106/106 depois; typecheck e build sem erro; auditor só com os 2 avisos informativos antigos.
+Mapa conferido em texto para 5 casas (1920×1000) e 7 casas (1200×1000). Falta conferir na vila (reinício do usuário,
+regra 6).
+
 ## 2026-11-01 — Perfil pessoal: projeto pessoal abre o terminal com outra API (DeepSeek)
 
 **O que mudou:** projeto dentro das pastas `perfilPessoal.roots` (config local) é pessoal: o terminal abre com

@@ -255,7 +255,7 @@ export class TownScene extends Phaser.Scene {
     this.houses.clear();
     this.children.removeAll(true);
 
-    const layout = (this.layout = computeLayout(projects));
+    const layout = (this.layout = computeLayout(projects, { w: this.scale.width, h: this.scale.height }));
     // Faixa da praça na frente do chafariz, entre os postes dos cantos, para ninguém andar por cima deles.
     const plazaTop = layout.fountain.y + 30;
     this.plazaWalkArea = {
@@ -281,7 +281,9 @@ export class TownScene extends Phaser.Scene {
     // floresta na borda + algumas árvores e flores soltas
     for (let y = -1; y < hT + 1; y++)
       for (let x = -1; x < wT + 1; x++) {
-        const border = x < 3 || y < 3 || x > wT - 4 || y > hT - 3;
+        // Floresta densa na borda da vila e em toda a faixa extra que completa a tela (layout.village).
+        const v = layout.village;
+        const border = x < v.x + 3 || y < v.y + 3 || x > v.x + v.w - 4 || y > v.y + v.h - 3;
         if (isPath(layout, x, y) || inRects(x, y, layout.reserved)) continue;
         if (border && rnd() < 0.55) this.addSprite(`tree${rnd() < 0.5 ? 0 : 1}`, x * TILE + 8 + (rnd() - 0.5) * 6, y * TILE + 14);
         else if (!border && rnd() < 0.05) this.addSprite(['flowerR', 'flowerY', 'flowerB'][Math.floor(rnd() * 3)], x * TILE + rnd() * 10, y * TILE + 10, -5);
@@ -294,11 +296,9 @@ export class TownScene extends Phaser.Scene {
 
     const cam = this.cameras.main;
     cam.setBounds(-TILE, -TILE, layout.width + TILE * 2, layout.height + TILE * 2);
-    // Na primeira vez enquadra a vila inteira (sem a floresta da borda).
-    if (cam.zoom === 1) {
-      const fit = Math.min(cam.width / (layout.width - TILE * 6), cam.height / (layout.height - TILE * 4));
-      cam.setZoom(Phaser.Math.Clamp(fit, 1.5, 3));
-    }
+    // Na primeira vez enquadra a vila inteira (sem a floresta da borda): o zoom vem do layout, que montou a vila para
+    // esta tela.
+    if (cam.zoom === 1) cam.setZoom(layout.zoom);
     cam.centerOn(layout.width / 2, layout.height / 2);
   }
 
