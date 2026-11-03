@@ -3,6 +3,26 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-03 — Maestro, fase 1: o agente e a regra (no repositório IA)
+
+**O que mudou:** fase 1 do `docs-dev/a-codar/maestro.md`, feita fora deste repositório (o agente é universal). Em
+`~/Documents/IA`: `claude/agents/maestro.md` (etapas fixas da rodada, matriz de conflito, revisão por entrega e de
+integração, retomada, protocolo `[maestro] <id> <tarefa>: <TIPO>`, modelos de briefing e relatório); `instalar.sh`
+linka `claude/agents/*.md` em `~/.claude/agents/` sem sobrescrever agente alheio; seção "Sob o maestro" em
+`guardrails-ia/convivencia.md` e uma frase na G21. Estado da rodada em `~/.claude/maestro/rodadas/<id>/`. Falta o
+usuário rodar o `instalar.sh` e fazer a primeira rodada no modo manual.
+**Arquivos:** neste repositório, só `docs-dev/a-codar/maestro.md` (fase 1 marcada, tabela de arquivos de controle).
+**Testes:** passo novo do instalador testado em pasta temporária (agente novo, já linkado, alheio intocado);
+`bash -n instalar.sh`; cabeçalho do agente validado como YAML; auditor sem achado novo.
+
+## 2026-11-03 — Plano do maestro e do porão
+
+**O que mudou:** planejado com o usuário o agente maestro, que coordena até 5 sessões em paralelo no mesmo projeto, e o
+porão da casa onde isso acontece na vila. Decisões A–J e as 4 fases em `docs-dev/a-codar/maestro.md`; aberto o MA-1 no
+`PENDENCIAS.md`. Ainda sem código.
+**Arquivos:** `docs-dev/a-codar/maestro.md`, `PENDENCIAS.md`.
+**Testes:** só documentação; nada a rodar.
+
 ## 2026-11-03 — README: `mod/` e `scripts/` na seção "Estrutura"
 
 **O que mudou:** a seção "Estrutura" do README listava só `server/` e `web/`; agora cita também o mod do Claude Code e
