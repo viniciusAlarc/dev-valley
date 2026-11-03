@@ -97,6 +97,8 @@ resposta terminar; dentro da casa, só quando os dois moram nela.
 
 - `server/` — Node + TypeScript: lê projetos e sessões, roda git, mantém os terminais (`node-pty` + `claude --resume`)
 - `web/` — Vite + Phaser 3 (vila), xterm.js (chat), Monaco (diff)
+- `mod/` — mod do Claude Code: eventos de sessão, rodapé com contexto e uso, nomes dos moradores e `@Nome`
+- `scripts/` — auditor de referências e prévia dos moradores em PNG, sem navegador
 
 ## Próximos passos
 

@@ -3,6 +3,13 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-03 — README: `mod/` e `scripts/` na seção "Estrutura"
+
+**O que mudou:** a seção "Estrutura" do README listava só `server/` e `web/`; agora cita também o mod do Claude Code e
+os scripts (auditor e prévia dos moradores). Só documentação, feita também para demonstrar o envio pelo pombal.
+**Arquivos:** `README.md`.
+**Testes:** sem código alterado; nada a rodar.
+
 ## 2026-11-02 — Moinho: painel mais claro
 
 **O que mudou:** pedido do usuário ("está meio confuso"), proposta aprovada. No topo, só a janela ("Semana do plano: seg
