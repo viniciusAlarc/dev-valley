@@ -21,7 +21,7 @@ import type { AgentSummary, Agents } from './agents.js';
 import type { Moradores } from './moradores.js';
 import { perfilDe, projectsDirs, type Perfil } from './perfil.js';
 import { listSessions, type SessionInfo } from './sessions.js';
-import type { PapelNoPorao, Porao } from './porao.js';
+import type { PapelNoPorao, PedidoPorao, Porao } from './porao.js';
 
 export interface Project {
   id: string;
@@ -92,6 +92,8 @@ export interface World {
   guardrails: Guardrails | null;
   /** NPCs conversando: `de` citou `para` com `@Nome` na mensagem em curso (só entre sessões da vila). */
   conversas: { de: string; para: string }[];
+  /** Pedidos do maestro para abrir sessões, esperando o clique no cartão do porão (MA-1, fase 3). */
+  pedidosPorao: PedidoPorao[];
 }
 
 /** Janelas possíveis quando ainda não sabemos o tamanho real para o modelo. */
@@ -208,7 +210,7 @@ export async function buildWorld(
   moradores: Moradores,
   agents: Agents,
   skills: Skills,
-  porao: Pick<Porao, 'maestros'>,
+  porao: Pick<Porao, 'papeis' | 'pedidosAbertos'>,
 ): Promise<World> {
   const dirs = await discoverProjectDirs(config);
   // Uma checagem de portas por atualização, para todas as casas.
@@ -227,7 +229,7 @@ export async function buildWorld(
   }
 
   const guessed = guessWindows(all);
-  const maestros = await porao.maestros();
+  const papeis = await porao.papeis();
   const sessions: WorldSession[] = all.map((s) => {
     const hook = hookById.get(s.id);
     return {
@@ -241,7 +243,7 @@ export async function buildWorld(
       live: inTown.has(s.id) || !!hook,
       status: hook?.status ?? null,
       context: contextOf(s, statusLine, guessed),
-      porao: maestros.has(s.id) ? { papel: 'maestro' } : s.briefing ? { papel: 'tarefa', ...s.briefing } : null,
+      porao: papeis.get(s.id) ?? (s.briefing ? { papel: 'tarefa', ...s.briefing } : null),
     };
   });
   await moradores.sync(sessions, projects);
@@ -256,5 +258,6 @@ export async function buildWorld(
     restart: await restartPending(),
     guardrails: await readGuardrails(config),
     conversas,
+    pedidosPorao: porao.pedidosAbertos(),
   };
 }

@@ -49,7 +49,7 @@ export interface Servidor {
 
 /** Sobe o `app` numa porta livre de 127.0.0.1 com um mundo de mentira; fecha sozinho no fim do arquivo de teste. */
 export async function subir(mundo: { projects?: Project[]; sessions?: WorldSession[]; conversas?: World['conversas'] }, extra: Partial<Contexto> = {}): Promise<Servidor> {
-  const world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], ...mundo };
+  const world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], ...mundo };
   const ctx: Contexto = {
     world: () => world,
     refreshWorld: async () => {},
@@ -81,7 +81,16 @@ export async function subir(mundo: { projects?: Project[]; sessions?: WorldSessi
     internalSessions: new Set(),
     agentSessions: new Map(),
     avulsaSessions: new Set(),
-    porao: { registrarMaestro: proibido('porao.registrarMaestro'), maestroInstalado: proibido('porao.maestroInstalado') },
+    porao: {
+      registrarMaestro: proibido('porao.registrarMaestro'),
+      maestroInstalado: proibido('porao.maestroInstalado'),
+      pedir: proibido('porao.pedir'),
+      pedido: proibido('porao.pedido'),
+      aprovar: proibido('porao.aprovar'),
+      recusar: proibido('porao.recusar'),
+    },
+    tetoSessoes: 5,
+    abrirTarefa: proibido('abrirTarefa'),
     askLibrarian: proibido('askLibrarian'),
     askAdministrador: proibido('askAdministrador'),
     sugerirMensagem: proibido('sugerirMensagem'),

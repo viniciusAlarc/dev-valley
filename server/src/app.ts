@@ -53,7 +53,11 @@ export interface Contexto {
   /** Sessões avulsas novas (banco da praça), esperando o terminal abrir: nascem na home, fora de qualquer projeto. */
   avulsaSessions: Set<string>;
   /** Porão da casa (MA-1): registro das sessões de maestro e se o agente está instalado. */
-  porao: Pick<Porao, 'registrarMaestro' | 'maestroInstalado'>;
+  porao: Pick<Porao, 'registrarMaestro' | 'maestroInstalado' | 'pedir' | 'pedido' | 'aprovar' | 'recusar'>;
+  /** Sessões de trabalho por rodada (`porao.tetoSessoes` do config, até 5). */
+  tetoSessoes: number;
+  /** Abre a sessão de trabalho sem tela, com a frase do briefing; devolve o motivo quando não abre. */
+  abrirTarefa: (o: { sessionId: string; cwd: string; prompt: string }) => Promise<string | null>;
   askLibrarian: typeof askLibrarian;
   askAdministrador: typeof askAdministrador;
   sugerirMensagem: typeof sugerirMensagem;
@@ -159,6 +163,45 @@ export function criarApp(ctx: Contexto): express.Express {
     await porao.registrarMaestro(sessionId, project.id);
     agentSessions.set(sessionId, { cwd: project.path, agent: MAESTRO });
     res.json({ sessionId, projectId: project.id });
+  });
+
+  // Fase 3 do MA-1: o maestro pede sessões (curl local, sem Origin) e o usuário decide no cartão do porão. Aprovar e
+  // recusar exigem a página da vila (Origin local presente): o maestro pede, mas nunca se aprova (decisão de 03/11/2026).
+  const daPagina = (origin: string | undefined) => !!origin && isLocalOrigin(origin);
+
+  app.post('/api/porao/pedidos', async (req, res) => {
+    if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+    const maestro = ctx.world().sessions.find((s) => s.id === req.body?.maestro);
+    if (!maestro?.live || maestro.porao?.papel !== 'maestro') return res.status(403).json({ error: 'Só o maestro aberto no porão, com a sessão viva, pede sessões.' });
+    const r = await porao.pedir({ maestro: maestro.id, rodada: req.body?.rodada, tarefas: req.body?.tarefas }, ctx.tetoSessoes);
+    if ('erro' in r) return res.status(r.status).json({ error: r.erro });
+    await refreshWorld();
+    res.status(201).json({ pedidoId: r.id, estado: r.estado, aviso: 'Peça ao usuário para aprovar no cartão da estante de partitura, no porão.' });
+  });
+
+  app.get('/api/porao/pedidos/:id', (req, res) => {
+    const p = porao.pedido(req.params.id);
+    if (!p) return res.status(404).json({ error: 'Pedido não encontrado.' });
+    res.json({ estado: p.estado, rodada: p.rodada, tarefas: p.tarefas, sessoes: p.sessoes });
+  });
+
+  app.post('/api/porao/pedidos/:id/aprovar', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila aprova.' });
+    const pedido = porao.pedido(req.params.id);
+    const project = pedido && findProject(pedido.projectId);
+    if (!pedido || !project) return res.status(404).json({ error: 'Pedido não encontrado.' });
+    const r = await porao.aprovar(pedido.id, (sessionId, prompt) => ctx.abrirTarefa({ sessionId, cwd: project.path, prompt }));
+    if (!r) return res.status(409).json({ error: 'Este pedido já foi decidido.' });
+    await refreshWorld();
+    res.json({ estado: r.estado, sessoes: r.sessoes });
+  });
+
+  app.post('/api/porao/pedidos/:id/recusar', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila recusa.' });
+    if (!porao.pedido(req.params.id)) return res.status(404).json({ error: 'Pedido não encontrado.' });
+    if (!porao.recusar(req.params.id)) return res.status(409).json({ error: 'Este pedido já foi decidido.' });
+    await refreshWorld();
+    res.json({ estado: 'recusado' });
   });
 
   app.delete('/api/agents', async (req, res) => {

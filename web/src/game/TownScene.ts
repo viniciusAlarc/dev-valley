@@ -111,7 +111,7 @@ export class TownScene extends Phaser.Scene {
   private visitas = new Map<string, { para: string; balao?: Phaser.GameObjects.Image }>();
   private agentNpcs = new Map<string, { npc: AgentNpc; timer?: Phaser.Time.TimerEvent }>();
   private agentArea!: Rect;
-  private world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [] };
+  private world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [] };
   private ready = false;
   /** Outdoor dos guardrails: some sem configuração; o estado muda a cada atualização do mundo. */
   private billboard?: { board: Phaser.GameObjects.Image; title: Phaser.GameObjects.Text; status: Phaser.GameObjects.Text };

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 import { briefingDe, Porao } from '../src/porao.js';
-import { casa, subir } from './servidor.js';
+import { casa, sessao, subir } from './servidor.js';
 import { projeto } from './util.js';
 
 // Porão da casa (MA-1): quem é do porão e a rota que abre uma rodada com o maestro. Registro e agente em pasta temporária.
@@ -66,5 +66,115 @@ describe('POST /api/porao/maestro', () => {
     assert.equal((await porao.maestros()).size, 0);
     assert.equal(s.ctx.agentSessions.size, 0);
     assert.equal((await s.enviar('POST', '/api/porao/maestro', { projectId: 'p' }, 'http://evil.example')).status, 403);
+  });
+});
+
+// ---------------- fase 3: o maestro pede, o usuário aprova no cartão ----------------
+
+/** Porão com um maestro anotado e os briefings dados já escritos na pasta da rodada. */
+async function poraoComMaestro(nome: string, briefings: string[], rodada = 'r1') {
+  const base = path.join(TMP, nome);
+  const rodadas = path.join(base, 'rodadas');
+  fs.mkdirSync(path.join(rodadas, rodada, 'briefings'), { recursive: true });
+  for (const t of briefings) fs.writeFileSync(path.join(rodadas, rodada, 'briefings', `${t}.md`), '# briefing');
+  const porao = new Porao(path.join(base, 'porao.json'), path.join(base, 'maestro.md'), rodadas);
+  await porao.registrarMaestro('m1', 'p');
+  return porao;
+}
+
+describe('Porao.pedir e aprovar (fase 3)', () => {
+  test('a frase do briefing que a vila digita é a mesma que a vila reconhece', async () => {
+    const { promptDoBriefing } = await import('../src/porao.js');
+    assert.deepEqual(briefingDe(promptDoBriefing('20261103-1430-x', 't2')), { rodada: '20261103-1430-x', tarefa: 't2' });
+  });
+
+  test('só o maestro anotado pede; nome inválido, tarefa repetida ou briefing faltando: recusado', async () => {
+    const p = await poraoComMaestro('pedir', ['t1']);
+    assert.deepEqual(await p.pedir({ maestro: 'outro', rodada: 'r1', tarefas: ['t1'] }, 5), { erro: 'Só o maestro aberto no porão pede sessões.', status: 403 });
+    assert.equal(((await p.pedir({ maestro: 'm1', rodada: '../x', tarefas: ['t1'] }, 5)) as { status: number }).status, 400);
+    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1', 't1'] }, 5)) as { status: number }).status, 400);
+    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [] }, 5)) as { status: number }).status, 400);
+    assert.match(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t9'] }, 5)) as { erro: string }).erro, /Falta o briefing/);
+    assert.equal(p.pedidosAbertos().length, 0);
+  });
+
+  test('teto: conta as sessões que a rodada já tem mais as pedidas', async () => {
+    const p = await poraoComMaestro('teto', ['t1', 't2', 't3']);
+    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1', 't2', 't3'] }, 2)) as { status: number }).status, 409);
+    const um = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1'] }, 2);
+    assert.ok(!('erro' in um));
+    await p.aprovar(um.id, async () => null);
+    assert.ok(!('erro' in (await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t2'] }, 2))));
+    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t3'] }, 2)) as { status: number }).status, 409, 'uma aberta + uma pedida = teto');
+  });
+
+  test('aprovar abre uma sessão por tarefa com a frase do briefing, anotada antes; a que não abriu sai do registro', async () => {
+    const p = await poraoComMaestro('aprovar', ['t1', 't2']);
+    const pedido = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1', 't2'] }, 5);
+    assert.ok(!('erro' in pedido));
+    assert.equal(pedido.projectId, 'p');
+    const abertas: { id: string; prompt: string; anotada: boolean }[] = [];
+    const r = await p.aprovar(pedido.id, async (id, prompt) => {
+      abertas.push({ id, prompt, anotada: (await p.papeis()).has(id) });
+      return prompt.includes('t2') ? 'perfil sem configuração' : null;
+    });
+    assert.equal(r?.estado, 'aprovado');
+    assert.ok(abertas.every((a) => a.anotada), 'anotada antes de abrir');
+    assert.match(abertas[0]!.prompt, /^Você trabalha sob o maestro\. Leia e siga: ~\/\.claude\/maestro\/rodadas\/r1\/briefings\/t1\.md$/);
+    assert.deepEqual(r?.sessoes.t2, { erro: 'perfil sem configuração' });
+    const papeis = await p.papeis();
+    assert.deepEqual(papeis.get(abertas[0]!.id), { papel: 'tarefa', rodada: 'r1', tarefa: 't1' });
+    assert.equal(papeis.has(abertas[1]!.id), false);
+    assert.equal(await p.aprovar(pedido.id, async () => null), null, 'decidido uma vez só');
+    assert.equal(p.recusar(pedido.id), null);
+  });
+});
+
+describe('Rotas do pedido (fase 3)', () => {
+  const PAGINA = 'http://localhost:4777';
+
+  async function vila(nome: string, vivo = true) {
+    const dir = await projeto({});
+    const porao = await poraoComMaestro(nome, ['t1']);
+    const abertas: { sessionId: string; cwd: string; prompt: string }[] = [];
+    const s = await subir(
+      { projects: [casa('p', dir)], sessions: [sessao('m1', { projectId: 'p', live: vivo, porao: { papel: 'maestro' } })] },
+      { porao, abrirTarefa: async (o) => (abertas.push(o), null) },
+    );
+    return { s, dir, abertas };
+  }
+
+  test('maestro vivo pede (sem Origin, como o curl); a página aprova e a sessão abre na pasta do projeto', async () => {
+    const { s, dir, abertas } = await vila('rota-ok');
+    const r = await s.enviar('POST', '/api/porao/pedidos', { maestro: 'm1', rodada: 'r1', tarefas: ['t1'] });
+    assert.equal(r.status, 201);
+    const { pedidoId } = await r.json();
+    assert.equal((await (await s.get(`/api/porao/pedidos/${pedidoId}`)).json()).estado, 'aguardando');
+
+    assert.equal((await s.enviar('POST', `/api/porao/pedidos/${pedidoId}/aprovar`)).status, 403, 'sem Origin: o maestro não se aprova');
+    assert.equal((await s.enviar('POST', `/api/porao/pedidos/${pedidoId}/aprovar`, undefined, 'http://evil.example')).status, 403);
+    assert.equal(abertas.length, 0);
+
+    const ok = await s.enviar('POST', `/api/porao/pedidos/${pedidoId}/aprovar`, undefined, PAGINA);
+    assert.equal(ok.status, 200);
+    assert.equal(abertas.length, 1);
+    assert.equal(abertas[0]!.cwd, dir);
+    assert.match(abertas[0]!.prompt, /briefings\/t1\.md$/);
+    assert.equal((await s.enviar('POST', `/api/porao/pedidos/${pedidoId}/aprovar`, undefined, PAGINA)).status, 409);
+    assert.equal((await (await s.get(`/api/porao/pedidos/${pedidoId}`)).json()).estado, 'aprovado');
+  });
+
+  test('quem não é maestro vivo não pede; recusar só pela página; pedido desconhecido, 404', async () => {
+    const { s, abertas } = await vila('rota-recusa');
+    assert.equal((await s.enviar('POST', '/api/porao/pedidos', { maestro: 'x', rodada: 'r1', tarefas: ['t1'] })).status, 403);
+    const { pedidoId } = await (await s.enviar('POST', '/api/porao/pedidos', { maestro: 'm1', rodada: 'r1', tarefas: ['t1'] })).json();
+    assert.equal((await s.enviar('POST', `/api/porao/pedidos/${pedidoId}/recusar`)).status, 403);
+    assert.equal((await s.enviar('POST', `/api/porao/pedidos/${pedidoId}/recusar`, undefined, PAGINA)).status, 200);
+    assert.equal((await s.enviar('POST', `/api/porao/pedidos/${pedidoId}/aprovar`, undefined, PAGINA)).status, 409);
+    assert.equal((await s.get('/api/porao/pedidos/nao-existe')).status, 404);
+    assert.equal(abertas.length, 0);
+
+    const parado = await vila('rota-parado', false);
+    assert.equal((await parado.s.enviar('POST', '/api/porao/pedidos', { maestro: 'm1', rodada: 'r1', tarefas: ['t1'] })).status, 403, 'maestro encerrado');
   });
 });

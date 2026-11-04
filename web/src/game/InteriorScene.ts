@@ -331,10 +331,13 @@ export class InteriorScene extends Phaser.Scene {
     makeInteractive(
       alcapao,
       () => {
-        const doPorao = getWorld().sessions.filter((s) => s.projectId === this.projectId && s.porao);
+        const doPorao = getWorld().sessions.filter((s) => s.projectId === this.projectId && s.porao?.papel === 'tarefa');
         const vivas = doPorao.filter((s) => s.live).length;
-        const resumo = doPorao.length ? ` — ${vivas} trabalhando agora, ${doPorao.length - vivas} encerrada(s)` : ' — vazio, o maestro espera um pedido';
-        return `Alçapão — porão do maestro, trabalho paralelo de sessões${resumo}`;
+        const rodada = getWorld().sessions.some((s) => s.projectId === this.projectId && s.porao?.papel === 'maestro' && s.live);
+        const tarefas = doPorao.length ? `${vivas} sessão(ões) trabalhando, ${doPorao.length - vivas} encerrada(s)` : 'nenhuma sessão de tarefa';
+        const resumo = rodada ? ` — rodada em andamento, ${tarefas}` : doPorao.length ? ` — ${tarefas}` : ' — vazio, o maestro espera um pedido';
+        const pedido = getWorld().pedidosPorao.some((p) => p.projectId === this.projectId) ? '\n❗ O maestro quer abrir sessões: desça para decidir' : '';
+        return `Alçapão — porão do maestro, trabalho paralelo de sessões${resumo}${pedido}`;
       },
       () => this.descer(),
     );

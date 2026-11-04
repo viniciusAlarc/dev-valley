@@ -63,9 +63,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade; rotas por `subir()` de `server/tests/servidor.ts`,
   com imitações; teste que usa classe que grava em `~` troca o `HOME` antes do `import`, como
   `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
-  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 45 rotas e o pombal; WebSockets e front
+  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 49 rotas e o pombal; WebSockets e front
   seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor e `npm test` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 03/11/2026 (156/156).
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 03/11/2026 (162/162).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Prévia dos moradores em PNG, sem navegador: `npx tsx scripts/previa-moradores.ts <saida.png> [quantos|catalogo]`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com
@@ -110,6 +110,10 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 9. **O pombal (`server/src/pombal.ts`) faz push numa branch que outras pessoas podem usar.** Push só por clique
    confirmado no painel e só de página local, nunca `--force` (o git só aceita fast-forward). Conflito no rebase sempre
    termina em `rebase --abort` (o repositório fica como estava).
+10. **Sessão de trabalho do porão (`server/src/porao.ts`) só nasce do clique do usuário no cartão.** O maestro pede pela
+   rota (`curl` local), mas aprovar e recusar exigem `Origin` local presente (a página), nunca só a ausência dele. Teto de
+   5 sessões por rodada (o config só baixa), e cada sessão é anotada no `porao.json` antes de o terminal abrir
+   (decisão do usuário, 03/11/2026).
 
 ## Regras de processo deste projeto
 

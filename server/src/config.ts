@@ -22,7 +22,12 @@ export interface Config {
    * do trabalho. Fica no config local (caminho pessoal); sem ele, todo projeto é profissional.
    */
   perfilPessoal: { roots: string[]; configDir: string } | null;
+  /** Porão (MA-1): quantas sessões de trabalho o maestro abre por rodada (padrão e máximo: 5, decisão de 03/11/2026). */
+  porao: { tetoSessoes: number };
 }
+
+/** Sessões de trabalho por rodada do maestro (decisão do usuário, 03/11/2026); `porao.tetoSessoes` no config só baixa. */
+export const TETO_PADRAO = 5;
 
 export const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
@@ -51,6 +56,7 @@ export function loadConfig(): Config {
     perfilPessoal: merged.perfilPessoal?.roots?.length && merged.perfilPessoal.configDir
       ? { roots: merged.perfilPessoal.roots.map(expandHome), configDir: expandHome(merged.perfilPessoal.configDir) }
       : null,
+    porao: { tetoSessoes: Math.min(TETO_PADRAO, Math.max(1, Math.floor(Number(merged.porao?.tetoSessoes) || TETO_PADRAO))) },
     guardrails: merged.guardrails?.plugin && merged.guardrails.core ? { plugin: merged.guardrails.plugin, core: expandHome(merged.guardrails.core) } : null,
   };
 }

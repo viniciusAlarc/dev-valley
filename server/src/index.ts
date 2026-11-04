@@ -21,7 +21,7 @@ import { deleteSessionFiles } from './sessions.js';
 import { Gasto } from './gasto.js';
 import { askJornaleiro, Jornal } from './jornal.js';
 import { Plugins } from './plugins.js';
-import { Porao } from './porao.js';
+import { MAESTRO, Porao } from './porao.js';
 import { Skills } from './skills.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
@@ -33,7 +33,7 @@ const POLL_MS = 3000;
 /** De quanto em quanto tempo o pombal busca o remoto (rede); entre uma busca e outra, o estado vem do disco. */
 const POMBAL_FETCH_MS = 5 * 60_000;
 
-let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [] };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [] };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 
@@ -94,6 +94,13 @@ const app = criarApp({
   agentSessions,
   avulsaSessions,
   porao,
+  tetoSessoes: config.porao.tetoSessoes,
+  abrirTarefa: async ({ sessionId, cwd, prompt }) => {
+    const ambiente = await ambienteDoTerminal(cwd, config);
+    if ('erro' in ambiente) return ambiente.erro;
+    terminals.start({ sessionId, cwd, mode: 'new', prompt, env: ambiente.env, cols: 120, rows: 32 });
+    return null;
+  },
   askLibrarian,
   askAdministrador,
   sugerirMensagem,
@@ -149,8 +156,11 @@ server.on('upgrade', (req, socket, head) => {
         ws.close(1008, 'perfil pessoal sem configuração');
         return;
       }
+      // Maestro do porão: sabe onde está a vila e qual é a própria sessão, para pedir as sessões da rodada (MA-1, fase 3).
+      const ehMaestro = forAgent?.agent === MAESTRO || known?.porao?.papel === 'maestro';
+      const porta = ehMaestro ? { DEV_VALLEY_URL: `http://127.0.0.1:${config.port}`, DEV_VALLEY_SESSION: sessionId } : {};
       terminals.attach(ws, {
-        env: ambiente.env,
+        env: { ...ambiente.env, ...porta },
         sessionId,
         cwd,
         mode: known ? 'resume' : 'new',

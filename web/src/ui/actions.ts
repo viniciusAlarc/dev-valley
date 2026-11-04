@@ -1,4 +1,4 @@
-import { agents, api, getWorld, type AgentSummary, type GastoView, type JornalView, type Project, type Session, type World } from '../api';
+import { agents, api, getWorld, type AgentSummary, type PedidoPorao, type GastoView, type JornalView, type Project, type Session, type World } from '../api';
 import { villagerName } from '../game/names';
 import { openConferir } from './conferir';
 import { openGuardrails } from './guardrails';
@@ -15,6 +15,7 @@ import { openRetrabalho } from './retrabalho';
 import { openSementes } from './sementes';
 import { openQuadro } from './quadro';
 import { openPombal } from './pombal';
+import { openPedidoPorao } from './porao';
 import { openLareira } from './lareira';
 import { openSkills } from './skills';
 import { openPlugins } from './plugins';
@@ -164,6 +165,17 @@ export const ui = {
     const description = agent.description.length > 140 ? `${agent.description.slice(0, 139)}…` : agent.description;
     openTerminal({ sessionId, projectId, title: `✦ ${name}`, agent: { subtitle: description ? `${where}: ${description}` : where } });
   },
+  /**
+   * Clique no maestro ✦: a conversa da rodada em andamento, se houver; senão, rodada nova. A sessão do maestro nunca vira
+   * morador, ela mora no ✦ (decisão do usuário, 03/11/2026).
+   */
+  async falarComMaestro(project: Project, ativo?: Session) {
+    if (!ativo) return this.abrirMaestro(project);
+    // Aberta em outro terminal (VS Code): o mesmo aviso de sempre, para não ter dois processos na mesma conversa.
+    if (!ativo.inTown) return this.openSession(ativo);
+    this.hideTooltip();
+    openTerminal({ sessionId: ativo.id, projectId: ativo.projectId, title: '✦ Maestro', agent: { subtitle: `Rodada em andamento em ${project.name}` } });
+  },
   /** Maestro ✦ do porão: rodada nova de trabalho paralelo no projeto, até 5 sessões, todas só no porão (MA-1). */
   async abrirMaestro(project: Project) {
     this.hideTooltip();
@@ -174,6 +186,11 @@ export const ui = {
       const panel = openPanel({ title: 'O maestro não pôde começar' });
       panel.body.innerHTML = `<p>${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`;
     }
+  },
+  /** Cartão do porão: aprovar ou recusar as sessões que o maestro pediu (MA-1, fase 3). */
+  openPedidoPorao(pedido: PedidoPorao, project: Project) {
+    this.hideTooltip();
+    openPedidoPorao(pedido, project);
   },
   /** Banco da praça: sessão nova avulsa, na home (decisão do usuário, 27/10/2026). */
   async newAvulsa() {

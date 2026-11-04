@@ -4,6 +4,18 @@ import type { LiveSession } from './world.js';
 
 const SCROLLBACK_LIMIT = 256 * 1024;
 
+export interface SpawnOpts {
+  sessionId: string;
+  cwd: string;
+  mode: 'resume' | 'new';
+  agent?: string;
+  /** Primeira mensagem da sessão nova. */
+  prompt?: string;
+  cols: number;
+  rows: number;
+  env?: Record<string, string | undefined>;
+}
+
 interface Terminal extends LiveSession {
   pty: IPty;
   buffer: string;
@@ -27,7 +39,15 @@ export class TerminalManager {
     return [...this.terminals.values()].map(({ id, cwd, startedAt }) => ({ id, cwd, startedAt }));
   }
 
-  attach(ws: WebSocket, opts: { sessionId: string; cwd: string; mode: 'resume' | 'new'; agent?: string; cols: number; rows: number; env?: Record<string, string | undefined> }) {
+  /**
+   * Abre a sessão sem ninguém olhando (porão, fase 3 do MA-1): o processo roda e guarda o scrollback; o clique no morador
+   * conecta depois, como em qualquer terminal da vila.
+   */
+  start(opts: SpawnOpts) {
+    if (!this.terminals.has(opts.sessionId)) this.spawn(opts);
+  }
+
+  attach(ws: WebSocket, opts: SpawnOpts) {
     let term = this.terminals.get(opts.sessionId);
     if (!term) {
       term = this.spawn(opts);
@@ -71,10 +91,12 @@ export class TerminalManager {
     for (const t of this.terminals.values()) t.pty.kill();
   }
 
-  private spawn(opts: { sessionId: string; cwd: string; mode: 'resume' | 'new'; agent?: string; cols: number; rows: number; env?: Record<string, string | undefined> }): Terminal {
+  private spawn(opts: SpawnOpts): Terminal {
     const args = opts.mode === 'resume' ? ['--resume', opts.sessionId] : ['--session-id', opts.sessionId];
     // Conversa com um agente da Fábrica: o próprio agente é quem responde na sessão.
     if (opts.mode === 'new' && opts.agent) args.push('--agent', opts.agent);
+    // Primeira mensagem já digitada (sessão de trabalho do porão: a frase do briefing).
+    if (opts.mode === 'new' && opts.prompt) args.push(opts.prompt);
     const proc = pty.spawn('claude', args, {
       name: 'xterm-256color',
       cols: opts.cols,

@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import { activityOf, getWorld, onWorld, type Project, type Session, type World } from '../api';
+import { activityOf, getWorld, onWorld, type PedidoPorao, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { label, makeInteractive, VillagerView } from './common';
 import { generateInteriorTextures, generatePoraoTextures } from './interiorTextures';
+import { StatusBubble } from './statusBubble';
 import { villagerTexture } from './villager';
 
 const W = 288;
@@ -11,26 +12,29 @@ const DESK_COLS = 3;
 const DESK_SPACING_X = 80;
 const FIRST_DESK_Y = WALL_H + 86;
 const DESK_SPACING_Y = 58;
-/** Uma mesa para o maestro e uma para cada uma das até 5 sessões da rodada; nunca menos de 3, para não parecer vazio. */
-const MIN_DESKS = 3;
-const MAX_DESKS = 6;
+/**
+ * Cinco mesas fixas, o teto de sessões por rodada, vazias até o cartão ser aprovado. As mesas são só das tarefas: a
+ * conversa do maestro mora no ✦, nunca vira morador (decisão do usuário, 03/11/2026).
+ */
+const DESKS = 5;
 /** Dois bancos de 3 lugares para quem já terminou (rodadas antigas, para reabrir). */
 const BENCH_X = [W / 2 - 62, W / 2 + 62];
 const BENCH_SEATS = 3;
 const MAESTRO_X = W / 2 - 8;
 const MAESTRO_Y = WALL_H + 30;
 
-/** Rótulo curto da mesa: quem é o maestro e qual tarefa cada sessão faz. */
+/** Rótulo curto da mesa: qual tarefa a sessão faz. */
 function papelDe(s: Session): string {
-  if (!s.porao) return '';
-  return s.porao.papel === 'maestro' ? 'maestro' : s.porao.tarefa;
+  return s.porao?.papel === 'tarefa' ? s.porao.tarefa : '';
 }
 
-/** Maestro primeiro, depois as tarefas por rodada e tarefa, para a sala não embaralhar a cada atualização. */
+/** Por rodada e tarefa, para a sala não embaralhar a cada atualização. */
 function ordem(a: Session, b: Session): number {
-  const chave = (s: Session) => (s.porao?.papel === 'maestro' ? `0-${-s.lastActivity}` : `1-${s.porao?.papel === 'tarefa' ? `${s.porao.rodada}-${s.porao.tarefa}` : ''}`);
-  return chave(a).localeCompare(chave(b));
+  return papelDe(a).localeCompare(papelDe(b)) || (a.porao?.papel === 'tarefa' && b.porao?.papel === 'tarefa' ? a.porao.rodada.localeCompare(b.porao.rodada) : 0);
 }
+
+/** Texto do estado da conversa do maestro, para o tooltip do ✦. */
+const ESTADO_MAESTRO = { working: 'trabalhando', permission: 'pedindo permissão a você', idle: 'esperando você', offline: 'parado' } as const;
 
 /**
  * Porão da casa (MA-1, decisão do usuário de 03/11/2026): o maestro ✦ espera um pedido e, nas mesas, trabalham as
@@ -43,6 +47,11 @@ export class PoraoScene extends Phaser.Scene {
   private monitors = new Map<string, Phaser.GameObjects.Image>();
   private roomHeight = 0;
   private unsubscribe?: () => void;
+  /** ❗ em cima da estante de partitura enquanto o maestro espera o cartão ser decidido. */
+  private avisoPedido?: Phaser.GameObjects.Image;
+  private pedidoKey = '';
+  /** Balão do ✦: o estado da conversa do maestro da rodada em andamento. */
+  private maestroBubble?: StatusBubble;
 
   constructor() {
     super('porao');
@@ -51,6 +60,30 @@ export class PoraoScene extends Phaser.Scene {
   init(data: { projectId: string }) {
     this.projectId = data.projectId;
     this.signature = '';
+    this.pedidoKey = '';
+  }
+
+  /** O pedido mais antigo do projeto esperando decisão; os outros aparecem depois que este for decidido. */
+  private pedidoDaqui(world: World): PedidoPorao | undefined {
+    return world.pedidosPorao.filter((p) => p.projectId === this.projectId).sort((a, b) => a.criadoEm - b.criadoEm)[0];
+  }
+
+  private mostrarPedido(pedido: PedidoPorao | undefined) {
+    const key = pedido?.id ?? '';
+    if (key === this.pedidoKey && (!pedido || this.avisoPedido?.active)) return;
+    this.pedidoKey = key;
+    this.avisoPedido?.destroy();
+    this.avisoPedido = undefined;
+    if (!pedido) return;
+    const x = MAESTRO_X + 20;
+    const y = MAESTRO_Y - 30;
+    this.avisoPedido = this.add.image(x, y, 'alert').setDepth(100000);
+    this.tweens.add({ targets: this.avisoPedido, y: y - 2, yoyo: true, repeat: -1, duration: 400 });
+    makeInteractive(
+      this.avisoPedido,
+      () => `Cartão do maestro — quer abrir ${pedido.tarefas.length} sessão(ões) para a rodada ${pedido.rodada} — clique para decidir`,
+      () => ui.openPedidoPorao(pedido, this.project(getWorld())!),
+    );
   }
 
   create() {
@@ -77,6 +110,13 @@ export class PoraoScene extends Phaser.Scene {
     return world.projects.find((p) => p.id === this.projectId);
   }
 
+  /** Rodada em andamento = a conversa do maestro deste projeto ainda aberta (a mais recente, se houver mais de uma). */
+  private maestroAtivo(world: World): Session | undefined {
+    return world.sessions
+      .filter((s) => s.projectId === this.projectId && s.porao?.papel === 'maestro' && s.live)
+      .sort((a, b) => b.lastActivity - a.lastActivity)[0];
+  }
+
   /** Sobe para a casa (a casa só dormiu enquanto isso). */
   private leave() {
     ui.hideTooltip();
@@ -90,10 +130,10 @@ export class PoraoScene extends Phaser.Scene {
   private applyWorld(world: World) {
     const project = this.project(world);
     if (!project) return this.leave();
-    const sessions = world.sessions.filter((s) => s.projectId === this.projectId && s.porao).sort(ordem);
+    const sessions = world.sessions.filter((s) => s.projectId === this.projectId && s.porao?.papel === 'tarefa').sort(ordem);
     const live = sessions.filter((s) => s.live);
-    const desks: (Session | null)[] = Array.from({ length: Phaser.Math.Clamp(live.length, MIN_DESKS, MAX_DESKS) }, (_, i) => live[i] ?? null);
-    const resto = [...live.slice(MAX_DESKS), ...sessions.filter((s) => !s.live).sort((a, b) => b.lastActivity - a.lastActivity)];
+    const desks: (Session | null)[] = Array.from({ length: DESKS }, (_, i) => live[i] ?? null);
+    const resto = [...live.slice(DESKS), ...sessions.filter((s) => !s.live).sort((a, b) => b.lastActivity - a.lastActivity)];
     const banco = resto.slice(0, BENCH_X.length * BENCH_SEATS);
     const escondidos = resto.length - banco.length;
     const signature = JSON.stringify([desks.map((s) => s?.id ?? '-'), desks.map((s) => (s ? papelDe(s) : '')), banco.map((s) => s.id), escondidos]);
@@ -102,6 +142,9 @@ export class PoraoScene extends Phaser.Scene {
       this.buildRoom(project, desks, banco, escondidos);
     }
     for (const s of sessions) this.villagers.get(s.id)?.update(s);
+    const ativo = this.maestroAtivo(world);
+    this.maestroBubble?.set(ativo ? activityOf(ativo) : 'offline');
+    this.mostrarPedido(this.pedidoDaqui(world));
     for (const [id, monitor] of this.monitors) {
       const s = sessions.find((x) => x.id === id);
       const a = s ? activityOf(s) : 'offline';
@@ -126,7 +169,7 @@ export class PoraoScene extends Phaser.Scene {
     this.add.tileSprite(0, 0, W, WALL_H, 'poraoWall').setOrigin(0).setDepth(-19);
     const frame = this.add.graphics().setDepth(100000 - 1);
     frame.fillStyle(0x2a2520).fillRect(-6, 0, 6, H).fillRect(W, 0, 6, H).fillRect(-6, H, W + 12, 6);
-    ui.setLocation(`${project.name} · porão`, 'Maestro ✦: começar uma rodada · morador: abrir a sessão · escada ou Esc: voltar para a casa');
+    ui.setLocation(`${project.name} · porão`, 'Maestro ✦: conversar sobre a rodada · estante: cartão do maestro · morador: abrir a sessão · escada ou Esc: voltar');
 
     const escada = this.prop('ladder', 22, WALL_H + 12);
     makeInteractive(escada, () => 'Escada — voltar para a casa (Esc)', () => this.leave());
@@ -141,15 +184,36 @@ export class PoraoScene extends Phaser.Scene {
     this.add.image(MAESTRO_X, MAESTRO_Y + 1, 'shadow').setOrigin(0.5).setDepth(MAESTRO_Y - 1);
     makeInteractive(
       maestro,
-      () => '✦ Maestro — agente permanente\n"Quer dividir um trabalho entre várias sessões? Me diga o quê." — clique para começar uma rodada',
-      () => void ui.abrirMaestro(this.project(getWorld()) ?? project),
+      () => {
+        const ativo = this.maestroAtivo(getWorld());
+        return ativo
+          ? `✦ Maestro — rodada em andamento, ${ESTADO_MAESTRO[activityOf(ativo)]} — clique para continuar a conversa`
+          : '✦ Maestro — agente permanente\n"Quer dividir um trabalho entre várias sessões? Me diga o quê." — clique para começar uma rodada';
+      },
+      () => void ui.falarComMaestro(this.project(getWorld()) ?? project, this.maestroAtivo(getWorld())),
     );
-    this.prop('podium', MAESTRO_X + 20, MAESTRO_Y + 2);
+    this.maestroBubble = new StatusBubble(this);
+    this.maestroBubble.setPosition(MAESTRO_X - 6, MAESTRO_Y - 33);
+    const partitura = this.prop('podium', MAESTRO_X + 20, MAESTRO_Y + 2);
+    makeInteractive(
+      partitura,
+      () => {
+        const p = this.pedidoDaqui(getWorld());
+        return p ? `Estante de partitura — o maestro pediu ${p.tarefas.length} sessão(ões) para a rodada ${p.rodada} — clique para decidir` : 'Estante de partitura — nenhum pedido do maestro esperando você';
+      },
+      () => {
+        const p = this.pedidoDaqui(getWorld());
+        if (p) ui.openPedidoPorao(p, this.project(getWorld()) ?? project);
+      },
+    );
+    // A sala foi refeita: o ❗ do pedido volta por cima dela.
+    this.pedidoKey = '';
+    this.avisoPedido = undefined;
     const star = this.add.text(MAESTRO_X + 7, MAESTRO_Y - 34, '✦', { fontFamily: 'serif', fontSize: '10px', color: '#f7d046', resolution: 4 }).setOrigin(0.5).setDepth(100000);
     star.setStroke('#5e3a1c', 2);
     this.tweens.add({ targets: star, y: star.y - 3, alpha: 0.6, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut' });
 
-    // ---- mesas: o maestro da rodada e as sessões de trabalho ----
+    // ---- mesas: as sessões de trabalho da rodada ----
     desks.forEach((session, i) => {
       const col = i % DESK_COLS;
       const row = Math.floor(i / DESK_COLS);

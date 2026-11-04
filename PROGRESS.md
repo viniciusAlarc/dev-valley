@@ -3,6 +3,46 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-03 — Porão: a conversa do maestro mora no ✦, e as mesas são só das tarefas
+
+**O que mudou:** pedido do usuário depois da primeira rodada de verdade (ajuste registrado no `docs-dev/a-codar/maestro.md`).
+A sessão do maestro deixa de aparecer como morador numa mesa: o ✦ ganha o balão de estado dela (trabalhando, ❗ de
+permissão) e o clique nele continua a conversa da rodada em andamento, ou começa uma nova quando não há (sessão do
+maestro aberta em outro terminal: o aviso de "ocupado" de sempre). O porão tem 5 mesas fixas, o teto, só para as
+sessões de tarefa; os bancos também. O alçapão diz quando há rodada em andamento.
+**Arquivos:** `web/src/game/PoraoScene.ts`, `web/src/game/InteriorScene.ts`, `web/src/ui/actions.ts`,
+`docs-dev/a-codar/maestro.md`, `RETRABALHO.md`.
+**Testes:** `npm test` 165/165; tipos do servidor e do front sem erro. Conferido na vila pelo usuário (03/11/2026).
+
+## 2026-11-03 — Rodada do maestro: memórias do perfil pessoal na biblioteca (PP-2) e contorno na carta do painel
+
+**O que mudou:** primeira rodada de verdade pelo porão, com 2 sessões em paralelo. (1) A biblioteca lê as memórias de
+todos os perfis (`projectsDirs(config)`): as do perfil de trabalho ficam com os ids e títulos de sempre, e as do perfil
+pessoal entram como `memory:pessoal:<dir>`, com o título "Memórias do perfil pessoal — …". Fecha a PP-2. (2) A carta ✉️
+de "Mudanças sem commit" no painel do canto superior direito ganha um contorno escuro (`text-shadow` em `::first-letter`),
+e o número ao lado não muda.
+**Arquivos:** `server/src/library.ts`, `server/tests/biblioteca-perfil.test.ts` (novo), `web/src/style.css`.
+**Testes:** `npm test` 162/162 → 165/165; tipos do servidor sem erro; auditor sem achado novo. Falta conferir a carta na
+tela. Relatório: `docs-dev/maestro/2026-11-03-biblioteca-carta.md`.
+
+## 2026-11-03 — Maestro, fase 3: o maestro pede as sessões e o usuário aprova no cartão
+
+**O que mudou:** fase 3 do `docs-dev/a-codar/maestro.md`, com a aprovação decidida pelo usuário (cartão com botão, como o
+push do pombal). A sessão do maestro aberta pela vila recebe `DEV_VALLEY_URL` e `DEV_VALLEY_SESSION`; com elas, ele pede
+as sessões da rodada por `POST /api/porao/pedidos` (só o maestro anotado e vivo, briefing de cada tarefa já escrito,
+teto de 5 por rodada contando as abertas e as pedidas). O pedido vira um ❗ na estante de partitura do porão; o cartão
+lista as tarefas e os botões "Abrir" e "Recusar", que chamam rotas que **só aceitam com `Origin` local presente** (o
+maestro, por `curl`, nunca se aprova). Aprovar anota cada sessão no `porao.json` e abre o terminal sem tela
+(`TerminalManager.start`) com a frase do briefing como primeira mensagem; a que não abre sai do registro. Agente
+atualizado (etapa 5 do `~/Documents/IA/claude/agents/maestro.md`: como pedir, proibido aprovar) e regra 10 no
+`CLAUDE.md`. `porao.tetoSessoes` no config só baixa o teto.
+**Arquivos:** `server/src/porao.ts`, `app.ts`, `index.ts`, `terminals.ts`, `config.ts`, `world.ts`;
+`web/src/ui/porao.ts` (novo), `web/src/ui/actions.ts`, `web/src/api.ts`, `web/src/game/PoraoScene.ts`,
+`InteriorScene.ts`, `TownScene.ts`; `server/tests/porao.test.ts`, `servidor.ts`; `CLAUDE.md`, `README.md`.
+**Testes:** `npm test` 162/162 (156 antes; pedido, teto, aprovação, travas de origem); tipos do servidor e do front sem
+erro; auditor sem achado novo. Sem build nem reinício: as rotas são do servidor, então só valem depois do `npm start`
+do usuário (regra 6), e a rodada de verdade pela vila é a conferência.
+
 ## 2026-11-03 — Porão: sair da casa deixava a tela em branco
 
 **O que mudou:** bug da fase 2 apontado pelo usuário depois do reinício. O banco do porão usava o nome de textura

@@ -148,14 +148,31 @@ Cada arquivo tem um único escritor. O da rodada funciona também fora da vila (
 
 ### Fase 3: o maestro cria as sessões
 
-- [ ] Rota local `POST /api/porao/sessoes` { rodada, tarefa, briefing }: reserva o id, grava no `porao.json`, e o
-      terminal abre sozinho com o briefing como primeira mensagem (`claude --session-id <id> "<briefing>"`).
-- [ ] O servidor passa a URL da vila à sessão do maestro por variável de ambiente; sem ela, o maestro cai no modo manual.
-- [ ] Travas: teto de 5 sessões de trabalho por rodada (`porao.tetoSessoes` no `dev-valley.config.json`, padrão 5);
-      só a sessão maestro da rodada cria (recusa para qualquer outro id); nada sem aprovação do usuário. O jeito da
-      aprovação (por exemplo, um cartão "Maestro quer abrir 3 sessões" com botão no porão, como o push do pombal) se
-      decide ao abrir a fase.
-- [ ] Testes de rota (sucesso, teto, id que não é maestro, entrada inválida) em `server/tests/`.
+- [x] **Aprovação por cartão no porão, com botão, como o push do pombal** (decisão do usuário, 03/11/2026).
+- [x] `POST /api/porao/pedidos` { maestro, rodada, tarefas }: o maestro pede (curl local, sem `Origin`); só a sessão de
+      maestro anotada no porão e viva, briefing de cada tarefa já escrito, nomes válidos. O pedido fica na memória e
+      aparece como ❗ na estante de partitura. `GET /api/porao/pedidos/:id` devolve o estado (03/11/2026).
+- [x] `POST /api/porao/pedidos/:id/aprovar` e `/recusar`: **só com `Origin` local presente** (a página), para o maestro
+      nunca se aprovar. Aprovar anota cada sessão no `porao.json` antes e abre o terminal sem tela
+      (`TerminalManager.start`) com a frase do briefing como primeira mensagem; a que não abre sai do registro (03/11/2026).
+- [x] A sessão do maestro recebe `DEV_VALLEY_URL` e `DEV_VALLEY_SESSION`; sem elas, o maestro cai no modo manual. A
+      etapa 5 do agente (`~/Documents/IA/claude/agents/maestro.md`) diz como pedir e proíbe aprovar (03/11/2026).
+- [x] Teto: 5 sessões por rodada (`porao.tetoSessoes` no config só baixa), contando as abertas e as pedidas (03/11/2026).
+- [x] Testes do pedido e das rotas (sucesso, teto, quem não é maestro, maestro encerrado, briefing faltando, origem) em
+      `server/tests/porao.test.ts` (03/11/2026).
+- [x] Conferido pelo usuário numa rodada de verdade pela vila (03/11/2026, rodada `20261103-1500-biblioteca-carta`).
+
+### Ajuste depois da primeira rodada (decisão do usuário, 03/11/2026)
+
+A conversa do maestro aparecia como mais um morador sentado numa mesa, com o rótulo "maestro", ao lado do ✦: dois
+maestros na tela, e uma mesa a menos para as tarefas. Decidido:
+
+- [x] A sessão do maestro **nunca vira morador**: ela mora no ✦, que mostra o estado da conversa (balão trabalhando, ❗
+      permissão). Ela continua sendo uma sessão de verdade por baixo (precisa durar a rodada inteira, receber as mensagens
+      das sessões e fazer os commits), diferente da bibliotecária, que responde uma pergunta por vez.
+- [x] Clique no ✦: com rodada em andamento (a conversa do maestro aberta), continua essa conversa; sem, começa uma nova.
+      Conversas de rodadas antigas do maestro não aparecem no porão; o registro fica no relatório.
+- [x] **Cinco mesas fixas, só das tarefas** (o teto), vazias até o cartão ser aprovado. O maestro nunca contou no teto.
 
 ### Fase 4: avisos, relatório e encerramento
 

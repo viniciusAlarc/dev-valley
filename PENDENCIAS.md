@@ -24,5 +24,4 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| MA-1 | 💻 | Maestro e porão (trabalho paralelo de até 5 sessões): fases 1 e 2 feitas e conferidas; fases 3 e 4 em `docs-dev/a-codar/maestro.md`. | 2026-11-03 |
-| PP-2 | 💻 | Biblioteca não mostra as memórias automáticas do perfil pessoal (`library.ts` lê só `~/.claude/projects`). | 2026-11-01 |
+| MA-1 | 💻 | Maestro e porão (trabalho paralelo de até 5 sessões): fases 1 e 2 feitas e conferidas, fases 1 a 3 feitas e conferidas; fase 4 em `docs-dev/a-codar/maestro.md`. | 2026-11-03 |

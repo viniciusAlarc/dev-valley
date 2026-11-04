@@ -1,6 +1,6 @@
 # Rodada: pendência da biblioteca e contraste da carta do painel
 
-03/11/2026 · 2 sessões · concluída (falta você conferir a carta na tela)
+03/11/2026 · 2 sessões · concluída (carta conferida na tela pelo usuário em 03/11/2026)
 
 ## Em uma frase
 A biblioteca agora mostra também as memórias do perfil pessoal, e a carta ✉️ do painel do canto superior direito ganhou
@@ -48,4 +48,7 @@ t1 ‖ t2, ao mesmo tempo. As duas não tinham nenhum arquivo em comum nem depen
 Nenhuma. A PP-2 foi fechada.
 
 ## Commits
-Aguardando o seu ok.
+- `27b6ff1` · Biblioteca mostra as memórias automáticas do perfil pessoal, com id e título próprios (PP-2)
+- `72a0242` · Painel do canto superior direito: contorno escuro na carta de mudanças sem commit
+
+Push: com você.

@@ -211,6 +211,18 @@ export function activityOf(s: Session): SessionStatus | 'offline' {
   return s.live ? 'working' : 'offline';
 }
 
+/** O maestro pediu sessões para tarefas de uma rodada; só abrem quando o usuário aprova no cartão do porão. */
+export interface PedidoPorao {
+  id: string;
+  projectId: string;
+  maestro: string;
+  rodada: string;
+  tarefas: string[];
+  criadoEm: number;
+  estado: 'aguardando' | 'aprovado' | 'recusado';
+  sessoes: Record<string, { sessionId: string } | { erro: string }>;
+}
+
 export interface World {
   projects: Project[];
   sessions: Session[];
@@ -226,6 +238,8 @@ export interface World {
   guardrails: { enabled: boolean; plugin: string; core: string; items: { id: string; title: string }[] } | null;
   /** NPCs conversando: `de` citou `para` com `@Nome` na mensagem em curso. */
   conversas: { de: string; para: string }[];
+  /** Pedidos do maestro para abrir sessões, esperando o cartão do porão (MA-1, fase 3). */
+  pedidosPorao: PedidoPorao[];
 }
 
 /** Avulsas encerradas que continuam soltas na praça (elas não têm casa para onde ir). */
@@ -438,6 +452,9 @@ export const api = {
   openVsCode: (project: string, file?: string) => request('POST', '/api/open-vscode', { project, file }),
   /** Sem `project`: sessão avulsa (nasce na home e mora na praça). */
   /** Rodada nova no porão: sessão com o agente maestro na pasta do projeto. */
+  /** Cartão do porão: o clique do usuário decide o pedido (a rota só aceita vindo da página). */
+  aprovarPedido: (id: string) => request<{ estado: string; sessoes: PedidoPorao['sessoes'] }>('POST', `/api/porao/pedidos/${encodeURIComponent(id)}/aprovar`),
+  recusarPedido: (id: string) => request<{ estado: string }>('POST', `/api/porao/pedidos/${encodeURIComponent(id)}/recusar`),
   novoMaestro: (projectId: string) => request<{ sessionId: string; projectId: string }>('POST', '/api/porao/maestro', { projectId }),
   newSession: (project?: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project }),
   /** Encerra e apaga a conversa de vez. */
@@ -478,7 +495,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [] };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [] };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {
