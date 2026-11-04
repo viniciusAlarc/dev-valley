@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { activityOf, daCasa, estadoLareira, getWorld, onWorld, type AgentSummary, type Project, type Session, type World } from '../api';
+import { activityOf, daCasa, estadoLareira, getWorld, onWorld, poraoPrecisaDeVoce, rodadaEmAndamento, type AgentSummary, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, CONVERSA_DX, makeInteractive, TALK_Y, VillagerView } from './common';
 import { generateInteriorTextures, generatePoraoTextures, SEED_COLORS, SHELF_BOOKS } from './interiorTextures';
@@ -96,6 +96,9 @@ export class InteriorScene extends Phaser.Scene {
   private books: Phaser.GameObjects.Image[] = [];
   private booksKey = '';
   private trashY = 0;
+  /** Alçapão do porão e o ❗ dele (MA-1, fase 4): aceso com rodada em andamento, ❗ quando o porão precisa de você. */
+  private alcapao?: Phaser.GameObjects.Image;
+  private alcapaoAviso?: Phaser.GameObjects.Image;
   private balls: Phaser.GameObjects.Image[] = [];
   private ballsKey = '';
   private unsubscribe?: () => void;
@@ -198,6 +201,8 @@ export class InteriorScene extends Phaser.Scene {
     this.fillTrash(project);
     this.chalkboard?.setTexture(project.painel ? 'chalkboardWritten' : 'chalkboard');
     this.lightFireplace(project);
+    this.alcapao?.setTexture(rodadaEmAndamento(world, this.projectId) ? 'trapdoorLit' : 'trapdoor');
+    this.alcapaoAviso?.setVisible(poraoPrecisaDeVoce(world, this.projectId));
     for (const s of sessions) this.villagers.get(s.id)?.update(s);
     this.syncConversas(world);
     for (const [id, monitor] of this.monitors) {
@@ -328,6 +333,9 @@ export class InteriorScene extends Phaser.Scene {
 
     // Alçapão do porão (MA-1): rente ao piso, abaixo do tapete e de quem passeia.
     const alcapao = this.add.image(TRAPDOOR_X, H - 6, 'trapdoor').setOrigin(0.5, 1).setDepth(-14);
+    this.alcapao = alcapao;
+    this.alcapaoAviso = this.add.image(TRAPDOOR_X, H - 22, 'alert').setDepth(100000).setVisible(false);
+    this.tweens.add({ targets: this.alcapaoAviso, y: H - 24, yoyo: true, repeat: -1, duration: 400 });
     makeInteractive(
       alcapao,
       () => {
@@ -336,7 +344,7 @@ export class InteriorScene extends Phaser.Scene {
         const rodada = getWorld().sessions.some((s) => s.projectId === this.projectId && s.porao?.papel === 'maestro' && s.live);
         const tarefas = doPorao.length ? `${vivas} sessão(ões) trabalhando, ${doPorao.length - vivas} encerrada(s)` : 'nenhuma sessão de tarefa';
         const resumo = rodada ? ` — rodada em andamento, ${tarefas}` : doPorao.length ? ` — ${tarefas}` : ' — vazio, o maestro espera um pedido';
-        const pedido = getWorld().pedidosPorao.some((p) => p.projectId === this.projectId) ? '\n❗ O maestro quer abrir sessões: desça para decidir' : '';
+        const pedido = poraoPrecisaDeVoce(getWorld(), this.projectId) ? '\n❗ O porão precisa de você: permissão pedida ou cartão do maestro esperando' : '';
         return `Alçapão — porão do maestro, trabalho paralelo de sessões${resumo}${pedido}`;
       },
       () => this.descer(),

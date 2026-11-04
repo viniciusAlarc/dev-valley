@@ -24,4 +24,4 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| MA-1 | 💻 | Maestro e porão (trabalho paralelo de até 5 sessões): fases 1 e 2 feitas e conferidas, fases 1 a 3 feitas e conferidas; fase 4 em `docs-dev/a-codar/maestro.md`. | 2026-11-03 |
+| MA-1 | 💻 | Maestro e porão (trabalho paralelo de até 5 sessões): fases 1 a 3 feitas e conferidas, fase 4 feita (falta o usuário conferir na vila); plano em `docs-dev/a-codar/maestro.md`. | 2026-11-03 |

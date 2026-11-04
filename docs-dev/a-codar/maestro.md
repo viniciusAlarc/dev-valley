@@ -26,7 +26,7 @@ casa nem no mapa principal.
 | G | A escotilha fica **dentro da casa**, como alçapão no chão. |
 | H | **Um maestro por rodada** (contexto limpo a cada pedido). Rodadas antigas ficam no porão como histórico. |
 | I | O relatório é **versionado** no projeto, em `docs-dev/maestro/AAAA-MM-DD-<assunto>.md`. |
-| J | Ao fechar a rodada, as sessões **ficam no porão até o usuário encerrar**, por um botão "Encerrar rodada" com confirmação. |
+| J | Ao fechar a rodada, as sessões **ficam no porão até o usuário encerrar**, por um botão "Encerrar rodada" com confirmação, que fecha os terminais e **apaga as conversas** do porão (decisão do usuário, 03/11/2026). |
 
 **Rodada** = um pedido ao maestro: pedido → divisão → sessões → devolutivas → gate → relatório → commit.
 
@@ -176,10 +176,15 @@ maestros na tela, e uma mesa a menos para as tarefas. Decidido:
 
 ### Fase 4: avisos, relatório e encerramento
 
-- [ ] Alçapão aceso com rodada em andamento e com ❗ quando alguma sessão do porão pede algo; o ❗ sobe ao telhado da
-      casa no mapa.
-- [ ] Quadro na parede do porão com os relatórios de `docs-dev/maestro/`, abrindo no leitor de docs.
-- [ ] Botão "Encerrar rodada": com confirmação, fecha as sessões da rodada (`terminals.kill`) e tira do porão.
+- [x] Alçapão aceso (luz pelas frestas) com rodada em andamento, e ❗ quando alguém do porão pede permissão ou o cartão
+      do maestro espera; o ❗ sobe ao telhado da casa no mapa (03/11/2026).
+- [x] Quadro de cortiça na parede do porão, um bilhete por relatório de `docs-dev/maestro/` (`server/src/relatorios.ts`);
+      o clique lista e abre no leitor (03/11/2026).
+- [x] "Encerrar rodada" no gongo do porão: **apaga as conversas** do porão do projeto, maestro e tarefas, como o encerrar
+      de sempre (decisão do usuário, 03/11/2026), com confirmação que lista cada uma; antes, fecha o terminal das que
+      estão abertas na vila. `POST /api/porao/encerrar` só pela
+      página; recusa se alguma estiver aberta em outro terminal; tira os ids do `porao.json` e recusa o pedido aberto.
+- [ ] Usuário: reinício e conferir na vila. Com isso, o plano vai para `docs-dev/context/` e o MA-1 sai do índice (G7).
 
 ### Ao implementar (G16)
 

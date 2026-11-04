@@ -731,6 +731,44 @@ function trapdoor(scene: Phaser.Scene) {
   add(scene, 'trapdoor', c);
 }
 
+/** Alçapão com rodada em andamento: a luz do porão escapa pelas frestas das tábuas. */
+function trapdoorLit(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(26, 16);
+  rect(ctx, 0, 0, 26, 16, '#5e3a1c');
+  rect(ctx, 2, 2, 22, 12, '#8f5f30');
+  for (const x of [7, 13, 19]) rect(ctx, x, 2, 1, 12, '#f7d046');
+  rect(ctx, 1, 1, 24, 1, '#f7d046');
+  rect(ctx, 1, 14, 24, 1, '#e8a83a');
+  rect(ctx, 2, 2, 22, 1, '#b9854a');
+  rect(ctx, 4, 4, 4, 2, '#3f464c');
+  rect(ctx, 4, 10, 4, 2, '#3f464c');
+  disc(ctx, 18, 8, 2, '#3f464c');
+  rect(ctx, 18, 8, 1, 1, '#8f5f30');
+  rect(ctx, 17, 6, 1, 1, '#66717b');
+  outline(ctx, 26, 16);
+  add(scene, 'trapdoorLit', c);
+}
+
+/** Gongo de "Encerrar rodada": disco de bronze pendurado numa armação de madeira, com a baqueta encostada. */
+function poraoGongo(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(24, 30);
+  rect(ctx, 2, 2, 2, 27, '#6b4220');
+  rect(ctx, 20, 2, 2, 27, '#6b4220');
+  rect(ctx, 1, 1, 22, 3, '#8f5f30');
+  rect(ctx, 1, 1, 22, 1, '#b9854a');
+  rect(ctx, 11, 4, 2, 3, '#3f464c');
+  disc(ctx, 12, 15, 7, '#b8862b');
+  disc(ctx, 12, 15, 5, '#d9a83e');
+  disc(ctx, 12, 15, 2, '#f0c860');
+  rect(ctx, 9, 12, 2, 1, '#fbe3a0');
+  rect(ctx, 0, 27, 24, 2, '#5e3a1c');
+  // baqueta
+  rect(ctx, 21, 18, 1, 9, '#9d6b3a');
+  disc(ctx, 21, 17, 1, '#efe6d2');
+  outline(ctx, 24, 30);
+  add(scene, 'poraoGongo', c);
+}
+
 function poraoFloor(scene: Phaser.Scene) {
   const { c, ctx } = makeCanvas(16, 16);
   const rnd = mulberry32(23);
@@ -829,6 +867,8 @@ function barrel(scene: Phaser.Scene) {
 export function generatePoraoTextures(scene: Phaser.Scene) {
   if (scene.textures.exists('trapdoor')) return;
   trapdoor(scene);
+  trapdoorLit(scene);
+  poraoGongo(scene);
   poraoFloor(scene);
   poraoWall(scene);
   ladder(scene);

@@ -53,7 +53,7 @@ export interface Contexto {
   /** Sessões avulsas novas (banco da praça), esperando o terminal abrir: nascem na home, fora de qualquer projeto. */
   avulsaSessions: Set<string>;
   /** Porão da casa (MA-1): registro das sessões de maestro e se o agente está instalado. */
-  porao: Pick<Porao, 'registrarMaestro' | 'maestroInstalado' | 'pedir' | 'pedido' | 'aprovar' | 'recusar'>;
+  porao: Pick<Porao, 'registrarMaestro' | 'maestroInstalado' | 'pedir' | 'pedido' | 'aprovar' | 'recusar' | 'esquecer'>;
   /** Sessões de trabalho por rodada (`porao.tetoSessoes` do config, até 5). */
   tetoSessoes: number;
   /** Abre a sessão de trabalho sem tela, com a frase do briefing; devolve o motivo quando não abre. */
@@ -194,6 +194,31 @@ export function criarApp(ctx: Contexto): express.Express {
     if (!r) return res.status(409).json({ error: 'Este pedido já foi decidido.' });
     await refreshWorld();
     res.json({ estado: r.estado, sessoes: r.sessoes });
+  });
+
+  // "Encerrar rodada" (fase 4, decisão do usuário de 03/11/2026): apaga as conversas do porão do projeto (maestro e
+  // tarefas), como o "encerrar" de sempre da vila; o registro do que foi feito fica no relatório e nos commits. Só pela
+  // página, e nada é apagado se alguma delas estiver aberta em outro terminal.
+  app.post('/api/porao/encerrar', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila encerra a rodada.' });
+    const project = findProject(req.body?.projectId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado.' });
+    const doPorao = ctx.world().sessions.filter((s) => s.projectId === project.id && s.porao);
+    const fora = doPorao.filter((s) => s.live && !s.inTown);
+    if (fora.length) return res.status(409).json({ error: `Aberta(s) em outro terminal: ${fora.map((s) => s.name || s.id).join(', ')}. Feche por lá primeiro.` });
+    const apagadas: string[] = [];
+    try {
+      for (const s of doPorao) {
+        await terminals.kill(s.id);
+        await ctx.apagarConversa(s.id);
+        hooks.forget(s.id);
+        apagadas.push(s.id);
+      }
+    } finally {
+      await porao.esquecer(project.id, apagadas);
+      await refreshWorld();
+    }
+    res.json({ apagadas: apagadas.length });
   });
 
   app.post('/api/porao/pedidos/:id/recusar', async (req, res) => {

@@ -192,6 +192,20 @@ export class Porao {
     return pedido;
   }
 
+  /**
+   * "Encerrar rodada" (fase 4): depois que as conversas foram apagadas, tira os ids do registro e dá como recusado o
+   * pedido do projeto que ainda esperava o cartão.
+   */
+  async esquecer(projectId: string, ids: string[]): Promise<void> {
+    const reg = await this.ler();
+    for (const id of ids) {
+      delete reg.maestros[id];
+      delete reg.tarefas[id];
+    }
+    await this.gravar(reg);
+    for (const p of this.pedidosAbertos()) if (p.projectId === projectId) p.estado = 'recusado';
+  }
+
   recusar(id: string): PedidoPorao | null {
     const pedido = this.pedidos.get(id);
     if (!pedido || pedido.estado !== 'aguardando') return null;

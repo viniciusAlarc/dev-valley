@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { bellCount, daCasa, estadoLareira, gasto, jornal, type GastoView, type JornalView, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
+import { bellCount, daCasa, estadoLareira, poraoPrecisaDeVoce, gasto, jornal, type GastoView, type JornalView, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, CONVERSA_DX, label, makeInteractive, TALK_Y, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
@@ -583,7 +583,8 @@ export class TownScene extends Phaser.Scene {
         const cur = this.currentProject(p.id);
         const n = this.world.sessions.filter((s) => s.projectId === p.id && daCasa(s)).length;
         const urgent = urgentPendencias(cur).length;
-        return `${cur.name}${cur.branch ? ` — ${cur.branch}` : ''}${cur.isGit ? '' : ' (sem git)'} · ${n} morador(es)${urgent ? ` · ❗ ${urgent} pendência(s) crítica(s)` : ''} — clique para entrar`;
+        const porao = poraoPrecisaDeVoce(this.world, p.id) ? ' · ❗ o porão precisa de você' : '';
+        return `${cur.name}${cur.branch ? ` — ${cur.branch}` : ''}${cur.isGit ? '' : ' (sem git)'} · ${n} morador(es)${urgent ? ` · ❗ ${urgent} pendência(s) crítica(s)` : ''}${porao} — clique para entrar`;
       },
       () => this.enterHouse(this.currentProject(p.id)),
     );
@@ -846,7 +847,8 @@ export class TownScene extends Phaser.Scene {
   }
 
   private updateHouse(view: HouseView, project: Project) {
-    view.alert.setVisible(urgentPendencias(project).length > 0);
+    // ❗ no telhado: pendência crítica, ou o porão precisa de você (permissão ou cartão do maestro, MA-1 fase 4).
+    view.alert.setVisible(urgentPendencias(project).length > 0 || poraoPrecisaDeVoce(this.world, project.id));
     view.scaffold.setVisible(project.missingStructure.length > 0);
     view.smoke = project.lareira ? estadoLareira(project.lareira) : null;
     view.plaque.setVisible(!!project.auditoria).setTexture(auditoriaVencida(project.auditoria) ? 'plaque-due' : 'plaque-ok');

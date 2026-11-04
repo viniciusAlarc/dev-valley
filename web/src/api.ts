@@ -26,6 +26,8 @@ export interface Project {
   /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. `toCheck`: algum passo ainda
    * diz "falta conferir na vila". */
   sementes: { path: string; title: string; toCheck: boolean }[] | null;
+  /** Relatórios das rodadas do maestro em `docs-dev/maestro/` (quadro do porão), o mais novo primeiro; null = sem a pasta. */
+  relatorios: { path: string; title: string; data: string | null }[] | null;
   /** `docs-dev/context/` (estante): `html` abre isolado, `md` no leitor; null = o projeto não tem a pasta. */
   estante: { path: string; title: string; kind: 'html' | 'md' }[] | null;
   /** `RETRABALHO.md` (lixeira da casa): cabeçalho e linhas como estão no arquivo; null = sem o arquivo. */
@@ -180,6 +182,19 @@ export interface Session {
  * pombal continuam contando todas, para o aviso de permissão e o de sessão viva antes do push não sumirem.
  */
 export const daCasa = (s: Session) => !s.porao;
+
+/** Rodada em andamento no porão do projeto: a conversa do maestro ou alguma sessão de tarefa ainda aberta. */
+export function rodadaEmAndamento(world: World, projectId: string): boolean {
+  return world.sessions.some((s) => s.projectId === projectId && s.porao && s.live);
+}
+
+/** O porão do projeto precisa de você: alguém de lá pede permissão, ou o cartão do maestro espera a sua decisão. */
+export function poraoPrecisaDeVoce(world: World, projectId: string): boolean {
+  return (
+    world.pedidosPorao.some((p) => p.projectId === projectId) ||
+    world.sessions.some((s) => s.projectId === projectId && s.porao && s.live && s.status === 'permission')
+  );
+}
 
 /** A partir daqui vale começar uma sessão nova (o Claude compacta perto do fim da janela). */
 export const CONTEXT_WARN = 70;
@@ -454,6 +469,8 @@ export const api = {
   /** Rodada nova no porão: sessão com o agente maestro na pasta do projeto. */
   /** Cartão do porão: o clique do usuário decide o pedido (a rota só aceita vindo da página). */
   aprovarPedido: (id: string) => request<{ estado: string; sessoes: PedidoPorao['sessoes'] }>('POST', `/api/porao/pedidos/${encodeURIComponent(id)}/aprovar`),
+  /** Apaga as conversas do porão do projeto (maestro e tarefas); só pela página. */
+  encerrarRodada: (projectId: string) => request<{ apagadas: number }>('POST', '/api/porao/encerrar', { projectId }),
   recusarPedido: (id: string) => request<{ estado: string }>('POST', `/api/porao/pedidos/${encodeURIComponent(id)}/recusar`),
   novoMaestro: (projectId: string) => request<{ sessionId: string; projectId: string }>('POST', '/api/porao/maestro', { projectId }),
   newSession: (project?: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project }),

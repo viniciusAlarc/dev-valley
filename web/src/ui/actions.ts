@@ -15,7 +15,7 @@ import { openRetrabalho } from './retrabalho';
 import { openSementes } from './sementes';
 import { openQuadro } from './quadro';
 import { openPombal } from './pombal';
-import { openPedidoPorao } from './porao';
+import { openEncerrarRodada, openPedidoPorao, openRelatorios } from './porao';
 import { openLareira } from './lareira';
 import { openSkills } from './skills';
 import { openPlugins } from './plugins';
@@ -186,6 +186,16 @@ export const ui = {
       const panel = openPanel({ title: 'O maestro não pôde começar' });
       panel.body.innerHTML = `<p>${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`;
     }
+  },
+  /** Quadro do porão: os relatórios das rodadas (`docs-dev/maestro/`), abrindo no leitor. */
+  openRelatorios(project: Project) {
+    this.hideTooltip();
+    openRelatorios(project);
+  },
+  /** Gongo do porão: confirmar e apagar as conversas da rodada (decisão do usuário, 03/11/2026). */
+  openEncerrarRodada(project: Project) {
+    this.hideTooltip();
+    openEncerrarRodada(project);
   },
   /** Cartão do porão: aprovar ou recusar as sessões que o maestro pediu (MA-1, fase 3). */
   openPedidoPorao(pedido: PedidoPorao, project: Project) {

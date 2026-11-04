@@ -15,6 +15,7 @@ import { readQuadro, type PlanoAcao } from './quadro.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
 import { readRetrabalho, type Retrabalho } from './retrabalho.js';
 import { readSementes, type Semente } from './sementes.js';
+import { readRelatorios, type Relatorio } from './relatorios.js';
 import type { Skills, SkillSummary } from './skills.js';
 import { restartPending, type RestartPending } from './reinicio.js';
 import type { AgentSummary, Agents } from './agents.js';
@@ -45,6 +46,8 @@ export interface Project {
   missingStructure: string[];
   /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. */
   sementes: Semente[] | null;
+  /** Relatórios das rodadas do maestro em `docs-dev/maestro/` (quadro do porão); null = o projeto não tem a pasta. */
+  relatorios: Relatorio[] | null;
   /** `docs-dev/context/` (estante); null = o projeto não tem a pasta. */
   estante: Livro[] | null;
   /** `RETRABALHO.md` (lixeira da casa); null = o projeto não tem o arquivo. */
@@ -143,13 +146,14 @@ async function discoverProjectDirs(config: Config): Promise<string[]> {
 }
 
 async function loadProject(dir: string, config: Config, portas: Map<number, number | null>): Promise<Project> {
-  const [isGit, pendencias, painel, progress, missing, sementes, estante, retrabalho, auditoria, lareira] = await Promise.all([
+  const [isGit, pendencias, painel, progress, missing, sementes, relatorios, estante, retrabalho, auditoria, lareira] = await Promise.all([
     gitOps.isGitRepo(dir),
     readPendencias(dir),
     readPainel(dir),
     summarizeProgress(dir),
     missingStructure(dir),
     readSementes(dir),
+    readRelatorios(dir),
     readEstante(dir),
     readRetrabalho(dir),
     readAuditoria(dir),
@@ -170,6 +174,7 @@ async function loadProject(dir: string, config: Config, portas: Map<number, numb
     progress,
     missingStructure: missing,
     sementes,
+    relatorios,
     estante,
     retrabalho,
     auditoria,

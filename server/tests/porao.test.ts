@@ -178,3 +178,77 @@ describe('Rotas do pedido (fase 3)', () => {
     assert.equal((await parado.s.enviar('POST', '/api/porao/pedidos', { maestro: 'm1', rodada: 'r1', tarefas: ['t1'] })).status, 403, 'maestro encerrado');
   });
 });
+
+// ---------------- fase 4: relatórios e "Encerrar rodada" ----------------
+
+describe('readRelatorios: quadro de relatórios do porão', () => {
+  test('o mais novo primeiro, título sem "Rodada:", data pelo nome; sem a pasta, null', async () => {
+    const { readRelatorios } = await import('../src/relatorios.js');
+    const dir = await projeto({
+      'docs-dev/maestro/2026-11-03-biblioteca.md': '# Rodada: biblioteca e carta\n\ntexto',
+      'docs-dev/maestro/2026-11-04-porao.md': '# Porão\n',
+      'docs-dev/maestro/solto.md': 'sem título',
+    });
+    const r = await readRelatorios(dir);
+    assert.deepEqual(
+      r?.map((x) => [path.basename(x.path), x.title, x.data]),
+      [
+        ['solto.md', 'solto', null],
+        ['2026-11-04-porao.md', 'Porão', '2026-11-04'],
+        ['2026-11-03-biblioteca.md', 'biblioteca e carta', '2026-11-03'],
+      ],
+    );
+    assert.equal(await readRelatorios(await projeto({})), null);
+  });
+});
+
+describe('POST /api/porao/encerrar', () => {
+  const PAGINA = 'http://localhost:4777';
+
+  async function vilaComRodada(nome: string, maestroFora = false) {
+    const dir = await projeto({});
+    const porao = await poraoComMaestro(nome, ['t1']);
+    const pedido = await porao.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1'] }, 5);
+    const mortas: string[] = [];
+    const apagadas: string[] = [];
+    const s = await subir(
+      {
+        projects: [casa('p', dir), casa('q', dir + '-outro')],
+        sessions: [
+          sessao('m1', { projectId: 'p', live: true, inTown: !maestroFora, porao: { papel: 'maestro' } }),
+          sessao('t1', { projectId: 'p', live: false, porao: { papel: 'tarefa', rodada: 'r1', tarefa: 't1' } }),
+          sessao('casa', { projectId: 'p', live: true }),
+          sessao('outro', { projectId: 'q', live: false, porao: { papel: 'tarefa', rodada: 'r9', tarefa: 't1' } }),
+        ],
+      },
+      {
+        porao,
+        terminals: { kill: async (id: string) => void mortas.push(id) },
+        apagarConversa: async (id: string) => void apagadas.push(id),
+        hooks: { handle: async () => {}, forget: () => {} } as never,
+      },
+    );
+    return { s, porao, pedido, mortas, apagadas };
+  }
+
+  test('apaga só as conversas do porão deste projeto, tira do registro e recusa o pedido aberto', async () => {
+    const { s, porao, pedido, mortas, apagadas } = await vilaComRodada('encerrar-ok');
+    const r = await s.enviar('POST', '/api/porao/encerrar', { projectId: 'p' }, PAGINA);
+    assert.equal(r.status, 200);
+    assert.deepEqual(await r.json(), { apagadas: 2 });
+    assert.deepEqual(mortas.sort(), ['m1', 't1']);
+    assert.deepEqual(apagadas.sort(), ['m1', 't1']);
+    assert.equal((await porao.maestros()).has('m1'), false);
+    assert.ok(!('erro' in pedido));
+    assert.equal(porao.pedido(pedido.id)?.estado, 'recusado');
+  });
+
+  test('sem a página, 403; projeto desconhecido, 404; aberta em outro terminal, 409 e nada apagado', async () => {
+    const { s, apagadas } = await vilaComRodada('encerrar-trava');
+    assert.equal((await s.enviar('POST', '/api/porao/encerrar', { projectId: 'p' })).status, 403);
+    assert.equal((await s.enviar('POST', '/api/porao/encerrar', { projectId: 'x' }, PAGINA)).status, 404);
+    const fora = await vilaComRodada('encerrar-fora', true);
+    assert.equal((await fora.s.enviar('POST', '/api/porao/encerrar', { projectId: 'p' }, PAGINA)).status, 409);
+    assert.deepEqual([...apagadas, ...fora.apagadas], []);
+  });
+});

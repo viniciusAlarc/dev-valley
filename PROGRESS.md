@@ -3,6 +3,22 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-03 — Maestro, fase 4: alçapão aceso, ❗ no telhado, quadro de relatórios e gongo de encerrar
+
+**O que mudou:** fase 4 do `docs-dev/a-codar/maestro.md`. O alçapão da casa acende (luz pelas frestas) com rodada em
+andamento e ganha um ❗ quando alguém do porão pede permissão ou o cartão do maestro espera; o mesmo ❗ sobe ao telhado da
+casa no mapa (`rodadaEmAndamento` e `poraoPrecisaDeVoce` no `api.ts`). No porão, um quadro de cortiça com um bilhete por
+relatório de `docs-dev/maestro/` (`server/src/relatorios.ts`, lido no mundo como `relatorios`), que lista e abre no
+leitor; e um gongo de "Encerrar rodada": com confirmação listando cada conversa, `POST /api/porao/encerrar` (só pela
+página) apaga as conversas do porão do projeto, como o encerrar de sempre (decisão do usuário), recusa se alguma estiver
+aberta em outro terminal, tira os ids do `porao.json` e dá o pedido aberto como recusado.
+**Arquivos:** `server/src/relatorios.ts` (novo), `porao.ts`, `app.ts`, `world.ts`; `web/src/api.ts`,
+`web/src/game/PoraoScene.ts`, `InteriorScene.ts`, `TownScene.ts`, `interiorTextures.ts`, `web/src/ui/porao.ts`,
+`web/src/ui/actions.ts`; `server/tests/porao.test.ts`, `servidor.ts`; `CLAUDE.md`, `README.md`,
+`docs-dev/a-codar/maestro.md`, `PENDENCIAS.md`.
+**Testes:** `npm test` 168/168; tipos do servidor e do front sem erro; prévia em PNG das peças novas (gongo, quadro,
+alçapão aceso) fora do repositório. Falta: reinício e conferir na vila (regra 6).
+
 ## 2026-11-03 — Porão: a conversa do maestro mora no ✦, e as mesas são só das tarefas
 
 **O que mudou:** pedido do usuário depois da primeira rodada de verdade (ajuste registrado no `docs-dev/a-codar/maestro.md`).

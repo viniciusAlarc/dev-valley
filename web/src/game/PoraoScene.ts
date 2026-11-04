@@ -22,6 +22,14 @@ const BENCH_X = [W / 2 - 62, W / 2 + 62];
 const BENCH_SEATS = 3;
 const MAESTRO_X = W / 2 - 8;
 const MAESTRO_Y = WALL_H + 30;
+/** Quadro de relatórios (`docs-dev/maestro/`) na parede, entre a escada e o maestro: um bilhete por relatório, até 15. */
+const BOARD_X = 74;
+const BOARD_Y = WALL_H - 4;
+const NOTE_COLS = 5;
+const MAX_NOTES = 15;
+/** Gongo de "Encerrar rodada", no chão à direita, abaixo dos barris. */
+const GONGO_X = W - 24;
+const GONGO_Y = WALL_H + 52;
 
 /** Rótulo curto da mesa: qual tarefa a sessão faz. */
 function papelDe(s: Session): string {
@@ -52,6 +60,8 @@ export class PoraoScene extends Phaser.Scene {
   private pedidoKey = '';
   /** Balão do ✦: o estado da conversa do maestro da rodada em andamento. */
   private maestroBubble?: StatusBubble;
+  private notes: Phaser.GameObjects.Image[] = [];
+  private notesKey = '';
 
   constructor() {
     super('porao');
@@ -145,6 +155,7 @@ export class PoraoScene extends Phaser.Scene {
     const ativo = this.maestroAtivo(world);
     this.maestroBubble?.set(ativo ? activityOf(ativo) : 'offline');
     this.mostrarPedido(this.pedidoDaqui(world));
+    this.pinRelatorios(project);
     for (const [id, monitor] of this.monitors) {
       const s = sessions.find((x) => x.id === id);
       const a = s ? activityOf(s) : 'offline';
@@ -213,6 +224,28 @@ export class PoraoScene extends Phaser.Scene {
     star.setStroke('#5e3a1c', 2);
     this.tweens.add({ targets: star, y: star.y - 3, alpha: 0.6, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut' });
 
+    // ---- quadro de relatórios e gongo de encerrar ----
+    const quadro = this.prop('corkBoard', BOARD_X, BOARD_Y);
+    makeInteractive(
+      quadro,
+      () => {
+        const n = this.project(getWorld())?.relatorios?.length ?? 0;
+        return n ? `Quadro de relatórios — ${n} rodada(s) do maestro em docs-dev/maestro/ — clique para ler` : 'Quadro de relatórios — nenhuma rodada fechada ainda';
+      },
+      () => ui.openRelatorios(this.project(getWorld()) ?? project),
+    );
+    this.notes = [];
+    this.notesKey = '';
+    const gongo = this.prop('poraoGongo', GONGO_X, GONGO_Y);
+    makeInteractive(
+      gongo,
+      () => {
+        const n = getWorld().sessions.filter((s) => s.projectId === this.projectId && s.porao).length;
+        return n ? `Gongo — encerrar a rodada: apaga as ${n} conversa(s) do porão (o relatório e os commits ficam)` : 'Gongo — nada para encerrar, o porão está vazio';
+      },
+      () => ui.openEncerrarRodada(this.project(getWorld()) ?? project),
+    );
+
     // ---- mesas: as sessões de trabalho da rodada ----
     desks.forEach((session, i) => {
       const col = i % DESK_COLS;
@@ -255,6 +288,23 @@ export class PoraoScene extends Phaser.Scene {
 
     this.roomHeight = H + 8;
     this.frameCamera();
+  }
+
+  /** Um bilhete por relatório no quadro; só redesenha quando a quantidade muda. */
+  private pinRelatorios(project: Project) {
+    const n = Math.min(project.relatorios?.length ?? 0, MAX_NOTES);
+    if (String(n) === this.notesKey) return;
+    this.notesKey = String(n);
+    for (const note of this.notes) note.destroy();
+    const left = BOARD_X - 23 + 3;
+    const top = BOARD_Y - 30 + 3;
+    const jitter = [0, 1, 0, -1, 1, -1, 0, 1, 0, 0, 1, -1, 0, 1, -1];
+    this.notes = Array.from({ length: n }, (_, i) =>
+      this.add
+        .image(left + (i % NOTE_COLS) * 8, top + Math.floor(i / NOTE_COLS) * 8 + jitter[i]!, 'note4')
+        .setOrigin(0)
+        .setDepth(BOARD_Y + 0.5),
+    );
   }
 
   private frameCamera() {
