@@ -171,7 +171,15 @@ export interface Session {
   /** Janela de contexto usada; `estimated` quando calculada sem o status line. */
   context: { percent: number; tokens: number; window: number; estimated: boolean } | null;
   model: string | null;
+  /** Mora no porão da casa (maestro ou tarefa de uma rodada, MA-1); null = sessão comum. */
+  porao: { papel: 'maestro' } | { papel: 'tarefa'; rodada: string; tarefa: string } | null;
 }
+
+/**
+ * Quem aparece na casa e no mapa: as sessões do porão ficam só lá embaixo (decisão do usuário, 03/11/2026). O HUD e o
+ * pombal continuam contando todas, para o aviso de permissão e o de sessão viva antes do push não sumirem.
+ */
+export const daCasa = (s: Session) => !s.porao;
 
 /** A partir daqui vale começar uma sessão nova (o Claude compacta perto do fim da janela). */
 export const CONTEXT_WARN = 70;
@@ -231,7 +239,7 @@ const PLAZA_OFFLINE_LIMIT = 4;
 export function yardResidents(world: World, projectId: string | null): Session[] {
   const rank = { permission: 0, working: 1, idle: 2, offline: 3 };
   const sorted = world.sessions
-    .filter((s) => s.projectId === projectId)
+    .filter((s) => s.projectId === projectId && daCasa(s))
     .sort((a, b) => rank[activityOf(a)] - rank[activityOf(b)] || b.lastActivity - a.lastActivity);
   if (projectId !== null) return sorted.filter((s) => s.live);
   const live = sorted.filter((s) => s.live).length;
@@ -429,6 +437,8 @@ export const api = {
     ),
   openVsCode: (project: string, file?: string) => request('POST', '/api/open-vscode', { project, file }),
   /** Sem `project`: sessão avulsa (nasce na home e mora na praça). */
+  /** Rodada nova no porão: sessão com o agente maestro na pasta do projeto. */
+  novoMaestro: (projectId: string) => request<{ sessionId: string; projectId: string }>('POST', '/api/porao/maestro', { projectId }),
   newSession: (project?: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project }),
   /** Encerra e apaga a conversa de vez. */
   deleteSession: (id: string) => request('DELETE', `/api/sessions/${id}`),

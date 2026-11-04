@@ -21,6 +21,7 @@ import { deleteSessionFiles } from './sessions.js';
 import { Gasto } from './gasto.js';
 import { askJornaleiro, Jornal } from './jornal.js';
 import { Plugins } from './plugins.js';
+import { Porao } from './porao.js';
 import { Skills } from './skills.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
@@ -53,10 +54,12 @@ const jornal = new Jornal(() => world, internalSessions);
 const agentSessions = new Map<string, { cwd: string; agent: string }>();
 /** Sessões avulsas novas (banco da praça), esperando o terminal abrir: nascem na home, fora de qualquer projeto. */
 const avulsaSessions = new Set<string>();
+/** Quem mora no porão das casas (maestro e tarefas das rodadas, MA-1). */
+const porao = new Porao();
 
 async function refreshWorld() {
   try {
-    const built = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents, skills);
+    const built = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents, skills, porao);
     world = { ...built, projects: built.projects.map((p) => ({ ...p, lareira: lareiras.merge(p.id, p.lareira) })) };
     const json = JSON.stringify(world);
     if (json === worldJson) return;
@@ -90,6 +93,7 @@ const app = criarApp({
   internalSessions,
   agentSessions,
   avulsaSessions,
+  porao,
   askLibrarian,
   askAdministrador,
   sugerirMensagem,

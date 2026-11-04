@@ -710,3 +710,130 @@ export function generateFactoryTextures(scene: Phaser.Scene) {
   pegboard(scene);
   switchboard(scene);
 }
+
+// ---------------- porão (MA-1) ----------------
+// Pedra e madeira escura: o porão é onde o maestro coordena as sessões em paralelo, separado da casa.
+
+/** Alçapão no chão da casa: tábuas com dobradiças e argola de ferro. Fica rente ao piso (quem passeia pisa nele). */
+function trapdoor(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(26, 16);
+  rect(ctx, 0, 0, 26, 16, '#5e3a1c');
+  rect(ctx, 2, 2, 22, 12, '#8f5f30');
+  for (const x of [7, 13, 19]) rect(ctx, x, 2, 1, 12, '#6b4220');
+  rect(ctx, 2, 2, 22, 1, '#b9854a');
+  // dobradiças e argola
+  rect(ctx, 4, 4, 4, 2, '#3f464c');
+  rect(ctx, 4, 10, 4, 2, '#3f464c');
+  disc(ctx, 18, 8, 2, '#3f464c');
+  rect(ctx, 18, 8, 1, 1, '#8f5f30');
+  rect(ctx, 17, 6, 1, 1, '#66717b');
+  outline(ctx, 26, 16);
+  add(scene, 'trapdoor', c);
+}
+
+function poraoFloor(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(16, 16);
+  const rnd = mulberry32(23);
+  rect(ctx, 0, 0, 16, 16, '#4a4139');
+  // lajes de pedra, com rejunte escuro desencontrado
+  rect(ctx, 0, 7, 16, 1, '#342d27');
+  rect(ctx, 0, 15, 16, 1, '#342d27');
+  rect(ctx, 9, 0, 1, 7, '#342d27');
+  rect(ctx, 3, 8, 1, 7, '#342d27');
+  rect(ctx, 0, 0, 9, 1, '#574d43');
+  rect(ctx, 10, 0, 6, 1, '#574d43');
+  rect(ctx, 4, 8, 12, 1, '#574d43');
+  for (let i = 0; i < 5; i++) rect(ctx, Math.floor(rnd() * 16), Math.floor(rnd() * 16), 1, 1, '#3f3730');
+  add(scene, 'poraoFloor', c);
+}
+
+function poraoWall(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(16, 40);
+  rect(ctx, 0, 0, 16, 38, '#5a5148');
+  // blocos de pedra em fiadas
+  for (let y = 0; y < 36; y += 6) {
+    rect(ctx, 0, y + 5, 16, 1, '#3d3731');
+    const off = (y / 6) % 2 ? 4 : 11;
+    rect(ctx, off, y, 1, 5, '#3d3731');
+    rect(ctx, 0, y, 16, 1, '#6b6157');
+  }
+  rect(ctx, 0, 36, 16, 2, '#3d3731');
+  rect(ctx, 0, 38, 16, 2, '#2a2520');
+  add(scene, 'poraoWall', c);
+}
+
+/** Escada de mão que sobe para a casa: no alto, a luz do alçapão aberto. */
+function ladder(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(20, 52);
+  rect(ctx, 0, 0, 20, 7, '#2a1a0d');
+  rect(ctx, 2, 1, 16, 5, '#e9c88f');
+  rect(ctx, 2, 1, 16, 1, '#f7e2b4');
+  rect(ctx, 3, 6, 2, 46, '#8f5f30');
+  rect(ctx, 15, 6, 2, 46, '#8f5f30');
+  rect(ctx, 3, 6, 1, 46, '#b9854a');
+  rect(ctx, 15, 6, 1, 46, '#b9854a');
+  for (let y = 11; y < 50; y += 7) rect(ctx, 5, y, 10, 2, '#9d6b3a');
+  outline(ctx, 20, 52);
+  add(scene, 'ladder', c);
+}
+
+/** Estante de partitura do maestro: pé fino e a folha com pauta e notas. */
+function podium(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(18, 26);
+  rect(ctx, 8, 11, 2, 13, '#3f464c');
+  rect(ctx, 4, 23, 10, 2, '#3f464c');
+  rect(ctx, 1, 8, 16, 4, '#4c545c');
+  rect(ctx, 2, 1, 14, 9, '#fbf6ea');
+  for (const y of [3, 5, 7]) rect(ctx, 3, y, 12, 1, '#b9b1a0');
+  for (const [x, y] of [[4, 4], [7, 2], [10, 6], [13, 4]] as const) rect(ctx, x, y, 2, 2, '#1d1a16');
+  outline(ctx, 18, 26);
+  add(scene, 'podium', c);
+}
+
+/** Banco de madeira (encosto e assento) para quem já terminou; a frente vem por cima, como no sofá. */
+function bench(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(52, 22);
+  rect(ctx, 2, 0, 48, 9, '#7a5230');
+  rect(ctx, 2, 0, 48, 1, '#9d6b3a');
+  rect(ctx, 2, 4, 48, 1, '#5e3a1c');
+  rect(ctx, 0, 9, 52, 7, '#8f5f30');
+  rect(ctx, 0, 9, 52, 1, '#b9854a');
+  rect(ctx, 3, 16, 3, 5, '#5e3a1c');
+  rect(ctx, 46, 16, 3, 5, '#5e3a1c');
+  outline(ctx, 52, 22);
+  add(scene, 'poraoBench', c);
+}
+
+function benchFront(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(52, 22);
+  rect(ctx, 0, 13, 52, 3, '#8f5f30');
+  rect(ctx, 0, 13, 52, 1, '#b9854a');
+  rect(ctx, 3, 16, 3, 5, '#5e3a1c');
+  rect(ctx, 46, 16, 3, 5, '#5e3a1c');
+  outline(ctx, 52, 22);
+  add(scene, 'poraoBenchFront', c);
+}
+
+function barrel(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(16, 20);
+  rect(ctx, 2, 1, 12, 18, '#8f5f30');
+  rect(ctx, 1, 4, 14, 12, '#8f5f30');
+  for (const x of [5, 8, 11]) rect(ctx, x, 1, 1, 18, '#6b4220');
+  rect(ctx, 3, 1, 1, 18, '#b9854a');
+  for (const y of [4, 15]) rect(ctx, 1, y, 14, 1, '#3f464c');
+  rect(ctx, 3, 0, 10, 2, '#5e3a1c');
+  outline(ctx, 16, 20);
+  add(scene, 'barrel', c);
+}
+
+export function generatePoraoTextures(scene: Phaser.Scene) {
+  if (scene.textures.exists('trapdoor')) return;
+  trapdoor(scene);
+  poraoFloor(scene);
+  poraoWall(scene);
+  ladder(scene);
+  podium(scene);
+  bench(scene);
+  benchFront(scene);
+  barrel(scene);
+}

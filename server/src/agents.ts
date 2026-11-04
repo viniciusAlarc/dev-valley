@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { ROOT_DIR } from './config.js';
+import { MAESTRO } from './porao.js';
 import type { Project } from './world.js';
 
 /**
@@ -138,9 +139,12 @@ export class Agents {
           // A cópia instalada de um agente da vila (ex.: a bibliotecária em ~/.claude/agents) aparece só pelo original.
           if (managed && !village) continue;
           const { fields } = parseFrontmatter(raw, KNOWN);
+          const name = unquote(fields.name ?? '') || f.replace(/\.md$/, '');
+          // O maestro global mora no porão de cada casa, não na praça nem na bancada da Fábrica (MA-1, 03/11/2026).
+          if (projectId === null && !village && name === MAESTRO) continue;
           out.push({
             path: file,
-            name: unquote(fields.name ?? '') || f.replace(/\.md$/, ''),
+            name,
             description: unquote(fields.description ?? ''),
             projectId,
             managed: managed || village,

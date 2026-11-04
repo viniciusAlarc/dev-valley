@@ -79,6 +79,20 @@ describe('Agentes: /api/agents', () => {
     assert.ok(fs.existsSync(copia));
   });
 
+  test('o maestro global mora no porão: fora da lista da Fábrica; um maestro de projeto continua nela (MA-1)', async () => {
+    fs.mkdirSync(GLOBAL_AGENTS_DIR, { recursive: true });
+    fs.writeFileSync(path.join(GLOBAL_AGENTS_DIR, 'maestro.md'), '---\nname: maestro\ndescription: x\n---\nOi.\n');
+    fs.writeFileSync(path.join(GLOBAL_AGENTS_DIR, 'ajudante.md'), '---\nname: ajudante\ndescription: x\n---\nOi.\n');
+    const dir = await projeto({ '.claude/agents/maestro.md': '---\nname: maestro\ndescription: x\n---\nOi.\n' });
+    const lista = await new Agents(() => [casa('p', dir)]).list([casa('p', dir)]);
+    const nomes = lista.filter((a) => !a.village).map((a) => `${a.projectId ?? 'global'}:${a.name}`);
+    assert.ok(nomes.includes('global:ajudante'));
+    assert.ok(!nomes.includes('global:maestro'));
+    assert.ok(nomes.includes('p:maestro'));
+    fs.rmSync(path.join(GLOBAL_AGENTS_DIR, 'maestro.md'));
+    fs.rmSync(path.join(GLOBAL_AGENTS_DIR, 'ajudante.md'));
+  });
+
   test('conversa com agente: de projeto roda no projeto; da vila, 403; desconhecido, 404', async () => {
     const dir = await projeto({ '.claude/agents/revisor.md': '---\nname: revisor\ndescription: x\n---\nOi.\n' });
     const s = await fabrica([casa('p', dir)]);

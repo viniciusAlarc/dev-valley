@@ -130,17 +130,21 @@ Cada arquivo tem um único escritor. O da rodada funciona também fora da vila (
       regras 3 e 4 e ao G5) e uma frase na G21 do `guardrails-core.md` (03/11/2026).
 - [ ] Usuário roda `~/Documents/IA/instalar.sh` e faz a primeira rodada no modo manual: `claude --agent maestro` num
       projeto, sessões abertas com o comando que o maestro der.
-- [ ] Até a fase 2, o maestro aparece na Fábrica como agente global (NPC comum na praça).
+- [x] Até a fase 2, o maestro aparecia na Fábrica como agente global; resolvido na fase 2.
 
 ### Fase 2: o porão na vila
 
-- [ ] Alçapão no chão da `InteriorScene`; clique desce para uma cena nova (`PoraoScene`), com volta para a casa.
-- [ ] Maestro ✦ no porão com o traje de agente (regra 8), com combinação de pele × cabelo reservada em
-      `villagerArt.ts`. Clique abre uma rodada nova: sessão com `--agent maestro` na pasta do projeto (mesma base do
-      `POST /api/agents/session`), registrada no `porao.json`.
-- [ ] Mapa e interior deixam de fora os ids do `porao.json`; o porão mostra só eles, com o status ao vivo de sempre.
-- [ ] O maestro universal não aparece na Fábrica nem na praça como NPC comum: ele mora no porão.
-- [ ] Rodadas antigas listadas no porão para reabrir.
+- [x] Alçapão no chão da `InteriorScene` (canto de baixo à esquerda); clique desce para a `PoraoScene`, escada ou Esc
+      volta para a casa (03/11/2026).
+- [x] Maestro ✦ no porão com o traje de agente (regra 8), combinação reservada em `villagerArt.ts`. Clique abre uma
+      rodada nova: `POST /api/porao/maestro` anota no `porao.json` e o terminal abre com `--agent maestro` na pasta do
+      projeto; sem o agente instalado, 409 (03/11/2026).
+- [x] Mapa, interior e escrivaninha deixam de fora quem é do porão (marca `porao` no mundo); HUD e pombal continuam
+      contando. **Além do previsto:** as sessões de trabalho abertas à mão já entram no porão, pelo primeiro prompt (a
+      frase fixa do briefing), sem esperar a fase 3 (03/11/2026).
+- [x] O maestro global sai da Fábrica e da praça (03/11/2026).
+- [x] Rodadas antigas: as sessões encerradas do porão ficam nos dois bancos (até 6), para reabrir (03/11/2026).
+- [x] Conferido na vila pelo usuário, depois de corrigir o nome de textura repetido do banco (03/11/2026).
 
 ### Fase 3: o maestro cria as sessões
 

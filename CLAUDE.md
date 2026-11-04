@@ -42,13 +42,13 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
     `administrador.ts` (administrador da praça), `agents.ts`/`skills.ts`/`plugins.ts` (Fábrica: agentes, skills e, só leitura, plugins e MCP), `gasto.ts` (moinho: gasto por projeto), `jornal.ts` (banca de jornal), `perfil.ts` (projeto pessoal: terminal em outro perfil do Claude Code, com outra API), `reinicio.ts` (sino:
     reinício pendente), `estrutura.ts` (casa em obra e
     placa de vistoria), `sementes.ts` (caixa
-    de sementes), `retrabalho.ts` (ervas do quintal), `quadro.ts` (quadro negro), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
+    de sementes), `retrabalho.ts` (ervas do quintal), `porao.ts` (porão da casa: quem é do maestro), `quadro.ts` (quadro negro), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
     (outdoor), `install-hooks.ts`.
   - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md`, `agents/escrevente.md`, `agents/jornaleiro.md` e `agents/jornaleiro-conversa.md` (sem ferramenta: `--tools ""`): usados só pela vila.
 - `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
   sessão, rodapé com contexto e uso, nomes dos moradores e `@Nome`. Marketplace local em `.claude-plugin/`.
 - `web/` — Vite + Phaser 3 (vila), xterm.js (chat), Monaco (diff), marked + DOMPurify (leitor de docs).
-  - `src/game/` cenas Phaser (`TownScene`, `InteriorScene`, `LibraryScene`) e pixel art gerada em código.
+  - `src/game/` cenas Phaser (`TownScene`, `InteriorScene`, `LibraryScene`, `FactoryScene`, `PoraoScene`) e pixel art gerada em código.
   - `src/ui/` painéis HTML sobre o jogo (terminal, commit, biblioteca, uso…).
 - Config: `dev-valley.config.json` (versionado) sobrescrito por `dev-valley.config.local.json` (ignorado pelo git).
 
@@ -63,9 +63,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade; rotas por `subir()` de `server/tests/servidor.ts`,
   com imitações; teste que usa classe que grava em `~` troca o `HOME` antes do `import`, como
   `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
-  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 44 rotas e o pombal; WebSockets e front
+  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 45 rotas e o pombal; WebSockets e front
   seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor e `npm test` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 02/11/2026 (148/148).
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 03/11/2026 (156/156).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Prévia dos moradores em PNG, sem navegador: `npx tsx scripts/previa-moradores.ts <saida.png> [quantos|catalogo]`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com

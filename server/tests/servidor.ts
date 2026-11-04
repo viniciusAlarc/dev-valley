@@ -81,6 +81,7 @@ export async function subir(mundo: { projects?: Project[]; sessions?: WorldSessi
     internalSessions: new Set(),
     agentSessions: new Map(),
     avulsaSessions: new Set(),
+    porao: { registrarMaestro: proibido('porao.registrarMaestro'), maestroInstalado: proibido('porao.maestroInstalado') },
     askLibrarian: proibido('askLibrarian'),
     askAdministrador: proibido('askAdministrador'),
     sugerirMensagem: proibido('sugerirMensagem'),

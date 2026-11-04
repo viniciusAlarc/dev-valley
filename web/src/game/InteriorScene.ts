@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { activityOf, estadoLareira, getWorld, onWorld, type AgentSummary, type Project, type Session, type World } from '../api';
+import { activityOf, daCasa, estadoLareira, getWorld, onWorld, type AgentSummary, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, CONVERSA_DX, makeInteractive, TALK_Y, VillagerView } from './common';
-import { generateInteriorTextures, SEED_COLORS, SHELF_BOOKS } from './interiorTextures';
+import { generateInteriorTextures, generatePoraoTextures, SEED_COLORS, SHELF_BOOKS } from './interiorTextures';
 import type { Facing } from './villager';
 
 /** Visita de um morador a outro na sala: de onde saiu (para voltar) e para onde o visitado olhava. */
@@ -50,6 +50,8 @@ const FIREPLACE_Y = WALL_H + 10;
 const TRASH_X = W - 16;
 const TRASH_IN: [number, number][] = [[-4, -14], [0, -14], [4, -14], [-2, -17], [2, -17]];
 const TRASH_FLOOR: [number, number][] = [[-12, 0], [-19, -3], [-14, -7], [-25, 1]];
+/** Alçapão do porão (MA-1) no canto de baixo à esquerda, espelhando a lixeira: rente ao chão, quem passeia pisa nele. */
+const TRAPDOOR_X = 22;
 /** Mesinhas dos agentes do projeto na sala de estar: duas à direita do sofá, depois duas à esquerda (o sofá ocupa 116–172). */
 const AGENT_TABLE_X = [246, 210, 48, 84];
 
@@ -112,6 +114,7 @@ export class InteriorScene extends Phaser.Scene {
 
   create() {
     generateInteriorTextures(this);
+    generatePoraoTextures(this);
     this.cameras.main.setBackgroundColor('#1a120b');
     this.unsubscribe = onWorld((w) => this.applyWorld(w));
     const onResize = () => this.frameCamera();
@@ -124,6 +127,12 @@ export class InteriorScene extends Phaser.Scene {
     });
     this.input.keyboard!.on('keydown-ESC', () => {
       if (!ui.isPanelOpen()) this.leave();
+    });
+    // Voltando do porão: a placa do HUD volta a ser a da casa.
+    this.events.on(Phaser.Scenes.Events.WAKE, () => {
+      const p = this.project(getWorld());
+      if (p) ui.setLocation(p.name);
+      this.cameras.main.fadeIn(250);
     });
     this.applyWorld(getWorld());
     if (!this.instant) this.cameras.main.fadeIn(250);
@@ -143,6 +152,16 @@ export class InteriorScene extends Phaser.Scene {
     });
   }
 
+  /** Desce ao porão: a casa dorme (continua acompanhando o mundo) e acorda quando o porão fecha. */
+  private descer() {
+    ui.hideTooltip();
+    this.cameras.main.fadeOut(200);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.sleep();
+      this.scene.launch('porao', { projectId: this.projectId });
+    });
+  }
+
   private place(sessions: Session[]): Placement {
     const sorted = [...sessions].sort((a, b) => b.lastActivity - a.lastActivity);
     const live = sorted.filter((s) => s.live);
@@ -159,7 +178,7 @@ export class InteriorScene extends Phaser.Scene {
   applyWorld(world: World) {
     const project = this.project(world);
     if (!project) return this.leave();
-    const sessions = world.sessions.filter((s) => s.projectId === this.projectId);
+    const sessions = world.sessions.filter((s) => s.projectId === this.projectId && daCasa(s));
     const placement = this.place(sessions);
     placement.agents = world.agents.filter((a) => a.projectId === this.projectId && !a.managed).slice(0, AGENT_TABLE_X.length);
     const signature = JSON.stringify([
@@ -306,6 +325,19 @@ export class InteriorScene extends Phaser.Scene {
 
     const mat = this.prop('doormat', W / 2, H + 2);
     makeInteractive(mat, () => 'Sair (Esc)', () => this.leave());
+
+    // Alçapão do porão (MA-1): rente ao piso, abaixo do tapete e de quem passeia.
+    const alcapao = this.add.image(TRAPDOOR_X, H - 6, 'trapdoor').setOrigin(0.5, 1).setDepth(-14);
+    makeInteractive(
+      alcapao,
+      () => {
+        const doPorao = getWorld().sessions.filter((s) => s.projectId === this.projectId && s.porao);
+        const vivas = doPorao.filter((s) => s.live).length;
+        const resumo = doPorao.length ? ` — ${vivas} trabalhando agora, ${doPorao.length - vivas} encerrada(s)` : ' — vazio, o maestro espera um pedido';
+        return `Alçapão — porão do maestro, trabalho paralelo de sessões${resumo}`;
+      },
+      () => this.descer(),
+    );
 
     // ---- mesas de trabalho ----
     placement.desks.forEach((session, i) => {

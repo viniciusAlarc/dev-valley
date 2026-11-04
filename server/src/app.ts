@@ -17,6 +17,7 @@ import { arquivoPermitido, isLocalOrigin } from './seguranca.js';
 import type { Gasto } from './gasto.js';
 import type { askJornaleiro, Jornal } from './jornal.js';
 import type { Plugins } from './plugins.js';
+import { MAESTRO, type Porao } from './porao.js';
 import { skillInput, type Skills } from './skills.js';
 import type { StatusLineStore } from './statusline.js';
 import type { TerminalManager } from './terminals.js';
@@ -51,6 +52,8 @@ export interface Contexto {
   agentSessions: Map<string, { cwd: string; agent: string }>;
   /** Sessões avulsas novas (banco da praça), esperando o terminal abrir: nascem na home, fora de qualquer projeto. */
   avulsaSessions: Set<string>;
+  /** Porão da casa (MA-1): registro das sessões de maestro e se o agente está instalado. */
+  porao: Pick<Porao, 'registrarMaestro' | 'maestroInstalado'>;
   askLibrarian: typeof askLibrarian;
   askAdministrador: typeof askAdministrador;
   sugerirMensagem: typeof sugerirMensagem;
@@ -78,7 +81,7 @@ function sendIsolatedHtml(res: express.Response, doc: { path: string; kind: stri
 }
 
 export function criarApp(ctx: Contexto): express.Express {
-  const { terminals, lareiras, hooks, library, statusLine, moradores, agents, skills, plugins, gasto, jornal, internalSessions, agentSessions, avulsaSessions } = ctx;
+  const { terminals, lareiras, hooks, library, statusLine, moradores, agents, skills, plugins, gasto, jornal, internalSessions, agentSessions, avulsaSessions, porao } = ctx;
   const refreshWorld = ctx.refreshWorld;
   const findProject = (id: unknown): Project | undefined => ctx.world().projects.find((p) => p.id === id);
   let lastStatusLine: unknown = null;
@@ -141,6 +144,21 @@ export function criarApp(ctx: Contexto): express.Express {
     const sessionId = randomUUID();
     agentSessions.set(sessionId, { cwd: project?.path ?? os.homedir(), agent: Agents.cliName(agent) });
     res.json({ sessionId, projectId: project?.id ?? null, name: agent.name });
+  });
+
+  // Clique no maestro ✦ do porão: rodada nova, uma sessão com `--agent maestro` na pasta do projeto. A sessão é anotada
+  // no porao.json antes de o terminal abrir, para ela nunca aparecer na casa nem no mapa (MA-1, 03/11/2026).
+  app.post('/api/porao/maestro', async (req, res) => {
+    if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+    const project = findProject(req.body?.projectId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado.' });
+    if (!(await porao.maestroInstalado())) {
+      return res.status(409).json({ error: 'O agente maestro não está instalado: rode ~/Documents/IA/instalar.sh.' });
+    }
+    const sessionId = randomUUID();
+    await porao.registrarMaestro(sessionId, project.id);
+    agentSessions.set(sessionId, { cwd: project.path, agent: MAESTRO });
+    res.json({ sessionId, projectId: project.id });
   });
 
   app.delete('/api/agents', async (req, res) => {

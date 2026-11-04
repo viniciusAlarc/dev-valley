@@ -1,4 +1,4 @@
-import { activityOf, api, CONTEXT_CRITICAL, CONTEXT_WARN, getWorld, type Project } from '../api';
+import { activityOf, api, CONTEXT_CRITICAL, daCasa, CONTEXT_WARN, getWorld, type Project } from '../api';
 
 const contextLevel = (pct: number) => (pct >= CONTEXT_CRITICAL ? 'critical' : pct >= CONTEXT_WARN ? 'warning' : 'normal');
 import { villagerName } from '../game/names';
@@ -8,7 +8,7 @@ import { openTerminal } from './terminal';
 
 export function openProject(project: Project) {
   const panel = openPanel({ title: project.name, subtitle: project.path });
-  const sessions = getWorld().sessions.filter((s) => s.projectId === project.id);
+  const sessions = getWorld().sessions.filter((s) => s.projectId === project.id && daCasa(s));
 
   panel.body.innerHTML = `
     <dl class="facts">

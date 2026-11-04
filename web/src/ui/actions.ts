@@ -164,6 +164,17 @@ export const ui = {
     const description = agent.description.length > 140 ? `${agent.description.slice(0, 139)}…` : agent.description;
     openTerminal({ sessionId, projectId, title: `✦ ${name}`, agent: { subtitle: description ? `${where}: ${description}` : where } });
   },
+  /** Maestro ✦ do porão: rodada nova de trabalho paralelo no projeto, até 5 sessões, todas só no porão (MA-1). */
+  async abrirMaestro(project: Project) {
+    this.hideTooltip();
+    try {
+      const { sessionId, projectId } = await api.novoMaestro(project.id);
+      openTerminal({ sessionId, projectId, title: '✦ Maestro', agent: { subtitle: `Rodada nova em ${project.name}: diga o que precisa e ele divide entre até 5 sessões` } });
+    } catch (e) {
+      const panel = openPanel({ title: 'O maestro não pôde começar' });
+      panel.body.innerHTML = `<p>${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`;
+    }
+  },
   /** Banco da praça: sessão nova avulsa, na home (decisão do usuário, 27/10/2026). */
   async newAvulsa() {
     this.hideTooltip();

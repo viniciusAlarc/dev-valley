@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { bellCount, estadoLareira, gasto, jornal, type GastoView, type JornalView, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
+import { bellCount, daCasa, estadoLareira, gasto, jornal, type GastoView, type JornalView, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, CONVERSA_DX, label, makeInteractive, TALK_Y, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
@@ -581,7 +581,7 @@ export class TownScene extends Phaser.Scene {
       house,
       () => {
         const cur = this.currentProject(p.id);
-        const n = this.world.sessions.filter((s) => s.projectId === p.id).length;
+        const n = this.world.sessions.filter((s) => s.projectId === p.id && daCasa(s)).length;
         const urgent = urgentPendencias(cur).length;
         return `${cur.name}${cur.branch ? ` — ${cur.branch}` : ''}${cur.isGit ? '' : ' (sem git)'} · ${n} morador(es)${urgent ? ` · ❗ ${urgent} pendência(s) crítica(s)` : ''} — clique para entrar`;
       },
@@ -852,7 +852,7 @@ export class TownScene extends Phaser.Scene {
     view.plaque.setVisible(!!project.auditoria).setTexture(auditoriaVencida(project.auditoria) ? 'plaque-due' : 'plaque-ok');
     this.plantGarden(view, project);
     if (view.pombal) this.updatePombal(view.pombal, project);
-    const lit = this.world.sessions.some((s) => s.projectId === project.id && s.live);
+    const lit = this.world.sessions.some((s) => s.projectId === project.id && s.live && daCasa(s));
     for (const g of view.glows) {
       this.tweens.killTweensOf(g);
       this.tweens.add({ targets: g, alpha: lit ? 0.85 : 0, duration: 500 });

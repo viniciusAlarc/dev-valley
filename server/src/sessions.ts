@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { CLAUDE_PROJECTS_DIR } from './config.js';
+import { briefingDe } from './porao.js';
 
 export interface SessionInfo {
   id: string;
@@ -13,6 +14,8 @@ export interface SessionInfo {
   model: string | null;
   /** Caminho do `.jsonl` da conversa; null enquanto a sessão nova ainda não gravou nada. */
   file: string | null;
+  /** Sessão de trabalho de uma rodada do maestro (nasceu do briefing, ver porao.ts); null = sessão comum. */
+  briefing: { rodada: string; tarefa: string } | null;
 }
 
 interface CacheEntry {
@@ -55,7 +58,7 @@ function parseSession(id: string, raw: string, mtimeMs: number, file: string): S
   }
   if (!cwd) return null;
   const title = aiTitle ?? (lastPrompt ?? firstPrompt ?? 'Sessão sem título').slice(0, 80);
-  return { id, cwd, title, gitBranch, lastActivity: mtimeMs, contextTokens, model, file };
+  return { id, cwd, title, gitBranch, lastActivity: mtimeMs, contextTokens, model, file, briefing: briefingDe(firstPrompt) };
 }
 
 /**

@@ -21,6 +21,7 @@ import type { AgentSummary, Agents } from './agents.js';
 import type { Moradores } from './moradores.js';
 import { perfilDe, projectsDirs, type Perfil } from './perfil.js';
 import { listSessions, type SessionInfo } from './sessions.js';
+import type { PapelNoPorao, Porao } from './porao.js';
 
 export interface Project {
   id: string;
@@ -73,6 +74,8 @@ export interface WorldSession extends SessionInfo {
   status: SessionStatus | null;
   /** Janela de contexto usada. `estimated` = calculada do .jsonl, sem o status line. */
   context: { percent: number; tokens: number; window: number; estimated: boolean } | null;
+  /** Mora no porão da casa (maestro ou tarefa de uma rodada, ver porao.ts): não aparece no mapa nem na casa. */
+  porao: PapelNoPorao | null;
 }
 
 export interface World {
@@ -205,6 +208,7 @@ export async function buildWorld(
   moradores: Moradores,
   agents: Agents,
   skills: Skills,
+  porao: Pick<Porao, 'maestros'>,
 ): Promise<World> {
   const dirs = await discoverProjectDirs(config);
   // Uma checagem de portas por atualização, para todas as casas.
@@ -219,10 +223,11 @@ export async function buildWorld(
   for (const s of [...terminals.map((t) => ({ id: t.id, cwd: t.cwd, at: t.startedAt })), ...hooks.map((h) => ({ id: h.id, cwd: h.cwd, at: h.updatedAt }))]) {
     if (known.has(s.id) || !s.cwd) continue;
     known.add(s.id);
-    all.unshift({ id: s.id, cwd: s.cwd, title: 'Nova sessão', gitBranch: null, lastActivity: s.at, contextTokens: null, model: null, file: null });
+    all.unshift({ id: s.id, cwd: s.cwd, title: 'Nova sessão', gitBranch: null, lastActivity: s.at, contextTokens: null, model: null, file: null, briefing: null });
   }
 
   const guessed = guessWindows(all);
+  const maestros = await porao.maestros();
   const sessions: WorldSession[] = all.map((s) => {
     const hook = hookById.get(s.id);
     return {
@@ -236,6 +241,7 @@ export async function buildWorld(
       live: inTown.has(s.id) || !!hook,
       status: hook?.status ?? null,
       context: contextOf(s, statusLine, guessed),
+      porao: maestros.has(s.id) ? { papel: 'maestro' } : s.briefing ? { papel: 'tarefa', ...s.briefing } : null,
     };
   });
   await moradores.sync(sessions, projects);

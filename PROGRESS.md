@@ -3,13 +3,45 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-03 — Porão: sair da casa deixava a tela em branco
+
+**O que mudou:** bug da fase 2 apontado pelo usuário depois do reinício. O banco do porão usava o nome de textura
+`bench`, o mesmo do banco da praça; ao entrar numa casa, a geração das peças do porão apagava o da praça e o mapa
+quebrava ao acordar (`glTexture` de null), com ou sem descer ao porão. Bancos do porão viram `poraoBench` e
+`poraoBenchFront`; teste novo recusa nome de textura fixo repetido entre os arquivos de `web/src/game/`.
+**Arquivos:** `web/src/game/interiorTextures.ts`, `web/src/game/PoraoScene.ts`, `web/tests/texturas-unicas.test.ts`
+(novo), `RETRABALHO.md`.
+**Testes:** reproduzido no navegador (Edge sem janela, pela porta de depuração) e conferido com a correção num Vite
+avulso na porta 5199 ligado à vila no ar, sem build nem reinício: casa → Esc → mapa, sem erro no console. `npm test`
+156/156; tipos do servidor e do front sem erro.
+
+## 2026-11-03 — Maestro, fase 2: o porão na vila
+
+**O que mudou:** fase 2 do `docs-dev/a-codar/maestro.md`. Cada casa ganha um alçapão no chão (canto de baixo à
+esquerda); ele desce ao porão (`PoraoScene`): parede e piso de pedra, escada para voltar, o maestro ✦ de terno
+(combinação de pele e cabelo reservada) ao lado da estante de partitura, mesas para as sessões vivas da rodada (maestro e
+tarefas, com o rótulo `maestro`/`t1`…) e dois bancos para as encerradas (rodadas antigas, para reabrir). Clique no
+maestro = rodada nova: `POST /api/porao/maestro` anota a sessão no `porao.json` (em `~/.claude/dev-valley/`, criado no primeiro clique) antes de o terminal
+abrir com `--agent maestro` na pasta do projeto; sem o agente instalado, 409 com o comando do instalador. As sessões de
+trabalho entram no porão sozinhas, pelo primeiro prompt (a frase fixa do briefing, lida do `.jsonl` como o título).
+Quem é do porão leva a marca `porao` no mundo e sai do mapa, da casa e da escrivaninha; HUD e pombal continuam contando
+(aviso de permissão e de sessão viva antes do push). O maestro global sai da Fábrica e da praça.
+**Arquivos:** `server/src/porao.ts` (novo), `sessions.ts`, `world.ts`, `agents.ts`, `app.ts`, `index.ts`;
+`web/src/game/PoraoScene.ts` (novo), `InteriorScene.ts`, `interiorTextures.ts`, `villagerArt.ts`, `TownScene.ts`,
+`web/src/api.ts`, `web/src/ui/actions.ts`, `web/src/ui/project.ts`, `web/src/main.ts`; testes em
+`server/tests/porao.test.ts` (novo), `rotas-fabrica-biblioteca.test.ts`, `servidor.ts`.
+**Testes:** `npm test` 155/155 (148 antes); typecheck do servidor e do front (`tsc --noEmit`) sem erro; auditor sem
+achado novo. Prévia em PNG das peças novas (porão e alçapão) gerada fora do repositório, sem navegador. **Sem
+`npm run build`**: publicaria no `web/dist` o `hud.ts` em andamento de outra sessão. Falta: build e reinício pelo
+usuário (regra 6) e conferir na vila; conferido em 03/11/2026, depois da correção do banco (entrada acima).
+
 ## 2026-11-03 — Maestro, fase 1: o agente e a regra (no repositório IA)
 
 **O que mudou:** fase 1 do `docs-dev/a-codar/maestro.md`, feita fora deste repositório (o agente é universal). Em
-`~/Documents/IA`: `claude/agents/maestro.md` (etapas fixas da rodada, matriz de conflito, revisão por entrega e de
+`~/Documents/IA`: `~/Documents/IA/claude/agents/maestro.md` (etapas fixas da rodada, matriz de conflito, revisão por entrega e de
 integração, retomada, protocolo `[maestro] <id> <tarefa>: <TIPO>`, modelos de briefing e relatório); `instalar.sh`
 linka `claude/agents/*.md` em `~/.claude/agents/` sem sobrescrever agente alheio; seção "Sob o maestro" em
-`guardrails-ia/convivencia.md` e uma frase na G21. Estado da rodada em `~/.claude/maestro/rodadas/<id>/`. Falta o
+`~/Documents/IA/guardrails-ia/convivencia.md` e uma frase na G21. Estado da rodada em `~/.claude/maestro/rodadas/<id>/`. Falta o
 usuário rodar o `instalar.sh` e fazer a primeira rodada no modo manual.
 **Arquivos:** neste repositório, só `docs-dev/a-codar/maestro.md` (fase 1 marcada, tabela de arquivos de controle).
 **Testes:** passo novo do instalador testado em pasta temporária (agente novo, já linkado, alheio intocado);
