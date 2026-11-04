@@ -91,6 +91,11 @@ body {
   font-size: 15px;
 }
 
+/* Carta ✉️ quase branca no pergaminho: contorno escuro só no emoji (::first-letter), o número fica como está. */
+.hud-stats [title="Mudanças sem commit"]::first-letter {
+  text-shadow: 1px 0 0 #2b1d0e, -1px 0 0 #2b1d0e, 0 1px 0 #2b1d0e, 0 -1px 0 #2b1d0e;
+}
+
 .hud-help {
   position: fixed;
   bottom: 10px;
