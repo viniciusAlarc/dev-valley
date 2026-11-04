@@ -95,6 +95,13 @@ porão da casa onde isso acontece na vila. Decisões A–J e as 4 fases em `docs
 **Arquivos:** `docs-dev/a-codar/maestro.md`, `PENDENCIAS.md`.
 **Testes:** só documentação; nada a rodar.
 
+## 2026-11-03 — HUD: carta no lugar do pacote nas mudanças sem commit
+
+**O que mudou:** pedido do usuário, fora de plano. No canto superior direito, o contador de mudanças sem commit troca
+📦 por ✉️, o mesmo símbolo que o pombal já usa para as alterações locais (metáfora da carta por enviar).
+**Arquivos:** `web/src/ui/hud.ts`.
+**Testes:** `npm run build`.
+
 ## 2026-11-03 — README: `mod/` e `scripts/` na seção "Estrutura"
 
 **O que mudou:** a seção "Estrutura" do README listava só `server/` e `web/`; agora cita também o mod do Claude Code e

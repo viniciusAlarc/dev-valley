@@ -38,7 +38,7 @@ export function mountHud() {
     stats.innerHTML = `
       <span title="Projetos">🏠 ${w.projects.length}</span>
       <span title="Sessões ativas / total">🧑‍🌾 ${live}/${w.sessions.length}</span>
-      <span title="Mudanças sem commit">📦 ${changes}</span>
+      <span title="Mudanças sem commit">✉️ ${changes}</span>
       ${waiting.length ? `<span class="hud-alert" title="Sessões pedindo permissão">❗ ${waiting.length}</span>` : ''}`;
     document.title = waiting.length ? `(${waiting.length}) ❗ Dev Valley` : 'Dev Valley';
 
