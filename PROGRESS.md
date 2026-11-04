@@ -3,6 +3,37 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-03 — Rodada de teste do maestro: commits do que estava pendente
+
+**O que mudou:** rodada `20261103-1600-teste-commits`, 2 sessões só de leitura: uma propôs os commits, a outra conferiu
+o rastro da fase 4 contra o código. Viraram os commits `6548a8b` (HUD) e `bfe3019` (fase 4), com o rastro da fase 4
+corrigido antes. Relatório em `docs-dev/maestro/2026-11-03-teste-commits.md`; o bug achado no gongo virou o MA-2.
+**Arquivos:** `docs-dev/maestro/2026-11-03-teste-commits.md` (novo), `PROGRESS.md`, `PENDENCIAS.md`.
+**Testes:** `npm test` 168/168 e tipos sem erro (nenhum código mudou na rodada).
+
+## 2026-11-03 — Gongo do porão: encerrar sempre responde (MA-2)
+
+**O que mudou:** bug achado na rodada de teste (`docs-dev/maestro/2026-11-03-teste-commits.md`) e registrado como MA-2,
+que sai do `PENDENCIAS.md`. `POST /api/porao/encerrar` tinha `try/finally` sem `catch` num handler `async` do Express 4:
+erro ao fechar um terminal ou apagar uma conversa deixava a página sem resposta e o gongo travado. Agora para de apagar no
+erro, tira do `porao.json` o que já foi apagado e responde 500 com "Parou depois de apagar N de M conversa(s): motivo".
+**Arquivos:** `server/src/app.ts`, `server/tests/porao.test.ts`, `PENDENCIAS.md`, `CLAUDE.md`.
+**Testes:** teste novo do erro no meio; `npm test` 169/169; typecheck do servidor sem erro.
+
+## 2026-11-03 — Maestro simplificado: o usuário divide, o maestro só distribui e evita conflito
+
+**O que mudou:** pedido do usuário depois da rodada de teste "organizar os commits", que levou ~50 min (o maestro
+inventou uma auditoria de 22 min e o processo tinha ~26 min de custo fixo). Decisões no `docs-dev/a-codar/maestro.md`
+("Simplificação…"). O agente (`~/Documents/IA/claude/agents/maestro.md`) foi reescrito: recebe as tarefas já divididas,
+levanta os arquivos de cada uma, responde num bloco ✔ paralelo / ⏸ espera, escreve briefings curtos, pede as sessões
+(o clique no cartão é a única aprovação), responde `PEDIDO` com `LIBERADO`/`ESPERE` e, no fim, monta um relatório curto
+só com os `PRONTA`. Não planeja, não revisa, não testa, não commita; hora pelo `date`. Seção "Sob o maestro" do
+`convivencia.md` enxuta: a sessão trabalha como qualquer outra, só nos arquivos dela, anota o próprio rastro e não
+commita (o usuário commita pelo pombal). Código da vila sem mudança.
+**Arquivos:** `README.md`, `docs-dev/a-codar/maestro.md`; no repositório IA, `claude/agents/maestro.md`,
+`guardrails-ia/convivencia.md` e a linha da G21.
+**Testes:** só instruções e documentação; `npm test` para conferir que nada mudou.
+
 ## 2026-11-03 — Maestro, fase 4: alçapão aceso, ❗ no telhado, quadro de relatórios e gongo de encerrar
 
 **O que mudou:** fase 4 do `docs-dev/a-codar/maestro.md`. O alçapão da casa acende (luz pelas frestas) com rodada em

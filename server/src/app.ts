@@ -206,7 +206,10 @@ export function criarApp(ctx: Contexto): express.Express {
     const doPorao = ctx.world().sessions.filter((s) => s.projectId === project.id && s.porao);
     const fora = doPorao.filter((s) => s.live && !s.inTown);
     if (fora.length) return res.status(409).json({ error: `Aberta(s) em outro terminal: ${fora.map((s) => s.name || s.id).join(', ')}. Feche por lá primeiro.` });
+    // Sempre responde (MA-2): erro no meio para de apagar, mas o registro fica coerente com o que já foi apagado e a página
+    // recebe o motivo, em vez de o gongo ficar esperando para sempre (Express 4 não captura erro de handler async).
     const apagadas: string[] = [];
+    let falha: string | null = null;
     try {
       for (const s of doPorao) {
         await terminals.kill(s.id);
@@ -214,10 +217,16 @@ export function criarApp(ctx: Contexto): express.Express {
         hooks.forget(s.id);
         apagadas.push(s.id);
       }
-    } finally {
+    } catch (err) {
+      falha = String((err as Error)?.message ?? err);
+    }
+    try {
       await porao.esquecer(project.id, apagadas);
       await refreshWorld();
+    } catch (err) {
+      falha ??= String((err as Error)?.message ?? err);
     }
+    if (falha) return res.status(500).json({ error: `Parou depois de apagar ${apagadas.length} de ${doPorao.length} conversa(s): ${falha}`, apagadas: apagadas.length });
     res.json({ apagadas: apagadas.length });
   });
 

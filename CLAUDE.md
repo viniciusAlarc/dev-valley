@@ -65,7 +65,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
   `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 50 rotas e o pombal; WebSockets e front
   seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor e `npm test` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 03/11/2026 (168/168).
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 03/11/2026 (169/169).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Prévia dos moradores em PNG, sem navegador: `npx tsx scripts/previa-moradores.ts <saida.png> [quantos|catalogo]`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com

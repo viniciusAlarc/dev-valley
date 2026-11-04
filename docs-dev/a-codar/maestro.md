@@ -174,6 +174,23 @@ maestros na tela, e uma mesa a menos para as tarefas. Decidido:
       Conversas de rodadas antigas do maestro não aparecem no porão; o registro fica no relatório.
 - [x] **Cinco mesas fixas, só das tarefas** (o teto), vazias até o cartão ser aprovado. O maestro nunca contou no teto.
 
+### Simplificação depois da segunda rodada (decisão do usuário, 03/11/2026)
+
+A rodada de teste "organizar os commits" levou ~50 min, mais do que fazer sem paralelo: o maestro inventou uma auditoria
+que ninguém pediu (t2, 22 min), e o processo tinha ~26 min de custo fixo (planejar, linha de base, briefings, três
+aprovações, commits). Decidido: **simplificar ao máximo.**
+
+- [x] **O usuário divide as tarefas**; o maestro só confere conflito por arquivo e distribui (✔ paralelo / ⏸ espera).
+- [x] **Uma aprovação só:** o clique em "Abrir" no cartão do porão.
+- [x] Sai do maestro: planejar, linha de base, revisão por entrega e de integração, gate, `rodada.json`, arquivos de
+      devolutiva, "cheguei"; mensagens ficam em `PEDIDO`, `LIBERADO`/`ESPERE`/`PARE` e `PRONTA`.
+- [x] **Cada sessão anota o próprio rastro** (`PROGRESS.md`, `PENDENCIAS.md`, somando) e **não commita**: o usuário
+      commita pelo pombal.
+- [x] **O relatório fica, leve:** montado só com os `PRONTA`, sem reler código (o usuário quer ver se não pesa).
+- [x] Hora dos registros pelo `date` (o maestro tinha escrito horários inventados).
+- Agente reescrito (`~/Documents/IA/claude/agents/maestro.md`, de 305 para ~90 linhas) e seção "Sob o maestro" do
+  `convivencia.md` enxuta. As decisões A, C e D e as regras do maestro acima ficam valendo só no que não contradiz isto.
+
 ### Fase 4: avisos, relatório e encerramento
 
 - [x] Alçapão aceso (luz pelas frestas) com rodada em andamento, e ❗ quando alguém do porão pede permissão ou o cartão

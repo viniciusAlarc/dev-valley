@@ -205,7 +205,7 @@ describe('readRelatorios: quadro de relatórios do porão', () => {
 describe('POST /api/porao/encerrar', () => {
   const PAGINA = 'http://localhost:4777';
 
-  async function vilaComRodada(nome: string, maestroFora = false) {
+  async function vilaComRodada(nome: string, maestroFora = false, falharEm: string | null = null) {
     const dir = await projeto({});
     const porao = await poraoComMaestro(nome, ['t1']);
     const pedido = await porao.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1'] }, 5);
@@ -224,7 +224,10 @@ describe('POST /api/porao/encerrar', () => {
       {
         porao,
         terminals: { kill: async (id: string) => void mortas.push(id) },
-        apagarConversa: async (id: string) => void apagadas.push(id),
+        apagarConversa: async (id: string) => {
+          if (id === falharEm) throw new Error('disco ocupado');
+          apagadas.push(id);
+        },
         hooks: { handle: async () => {}, forget: () => {} } as never,
       },
     );
@@ -250,5 +253,15 @@ describe('POST /api/porao/encerrar', () => {
     const fora = await vilaComRodada('encerrar-fora', true);
     assert.equal((await fora.s.enviar('POST', '/api/porao/encerrar', { projectId: 'p' }, PAGINA)).status, 409);
     assert.deepEqual([...apagadas, ...fora.apagadas], []);
+  });
+
+  test('erro no meio (MA-2): responde 500 com o motivo, e o que já foi apagado sai do registro', async () => {
+    const { s, porao, apagadas } = await vilaComRodada('encerrar-erro', false, 't1');
+    const r = await s.enviar('POST', '/api/porao/encerrar', { projectId: 'p' }, PAGINA);
+    assert.equal(r.status, 500);
+    const corpo = await r.json();
+    assert.match(corpo.error, /Parou depois de apagar 1 de 2 conversa\(s\): disco ocupado/);
+    assert.deepEqual(apagadas, ['m1']);
+    assert.equal((await porao.maestros()).has('m1'), false);
   });
 });
