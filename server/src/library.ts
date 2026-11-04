@@ -2,7 +2,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { writeCatalog } from './catalog.js';
-import { CLAUDE_PROJECTS_DIR, type Config } from './config.js';
+import type { Config } from './config.js';
+import { projectsDirs } from './perfil.js';
 import type { Project } from './world.js';
 
 /**
@@ -100,23 +101,30 @@ async function scan(config: Config, projects: Project[]): Promise<Section[]> {
     files: globalMd ? [{ ...globalMd, rel: 'CLAUDE.md' }] : [],
   });
 
-  let memoryDirs: string[] = [];
-  try {
-    memoryDirs = await fs.readdir(CLAUDE_PROJECTS_DIR);
-  } catch {
-    // sem sessões ainda
-  }
-  for (const dir of memoryDirs.sort()) {
-    const base = path.join(CLAUDE_PROJECTS_DIR, dir, 'memory');
-    const files = await walkBooks(base);
-    if (!files.length) continue;
-    const project = projects.find((p) => encodeProjectDir(p.path) === dir);
-    const title = project
-      ? `Memórias — ${project.name}`
-      : dir === encodeProjectDir(home)
-        ? 'Memórias — pasta pessoal (~)'
-        : `Memórias — ${dir.replace(encodeProjectDir(home), '~').replace(/-/g, '/')}`;
-    sections.push({ id: `memory:${dir}`, title, kind: 'memory', base, projectId: project?.id, files });
+  // Memórias de cada perfil do Claude Code (PP-2): o de trabalho mantém os ids e títulos de sempre; o pessoal ganha
+  // prefixo no id (a mesma pasta de projeto pode existir nos dois perfis) e no título.
+  for (const [i, projectsDir] of projectsDirs(config).entries()) {
+    const pessoal = i > 0;
+    let memoryDirs: string[] = [];
+    try {
+      memoryDirs = await fs.readdir(projectsDir);
+    } catch {
+      // sem sessões ainda
+    }
+    for (const dir of memoryDirs.sort()) {
+      const base = path.join(projectsDir, dir, 'memory');
+      const files = await walkBooks(base);
+      if (!files.length) continue;
+      const project = projects.find((p) => encodeProjectDir(p.path) === dir);
+      const onde = project
+        ? project.name
+        : dir === encodeProjectDir(home)
+          ? 'pasta pessoal (~)'
+          : dir.replace(encodeProjectDir(home), '~').replace(/-/g, '/');
+      const id = pessoal ? `memory:pessoal:${dir}` : `memory:${dir}`;
+      const title = pessoal ? `Memórias do perfil pessoal — ${onde}` : `Memórias — ${onde}`;
+      sections.push({ id, title, kind: 'memory', base, projectId: project?.id, files });
+    }
   }
 
   for (const p of projects) {
