@@ -1,6 +1,6 @@
 # Auditor de referências (G12/G16): falha quando CLAUDE.md, agente ou skill aponta para arquivo que não existe.
 # --sem-home: caminhos ~/ são da máquina do usuário e não existem aqui.
-# Testes (PD-8): typecheck do servidor e npm test. Os testes não usam rede, a pasta pessoal nem o git do usuário.
+# Testes (PD-8): typecheck do servidor, npm test e build do front. Os testes não usam rede, a pasta pessoal nem o git do usuário.
 name: CI (auditor e testes)
 
 on:
@@ -33,3 +33,6 @@ jobs:
         run: npm run typecheck -w server
       - name: Testes
         run: npm test
+      # Build do front (tsc + vite build): completa o gate de fechamento do CLAUDE.md.
+      - name: Build do front
+        run: npm run build

@@ -3,6 +3,16 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-05 — CI do GitHub volta a ficar verde e passa a rodar o build do front
+
+**O que mudou:** o job `auditar` falhava desde 29/10 (13 de 14 execuções): a pasta `docs-dev/a-codar/` ficou vazia e o
+git não versiona pasta vazia, então no runner ela não existia e o auditor acusava 5 referências mortas de nível ALTO
+(`CLAUDE.md`, `server/agents/administrador.md`). Na máquina passava. Entrou `docs-dev/a-codar/.gitkeep`. O job `testes`
+ganhou o passo `npm run build`, fechando no CI o mesmo gate do `CLAUDE.md` (typecheck + testes + build).
+**Arquivos:** `docs-dev/a-codar/.gitkeep` (novo), `.github/workflows/auditor.yml`, `CLAUDE.md` (linha do CI), `PROGRESS.md`.
+**Testes:** antes e depois, na máquina: `npm test` 213/213, typecheck e build sem erro, auditor saída 0 (restam 2 avisos
+informativos em entradas antigas do `PROGRESS.md`, sobre um arquivo da estante que não existe mais). O CI de verdade só confirma depois do push.
+
 ## 2026-11-03 — Rodada de teste do maestro: commits do que estava pendente
 
 **O que mudou:** rodada `20261103-1600-teste-commits`, 2 sessões só de leitura: uma propôs os commits, a outra conferiu
