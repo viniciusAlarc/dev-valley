@@ -1,9 +1,9 @@
-import { agents, api, getWorld, type AgentSummary, type PedidoPorao, type GastoView, type JornalView, type Project, type Session, type World } from '../api';
+import { agents, api, getWorld, rodadaConduzindo, type AgentSummary, type PedidoPorao, type GastoView, type JornalView, type Project, type Session, type World } from '../api';
 import { villagerName } from '../game/names';
 import { openConferir } from './conferir';
 import { openGuardrails } from './guardrails';
 import { openLibrary } from './library';
-import { openAdministrador, openJornaleiro, openLibrarian } from './librarian';
+import { openAdministrador, openJornaleiro, openLibrarian, openMirim } from './librarian';
 import { escapeHtml, isPanelOpen, openPanel } from './panel';
 import { openDiary } from './diario';
 import { openFactory } from './factory';
@@ -15,7 +15,8 @@ import { openRetrabalho } from './retrabalho';
 import { openSementes } from './sementes';
 import { openQuadro } from './quadro';
 import { openPombal } from './pombal';
-import { openEncerrarRodada, openPedidoPorao, openRelatorios } from './porao';
+import { openEncerrarRodada, openPedidoPorao } from './porao';
+import { openRelatorios } from './relatorios';
 import { openLareira } from './lareira';
 import { openSkills } from './skills';
 import { openPlugins } from './plugins';
@@ -174,7 +175,25 @@ export const ui = {
     // Aberta em outro terminal (VS Code): o mesmo aviso de sempre, para não ter dois processos na mesma conversa.
     if (!ativo.inTown) return this.openSession(ativo);
     this.hideTooltip();
-    openTerminal({ sessionId: ativo.id, projectId: ativo.projectId, title: '✦ Maestro', agent: { subtitle: `Rodada em andamento em ${project.name}` } });
+    const world = getWorld();
+    const chamou = ativo.id in world.maestroChamando;
+    const abrir = (somenteLeitura: boolean) =>
+      openTerminal({
+        sessionId: ativo.id,
+        projectId: ativo.projectId,
+        title: '✦ Maestro',
+        somenteLeitura,
+        agent: { subtitle: somenteLeitura ? `Regendo a rodada em ${project.name}: só para ver` : `Rodada em andamento em ${project.name}` },
+      });
+    // Regendo e sem precisar de você (decisão do usuário, 04/11/2026): o clique vai para o mirim; o maestro, só para ver.
+    if (rodadaConduzindo(world, project.id) && !chamou && ativo.status !== 'permission') return openMirim(project, () => abrir(true));
+    if (chamou) void api.atenderChamado(ativo.id).catch(() => {});
+    abrir(false);
+  },
+  /** Maestro mirim do porão: dúvidas sobre a rodada, só lendo (04/11/2026). */
+  openMirim(project: Project) {
+    this.hideTooltip();
+    openMirim(project);
   },
   /** Maestro ✦ do porão: rodada nova de trabalho paralelo no projeto, até 5 sessões, todas só no porão (MA-1). */
   async abrirMaestro(project: Project) {
@@ -187,7 +206,7 @@ export const ui = {
       panel.body.innerHTML = `<p>${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`;
     }
   },
-  /** Quadro do porão: os relatórios das rodadas (`docs-dev/maestro/`), abrindo no leitor. */
+  /** Estante de partitura do porão: os relatórios das rodadas (`docs-dev/maestro/`), abrindo no leitor. */
   openRelatorios(project: Project) {
     this.hideTooltip();
     openRelatorios(project);

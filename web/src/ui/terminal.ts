@@ -11,12 +11,20 @@ import { button, openPanel } from './panel';
  * Fechar o painel só desconecta — a sessão continua viva no servidor.
  */
 /** `agent`: conversa com agente da Fábrica, com o cabeçalho dos agentes da vila ("✦ Nome" e o que ele faz), sem o nome de morador. */
-export function openTerminal(opts: { sessionId: string; projectId?: string | null; title: string; agent?: { subtitle: string } }) {
+export function openTerminal(opts: {
+  sessionId: string;
+  projectId?: string | null;
+  title: string;
+  agent?: { subtitle: string };
+  /** Só para ver: o teclado não chega ao processo (o maestro regendo, 04/11/2026). */
+  somenteLeitura?: boolean;
+}) {
   let ws: WebSocket | null = null;
   const term = new Terminal({
     fontFamily: '"Cascadia Mono", "Cascadia Code", Consolas, "DejaVu Sans Mono", monospace',
     fontSize: 14,
-    cursorBlink: true,
+    cursorBlink: !opts.somenteLeitura,
+    disableStdin: !!opts.somenteLeitura,
     allowProposedApi: true,
     theme: {
       background: '#1f1a14',
@@ -70,7 +78,12 @@ export function openTerminal(opts: { sessionId: string; projectId?: string | nul
       button('Cancelar', showEnd),
     );
   };
-  showEnd();
+  if (opts.somenteLeitura) {
+    const aviso = document.createElement('span');
+    aviso.className = 'agent-confirm';
+    aviso.textContent = 'Só para ver: ele está regendo. Dúvidas, com o mirim.';
+    panel.actions.replaceChildren(aviso);
+  } else showEnd();
 
   const host = document.createElement('div');
   host.className = 'terminal-host';
@@ -86,7 +99,7 @@ export function openTerminal(opts: { sessionId: string; projectId?: string | nul
   ws.onclose = (ev) => {
     if (ev.reason) term.write(`\r\n\x1b[31m[${ev.reason}]\x1b[0m\r\n`);
   };
-  term.onData((d) => ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ t: 'in', d })));
+  if (!opts.somenteLeitura) term.onData((d) => ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ t: 'in', d })));
   term.onResize(({ cols, rows }) => ws?.readyState === WebSocket.OPEN && ws.send(JSON.stringify({ t: 'resize', cols, rows })));
   ws.onopen = () => ws?.send(JSON.stringify({ t: 'resize', cols: term.cols, rows: term.rows }));
   term.focus();

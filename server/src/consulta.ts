@@ -34,6 +34,11 @@ export interface AgentQuery {
   preamble?: string;
   /** Permissões extras além das ferramentas do agente (ex.: `Edit(//caminho/PROGRESS.md)`). */
   allow?: string[];
+  /**
+   * Só o que está liberado vale, nada é aprovado por classificador (`--permission-mode default`; no `-p` o resto é
+   * negado). O maestro mirim usa: só lê, mesmo com o modo `auto` no settings do usuário (04/11/2026).
+   */
+  estrito?: boolean;
   stepFor: (tool: string, input: any) => string;
 }
 
@@ -73,11 +78,12 @@ export function argsDaConsulta(
   prompt: string,
   sessionId: string,
   allow: string[] = [],
+  estrito = false,
 ): string[] {
   const base = ['-p', prompt, '--agents', JSON.stringify({ [name]: agent }), '--agent', name, '--session-id', sessionId];
-  const fixos = ['--no-session-persistence', '--output-format', 'stream-json', '--verbose'];
-  // Edit nunca vai liberado inteiro: só os caminhos de `allow` (o resto é negado, sem diálogo no -p).
-  const liberadas = [...agent.tools.filter((t) => t !== 'Edit'), ...allow];
+  const fixos = ['--no-session-persistence', '--output-format', 'stream-json', '--verbose', ...(estrito ? ['--permission-mode', 'default'] : [])];
+  // Edit e Bash nunca vão liberados inteiros: só as regras de `allow` (o resto é negado, sem diálogo no -p).
+  const liberadas = [...agent.tools.filter((t) => t !== 'Edit' && t !== 'Bash'), ...allow];
   if (!agent.tools.length && !allow.length) return [...base, ...fixos, '--tools', ''];
   return [...base, ...fixos, '--allowedTools', ...liberadas];
 }
@@ -95,7 +101,7 @@ export function askAgent(
   const agent = agentDefinition(query.name, query.replacements);
   const child = spawn(
     'claude',
-    argsDaConsulta(query.name, agent, buildPrompt(question, history, query.preamble), sessionId, query.allow),
+    argsDaConsulta(query.name, agent, buildPrompt(question, history, query.preamble), sessionId, query.allow, query.estrito),
     { cwd: os.homedir(), env: process.env, stdio: ['ignore', 'pipe', 'pipe'] },
   );
 

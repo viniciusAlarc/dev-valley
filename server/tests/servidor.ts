@@ -50,7 +50,7 @@ export interface Servidor {
 
 /** Sobe o `app` numa porta livre de 127.0.0.1 com um mundo de mentira; fecha sozinho no fim do arquivo de teste. */
 export async function subir(mundo: { projects?: Project[]; sessions?: WorldSession[]; conversas?: World['conversas'] }, extra: Partial<Contexto> = {}): Promise<Servidor> {
-  const world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], ...mundo };
+  const world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, ...mundo };
   const ctx: Contexto = {
     world: () => world,
     refreshWorld: async () => {},
@@ -90,11 +90,16 @@ export async function subir(mundo: { projects?: Project[]; sessions?: WorldSessi
       aprovar: proibido('porao.aprovar'),
       recusar: proibido('porao.recusar'),
       esquecer: proibido('porao.esquecer'),
+      chamar: proibido('porao.chamar'),
+      atender: proibido('porao.atender'),
     },
+    relatoriosLidos: { marcar: proibido('relatoriosLidos.marcar') },
     tetoSessoes: 5,
     abrirTarefa: proibido('abrirTarefa'),
+    leituraPorao: [],
     askLibrarian: proibido('askLibrarian'),
     askAdministrador: proibido('askAdministrador'),
+    askMirim: proibido('askMirim'),
     sugerirMensagem: proibido('sugerirMensagem'),
     apagarConversa: proibido('apagarConversa'),
     abrirVscode: proibido('abrirVscode'),

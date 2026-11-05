@@ -11,6 +11,8 @@ export interface SpawnOpts {
   agent?: string;
   /** Primeira mensagem da sessão nova. */
   prompt?: string;
+  /** Regras `--allowedTools` da sessão nova (sessão de trabalho do porão: só os arquivos e testes da tarefa). */
+  permitir?: string[];
   cols: number;
   rows: number;
   env?: Record<string, string | undefined>;
@@ -20,6 +22,21 @@ interface Terminal extends LiveSession {
   pty: IPty;
   buffer: string;
   clients: Set<WebSocket>;
+}
+
+/**
+ * Argumentos do `claude` de um terminal da vila. As regras de `--allowedTools` vão por último: a opção aceita vários
+ * valores e engoliria a primeira mensagem se ela viesse depois.
+ */
+export function argsDoTerminal(opts: Pick<SpawnOpts, 'sessionId' | 'mode' | 'agent' | 'prompt' | 'permitir'>): string[] {
+  const args = opts.mode === 'resume' ? ['--resume', opts.sessionId] : ['--session-id', opts.sessionId];
+  if (opts.mode !== 'new') return args;
+  // Conversa com um agente da Fábrica: o próprio agente é quem responde na sessão.
+  if (opts.agent) args.push('--agent', opts.agent);
+  // Primeira mensagem já digitada (sessão de trabalho do porão: a frase do briefing).
+  if (opts.prompt) args.push(opts.prompt);
+  if (opts.permitir?.length) args.push('--allowedTools', ...opts.permitir);
+  return args;
 }
 
 /**
@@ -92,12 +109,7 @@ export class TerminalManager {
   }
 
   private spawn(opts: SpawnOpts): Terminal {
-    const args = opts.mode === 'resume' ? ['--resume', opts.sessionId] : ['--session-id', opts.sessionId];
-    // Conversa com um agente da Fábrica: o próprio agente é quem responde na sessão.
-    if (opts.mode === 'new' && opts.agent) args.push('--agent', opts.agent);
-    // Primeira mensagem já digitada (sessão de trabalho do porão: a frase do briefing).
-    if (opts.mode === 'new' && opts.prompt) args.push(opts.prompt);
-    const proc = pty.spawn('claude', args, {
+    const proc = pty.spawn('claude', argsDoTerminal(opts), {
       name: 'xterm-256color',
       cols: opts.cols,
       rows: opts.rows,

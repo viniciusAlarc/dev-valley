@@ -10,6 +10,8 @@ import { projeto } from './util.js';
 // Porão da casa (MA-1): quem é do porão e a rota que abre uma rodada com o maestro. Registro e agente em pasta temporária.
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'dev-valley-porao-'));
 after(() => fs.rmSync(TMP, { recursive: true, force: true }));
+/** Pasta do projeto do maestro nos testes de `pedir` (só serve de base para os arquivos liberados). */
+const PASTA = path.join(TMP, 'casa');
 
 describe('briefingDe: sessão de trabalho de uma rodada, pelo primeiro prompt', () => {
   test('a frase do maestro, com ~ ou caminho absoluto, dá a rodada e a tarefa', () => {
@@ -90,27 +92,27 @@ describe('Porao.pedir e aprovar (fase 3)', () => {
 
   test('só o maestro anotado pede; nome inválido, tarefa repetida ou briefing faltando: recusado', async () => {
     const p = await poraoComMaestro('pedir', ['t1']);
-    assert.deepEqual(await p.pedir({ maestro: 'outro', rodada: 'r1', tarefas: ['t1'] }, 5), { erro: 'Só o maestro aberto no porão pede sessões.', status: 403 });
-    assert.equal(((await p.pedir({ maestro: 'm1', rodada: '../x', tarefas: ['t1'] }, 5)) as { status: number }).status, 400);
-    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1', 't1'] }, 5)) as { status: number }).status, 400);
-    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [] }, 5)) as { status: number }).status, 400);
-    assert.match(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t9'] }, 5)) as { erro: string }).erro, /Falta o briefing/);
+    assert.deepEqual(await p.pedir({ maestro: 'outro', rodada: 'r1', tarefas: ['t1'] }, 5, PASTA), { erro: 'Só o maestro aberto no porão pede sessões.', status: 403 });
+    assert.equal(((await p.pedir({ maestro: 'm1', rodada: '../x', tarefas: ['t1'] }, 5, PASTA)) as { status: number }).status, 400);
+    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1', 't1'] }, 5, PASTA)) as { status: number }).status, 400);
+    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [] }, 5, PASTA)) as { status: number }).status, 400);
+    assert.match(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t9'] }, 5, PASTA)) as { erro: string }).erro, /Falta o briefing/);
     assert.equal(p.pedidosAbertos().length, 0);
   });
 
   test('teto: conta as sessões que a rodada já tem mais as pedidas', async () => {
     const p = await poraoComMaestro('teto', ['t1', 't2', 't3']);
-    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1', 't2', 't3'] }, 2)) as { status: number }).status, 409);
-    const um = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1'] }, 2);
+    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1', 't2', 't3'] }, 2, PASTA)) as { status: number }).status, 409);
+    const um = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1'] }, 2, PASTA);
     assert.ok(!('erro' in um));
     await p.aprovar(um.id, async () => null);
-    assert.ok(!('erro' in (await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t2'] }, 2))));
-    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t3'] }, 2)) as { status: number }).status, 409, 'uma aberta + uma pedida = teto');
+    assert.ok(!('erro' in (await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t2'] }, 2, PASTA))));
+    assert.equal(((await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t3'] }, 2, PASTA)) as { status: number }).status, 409, 'uma aberta + uma pedida = teto');
   });
 
   test('aprovar abre uma sessão por tarefa com a frase do briefing, anotada antes; a que não abriu sai do registro', async () => {
     const p = await poraoComMaestro('aprovar', ['t1', 't2']);
-    const pedido = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1', 't2'] }, 5);
+    const pedido = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1', 't2'] }, 5, PASTA);
     assert.ok(!('erro' in pedido));
     assert.equal(pedido.projectId, 'p');
     const abertas: { id: string; prompt: string; anotada: boolean }[] = [];
@@ -179,6 +181,130 @@ describe('Rotas do pedido (fase 3)', () => {
   });
 });
 
+// ---------------- permissões da tarefa (04/11/2026) ----------------
+
+describe('validarPermissoes: o que o maestro pode liberar para uma sessão de trabalho', () => {
+  test('arquivos relativos ao projeto, normalizados e sem repetição; testes sem repetição; sem testes = nenhum', async () => {
+    const { validarPermissoes } = await import('../src/porao.js');
+    assert.deepEqual(validarPermissoes(PASTA, 't1', ['./server/a.ts', 'server/a.ts', 'web/b.ts', 'PROGRESS.md'], ['npm test', 'npm test', 'npm run typecheck -w server']), {
+      arquivos: ['server/a.ts', 'web/b.ts', 'PROGRESS.md'],
+      testes: ['npm test', 'npm run typecheck -w server'],
+    });
+    assert.deepEqual(validarPermissoes(PASTA, 't1', ['a.ts'], undefined), { arquivos: ['a.ts'], testes: [] });
+    assert.deepEqual(validarPermissoes(PASTA, 't1', ['a.ts'], ['./mvnw test', 'npx tsc --noEmit -p web', 'pytest tests/x_test.py']), {
+      arquivos: ['a.ts'],
+      testes: ['./mvnw test', 'npx tsc --noEmit -p web', 'pytest tests/x_test.py'],
+    });
+  });
+
+  test('recusa arquivo fora do projeto, com curinga, em .git/.claude ou .env, e lista vazia ou grande demais', async () => {
+    const { validarPermissoes, MAX_ARQUIVOS } = await import('../src/porao.js');
+    const recusa = (arquivos: unknown) => assert.equal(typeof validarPermissoes(PASTA, 't1', arquivos, []), 'string', JSON.stringify(arquivos));
+    for (const a of ['/etc/passwd', '../fora.ts', 'a/../../fora.ts', '*.ts', 'src/**', 'a?.ts', 'x[1].ts', 'x{a}.ts', 'Edit(x)', 'a\\b', 'a\nb', '', '.', 'x'.repeat(201)]) recusa([a]);
+    for (const a of ['.git/config', 'sub/.git/HEAD', '.claude/settings.json', '.claude/settings.local.json', '.env', 'config/.env.local']) recusa([a]);
+    recusa([]);
+    recusa('server/a.ts');
+    recusa([1]);
+    recusa(Array.from({ length: MAX_ARQUIVOS + 1 }, (_, i) => `f${i}.ts`));
+    assert.equal(typeof validarPermissoes(PASTA, 't1', Array.from({ length: MAX_ARQUIVOS }, (_, i) => `f${i}.ts`), []), 'object', 'o teto exato passa');
+  });
+
+  test('recusa comando com o que o shell interpreta, comando perigoso e lista grande demais', async () => {
+    const { validarPermissoes, MAX_TESTES } = await import('../src/porao.js');
+    const recusa = (testes: unknown) => assert.equal(typeof validarPermissoes(PASTA, 't1', ['a.ts'], testes), 'string', JSON.stringify(testes));
+    for (const t of ['npm test; rm -rf /', 'npm test && curl x', 'npm test | sh', 'npm test > /tmp/x', 'echo $(id)', 'echo `id`', '"npm test"', "npm 'test'", 'npm test\nrm x', 'npm  test', ' ', 'npm test *', 'x'.repeat(121)]) recusa([t]);
+    for (const t of ['rm -rf .', 'git status', 'gh pr list', '/usr/bin/curl x', 'bash -c x', 'sudo npm test', 'docker compose up', 'psql -c x', 'claude -p x', 'find . -delete']) recusa([t]);
+    recusa('npm test');
+    recusa([7]);
+    recusa(Array.from({ length: MAX_TESTES + 1 }, (_, i) => `npm run t${i}`));
+  });
+
+  test('regras: ler a rodada e o config, editar só os arquivos (absolutos), rodar só os testes com qualquer argumento', async () => {
+    const { regrasDaTarefa } = await import('../src/porao.js');
+    assert.deepEqual(regrasDaTarefa('/casa/proj', '/home/u/.claude/maestro/rodadas/r1', { arquivos: ['server/a.ts', 'PROGRESS.md'], testes: ['npm test'] }, ['/home/u/regras/**']), [
+      'Read(//home/u/.claude/maestro/rodadas/r1/**)',
+      'Read(//home/u/regras/**)',
+      'Edit(//casa/proj/server/a.ts)',
+      'Edit(//casa/proj/PROGRESS.md)',
+      'Bash(npm test:*)',
+    ]);
+  });
+});
+
+describe('Porao.pedir e aprovar com permissões', () => {
+  test('tarefa com { id, arquivos, testes } guarda as permissões; nome sozinho continua valendo, sem permissão', async () => {
+    const p = await poraoComMaestro('perm-pedir', ['t1', 't2']);
+    const pedido = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [{ id: 't1', arquivos: ['a.ts'], testes: ['npm test'] }, 't2'] }, 5, PASTA);
+    assert.ok(!('erro' in pedido));
+    assert.deepEqual(pedido.tarefas, ['t1', 't2']);
+    assert.deepEqual(pedido.permissoes, { t1: { arquivos: ['a.ts'], testes: ['npm test'] } });
+    assert.equal(pedido.pasta, PASTA);
+  });
+
+  test('uma tarefa com arquivo ou comando recusado derruba o pedido inteiro, com o motivo', async () => {
+    const p = await poraoComMaestro('perm-recusa', ['t1', 't2']);
+    const r1 = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [{ id: 't1', arquivos: ['a.ts'] }, { id: 't2', arquivos: ['.claude/settings.json'] }] }, 5, PASTA);
+    assert.deepEqual([(r1 as { status: number }).status, /t2: \.claude\/settings\.json/.test((r1 as { erro: string }).erro)], [400, true]);
+    const r2 = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [{ id: 't1', arquivos: ['a.ts'], testes: ['npm test && rm -rf ~'] }] }, 5, PASTA);
+    assert.equal((r2 as { status: number }).status, 400);
+    const r3 = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [{ id: '../t1', arquivos: ['a.ts'] }] }, 5, PASTA);
+    assert.equal((r3 as { status: number }).status, 400);
+    const r4 = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [{ id: 't1', arquivos: ['a.ts'] }, 't1'] }, 5, PASTA);
+    assert.equal((r4 as { status: number }).status, 400, 'tarefa repetida, mesmo misturando os dois jeitos');
+    assert.equal(p.pedidosAbertos().length, 0);
+  });
+
+  test('aprovar abre cada sessão com as regras dela; a sem permissão abre sem regra nenhuma', async () => {
+    const { regrasDaTarefa } = await import('../src/porao.js');
+    const p = await poraoComMaestro('perm-aprovar', ['t1', 't2']);
+    const pedido = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [{ id: 't1', arquivos: ['a.ts'], testes: ['npm test'] }, 't2'] }, 5, PASTA);
+    assert.ok(!('erro' in pedido));
+    const abertas = new Map<string, string[]>();
+    await p.aprovar(pedido.id, async (_id, prompt, permitir) => (abertas.set(prompt.match(/(t\d)\.md$/)![1]!, permitir), null), ['/regras/**']);
+    assert.deepEqual(abertas.get('t1'), regrasDaTarefa(PASTA, path.join(TMP, 'perm-aprovar', 'rodadas', 'r1'), { arquivos: ['a.ts'], testes: ['npm test'] }, ['/regras/**']));
+    assert.ok(abertas.get('t1')!.includes(`Edit(/${path.join(PASTA, 'a.ts')})`));
+    assert.deepEqual(abertas.get('t2'), []);
+  });
+});
+
+describe('Rotas do pedido com permissões', () => {
+  const PAGINA = 'http://localhost:4777';
+
+  test('a rota usa a pasta da casa do maestro; o cartão (pedido no mundo) mostra o que vai ser liberado; arquivo recusado = 400', async () => {
+    const dir = await projeto({});
+    const porao = await poraoComMaestro('perm-rota', ['t1']);
+    const abertas: { cwd: string; permitir: string[] }[] = [];
+    const s = await subir(
+      { projects: [casa('p', dir)], sessions: [sessao('m1', { projectId: 'p', live: true, porao: { papel: 'maestro' } })] },
+      { porao, abrirTarefa: async (o) => (abertas.push(o), null), leituraPorao: ['/regras/**'] },
+    );
+    const ruim = await s.enviar('POST', '/api/porao/pedidos', { maestro: 'm1', rodada: 'r1', tarefas: [{ id: 't1', arquivos: ['../outro/a.ts'] }] });
+    assert.equal(ruim.status, 400);
+    assert.match((await ruim.json()).error, /fora do projeto/);
+    const r = await s.enviar('POST', '/api/porao/pedidos', { maestro: 'm1', rodada: 'r1', tarefas: [{ id: 't1', arquivos: ['src/a.ts'], testes: ['npm test'] }] });
+    assert.equal(r.status, 201);
+    const { pedidoId } = await r.json();
+    assert.deepEqual(porao.pedido(pedidoId)?.permissoes, { t1: { arquivos: ['src/a.ts'], testes: ['npm test'] } });
+    assert.equal((await s.enviar('POST', `/api/porao/pedidos/${pedidoId}/aprovar`, undefined, PAGINA)).status, 200);
+    assert.equal(abertas[0]!.cwd, dir);
+    assert.ok(abertas[0]!.permitir.includes(`Edit(/${path.join(dir, 'src/a.ts')})`));
+    assert.ok(abertas[0]!.permitir.includes('Bash(npm test:*)'));
+    assert.ok(abertas[0]!.permitir.includes('Read(//regras/**)'));
+  });
+});
+
+describe('argsDoTerminal: a ordem dos argumentos do claude', () => {
+  test('regras por último, depois da primeira mensagem (a opção engoliria a mensagem); resume ignora mensagem e regras', async () => {
+    const { argsDoTerminal } = await import('../src/terminals.js');
+    assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'new', prompt: 'leia o briefing', permitir: ['Edit(//a)', 'Bash(npm test:*)'] }), [
+      '--session-id', 's', 'leia o briefing', '--allowedTools', 'Edit(//a)', 'Bash(npm test:*)',
+    ]);
+    assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'new', prompt: 'oi', permitir: [] }), ['--session-id', 's', 'oi']);
+    assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'new', agent: 'maestro' }), ['--session-id', 's', '--agent', 'maestro']);
+    assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'resume', prompt: 'x', permitir: ['Edit(//a)'] }), ['--resume', 's']);
+  });
+});
+
 // ---------------- fase 4: relatórios e "Encerrar rodada" ----------------
 
 describe('readRelatorios: quadro de relatórios do porão', () => {
@@ -208,7 +334,7 @@ describe('POST /api/porao/encerrar', () => {
   async function vilaComRodada(nome: string, maestroFora = false, falharEm: string | null = null) {
     const dir = await projeto({});
     const porao = await poraoComMaestro(nome, ['t1']);
-    const pedido = await porao.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1'] }, 5);
+    const pedido = await porao.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t1'] }, 5, PASTA);
     const mortas: string[] = [];
     const apagadas: string[] = [];
     const s = await subir(

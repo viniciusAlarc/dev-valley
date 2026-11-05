@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { library } from '../api';
+import { library, type Project } from '../api';
 import { ui } from './actions';
 import { button, escapeHtml, openPanel, type Panel } from './panel';
 import { atalhosDoJornaleiro } from './jornaleiro';
@@ -28,6 +28,8 @@ interface ChatAgent {
   pending: AbortController | null;
   /** Botões extras no topo do painel (atalhos do jornaleiro). */
   atalhos?: (panel: Panel) => void;
+  /** Campos a mais no corpo de cada pergunta (o projeto, no mirim). */
+  corpo?: Record<string, unknown>;
 }
 
 const LIBRARIAN: ChatAgent = {
@@ -90,6 +92,7 @@ async function ask(agent: ChatAgent, question: string, onUpdate: () => void) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        ...agent.corpo,
         question,
         history: conversation.slice(0, -1).filter((e) => !e.error).map(({ question, answer }) => ({ question, answer })),
       }),
@@ -151,6 +154,40 @@ export function openAdministrador() {
 
 export function openJornaleiro() {
   openChat(JORNALEIRO);
+}
+
+/** Uma conversa com o mirim por projeto, guardada enquanto a vila está aberta. */
+const MIRINS = new Map<string, ChatAgent>();
+
+/**
+ * Maestro mirim (04/11/2026): dúvidas sobre a rodada, sem atrapalhar o maestro. `verMaestro` põe no topo o botão que abre
+ * o terminal do maestro só para ver.
+ */
+export function openMirim(project: Project, verMaestro?: () => void) {
+  let agent = MIRINS.get(project.id);
+  if (!agent) {
+    agent = {
+      endpoint: '/api/porao/mirim',
+      title: '✦ Maestro mirim',
+      subtitle: `Assistente do maestro em ${project.name}: lê a rodada na hora da pergunta, sem atrapalhar quem rege`,
+      placeholder: 'ex.: em que pé está a t2? · quem está parado? · o que a t1 mudou?',
+      hello: `
+        <p><b>Oi!</b> O maestro está regendo e não pode parar. Eu respondo sobre a rodada: quem está fazendo o quê, em
+        que pé está cada tarefa, o que mudou nos arquivos.</p>
+        <p class="muted">Eu só leio, na hora em que você pergunta. Não falo com o maestro nem com as sessões: quando ele
+        precisar de você, aparece o ❗ nele; para parar tudo, o gongo.</p>`,
+      working: 'Espiando a orquestra…',
+      who: 'o maestro mirim',
+      conversation: [],
+      pending: null,
+      corpo: { projectId: project.id },
+    };
+    MIRINS.set(project.id, agent);
+  }
+  const a = agent;
+  if (verMaestro) a.atalhos = (panel) => panel.actions.prepend(button('Ver o maestro (só leitura)', verMaestro));
+  else delete a.atalhos;
+  openChat(a);
 }
 
 function openChat(agent: ChatAgent) {

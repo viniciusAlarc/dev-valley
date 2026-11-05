@@ -26,8 +26,9 @@ export interface Project {
   /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. `toCheck`: algum passo ainda
    * diz "falta conferir na vila". */
   sementes: { path: string; title: string; toCheck: boolean }[] | null;
-  /** Relatórios das rodadas do maestro em `docs-dev/maestro/` (quadro do porão), o mais novo primeiro; null = sem a pasta. */
-  relatorios: { path: string; title: string; data: string | null }[] | null;
+  /** Relatórios das rodadas do maestro em `docs-dev/maestro/` (estante de partitura do porão), o mais novo primeiro; `lido` = já
+   * aberto pela vila; null = sem a pasta. */
+  relatorios: { path: string; title: string; data: string | null; lido: boolean }[] | null;
   /** `docs-dev/context/` (estante): `html` abre isolado, `md` no leitor; null = o projeto não tem a pasta. */
   estante: { path: string; title: string; kind: 'html' | 'md' }[] | null;
   /** `RETRABALHO.md` (lixeira da casa): cabeçalho e linhas como estão no arquivo; null = sem o arquivo. */
@@ -192,8 +193,16 @@ export function rodadaEmAndamento(world: World, projectId: string): boolean {
 export function poraoPrecisaDeVoce(world: World, projectId: string): boolean {
   return (
     world.pedidosPorao.some((p) => p.projectId === projectId) ||
-    world.sessions.some((s) => s.projectId === projectId && s.porao && s.live && s.status === 'permission')
+    world.sessions.some((s) => s.projectId === projectId && s.porao && s.live && (s.status === 'permission' || (s.porao.papel === 'maestro' && s.id in world.maestroChamando)))
   );
+}
+
+/**
+ * O maestro está regendo (04/11/2026): alguma sessão de tarefa do projeto está viva e não parou. Enquanto isso, o clique
+ * nele abre o mirim, a não ser que ele precise de você (chamado ou permissão).
+ */
+export function rodadaConduzindo(world: World, projectId: string): boolean {
+  return world.sessions.some((s) => s.projectId === projectId && s.porao?.papel === 'tarefa' && s.live && s.status !== 'idle');
 }
 
 /** A partir daqui vale começar uma sessão nova (o Claude compacta perto do fim da janela). */
@@ -233,6 +242,8 @@ export interface PedidoPorao {
   maestro: string;
   rodada: string;
   tarefas: string[];
+  /** Liberado sem pedir permissão, por tarefa: editar só estes arquivos e rodar só estes testes (04/11/2026). */
+  permissoes: Record<string, { arquivos: string[]; testes: string[] }>;
   criadoEm: number;
   estado: 'aguardando' | 'aprovado' | 'recusado';
   sessoes: Record<string, { sessionId: string } | { erro: string }>;
@@ -255,6 +266,8 @@ export interface World {
   conversas: { de: string; para: string }[];
   /** Pedidos do maestro para abrir sessões, esperando o cartão do porão (MA-1, fase 3). */
   pedidosPorao: PedidoPorao[];
+  /** Maestros que chamaram você no meio da rodada: id → motivo (❗ no maestro, 04/11/2026). */
+  maestroChamando: Record<string, string>;
 }
 
 /** Avulsas encerradas que continuam soltas na praça (elas não têm casa para onde ir). */
@@ -470,6 +483,8 @@ export const api = {
   /** Cartão do porão: o clique do usuário decide o pedido (a rota só aceita vindo da página). */
   aprovarPedido: (id: string) => request<{ estado: string; sessoes: PedidoPorao['sessoes'] }>('POST', `/api/porao/pedidos/${encodeURIComponent(id)}/aprovar`),
   /** Apaga as conversas do porão do projeto (maestro e tarefas); só pela página. */
+  relatorioLido: (projectId: string, path: string) => request<{ ok: boolean }>('POST', '/api/relatorios/lido', { projectId, path }),
+  atenderChamado: (maestro: string) => request<{ ok: boolean }>('POST', '/api/porao/chamar/atendido', { maestro }),
   encerrarRodada: (projectId: string) => request<{ apagadas: number }>('POST', '/api/porao/encerrar', { projectId }),
   recusarPedido: (id: string) => request<{ estado: string }>('POST', `/api/porao/pedidos/${encodeURIComponent(id)}/recusar`),
   novoMaestro: (projectId: string) => request<{ sessionId: string; projectId: string }>('POST', '/api/porao/maestro', { projectId }),
@@ -512,7 +527,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [] };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {} };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

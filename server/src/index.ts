@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { askAdministrador } from './administrador.js';
+import { askMirim } from './mirim.js';
 import { Agents } from './agents.js';
 import { criarApp } from './app.js';
 import { loadConfig, ROOT_DIR } from './config.js';
@@ -22,6 +23,7 @@ import { Gasto } from './gasto.js';
 import { askJornaleiro, Jornal } from './jornal.js';
 import { Plugins } from './plugins.js';
 import { MAESTRO, Porao } from './porao.js';
+import { RelatoriosLidos } from './relatorios.js';
 import { Skills } from './skills.js';
 import { StatusLineStore } from './statusline.js';
 import { TerminalManager } from './terminals.js';
@@ -33,7 +35,7 @@ const POLL_MS = 3000;
 /** De quanto em quanto tempo o pombal busca o remoto (rede); entre uma busca e outra, o estado vem do disco. */
 const POMBAL_FETCH_MS = 5 * 60_000;
 
-let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [] };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {} };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 
@@ -56,10 +58,11 @@ const agentSessions = new Map<string, { cwd: string; agent: string }>();
 const avulsaSessions = new Set<string>();
 /** Quem mora no porão das casas (maestro e tarefas das rodadas, MA-1). */
 const porao = new Porao();
+const relatoriosLidos = new RelatoriosLidos();
 
 async function refreshWorld() {
   try {
-    const built = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents, skills, porao);
+    const built = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents, skills, porao, relatoriosLidos);
     world = { ...built, projects: built.projects.map((p) => ({ ...p, lareira: lareiras.merge(p.id, p.lareira) })) };
     const json = JSON.stringify(world);
     if (json === worldJson) return;
@@ -94,15 +97,18 @@ const app = criarApp({
   agentSessions,
   avulsaSessions,
   porao,
+  relatoriosLidos,
   tetoSessoes: config.porao.tetoSessoes,
-  abrirTarefa: async ({ sessionId, cwd, prompt }) => {
+  leituraPorao: config.porao.leitura,
+  abrirTarefa: async ({ sessionId, cwd, prompt, permitir }) => {
     const ambiente = await ambienteDoTerminal(cwd, config);
     if ('erro' in ambiente) return ambiente.erro;
-    terminals.start({ sessionId, cwd, mode: 'new', prompt, env: ambiente.env, cols: 120, rows: 32 });
+    terminals.start({ sessionId, cwd, mode: 'new', prompt, permitir, env: ambiente.env, cols: 120, rows: 32 });
     return null;
   },
   askLibrarian,
   askAdministrador,
+  askMirim,
   sugerirMensagem,
   askJornaleiro,
   apagarConversa: (id: string) => deleteSessionFiles(id, projectsDirs(config)),

@@ -39,12 +39,12 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   - `src/index.ts` (entrada: serviços de verdade, WebSockets e `listen`), `app.ts` (rotas HTTP em `criarApp(ctx)`: o que
     age fora da pasta do projeto chega pelo `Contexto`, nunca importado direto na rota), `seguranca.ts` (origem local e o que `/api/arquivo` pode entregar), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
     `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `consulta.ts` (base dos agentes da vila),
-    `administrador.ts` (administrador da praça), `agents.ts`/`skills.ts`/`plugins.ts` (Fábrica: agentes, skills e, só leitura, plugins e MCP), `gasto.ts` (moinho: gasto por projeto), `jornal.ts` (banca de jornal), `perfil.ts` (projeto pessoal: terminal em outro perfil do Claude Code, com outra API), `reinicio.ts` (sino:
+    `administrador.ts` (administrador da praça), `mirim.ts` (maestro mirim: dúvidas da rodada, só lendo), `agents.ts`/`skills.ts`/`plugins.ts` (Fábrica: agentes, skills e, só leitura, plugins e MCP), `gasto.ts` (moinho: gasto por projeto), `jornal.ts` (banca de jornal), `perfil.ts` (projeto pessoal: terminal em outro perfil do Claude Code, com outra API), `reinicio.ts` (sino:
     reinício pendente), `estrutura.ts` (casa em obra e
     placa de vistoria), `sementes.ts` (caixa
-    de sementes), `retrabalho.ts` (ervas do quintal), `porao.ts` (porão da casa: quem é do maestro), `relatorios.ts` (quadro de relatórios do porão), `quadro.ts` (quadro negro), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
+    de sementes), `retrabalho.ts` (ervas do quintal), `porao.ts` (porão da casa: quem é do maestro), `relatorios.ts` (estante de partitura do porão: relatórios do maestro, novo até abrir), `quadro.ts` (quadro negro), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
     (outdoor), `install-hooks.ts`.
-  - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md`, `agents/escrevente.md`, `agents/jornaleiro.md` e `agents/jornaleiro-conversa.md` (sem ferramenta: `--tools ""`): usados só pela vila.
+  - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md`, `agents/maestro-mirim.md`, `agents/escrevente.md`, `agents/jornaleiro.md` e `agents/jornaleiro-conversa.md` (sem ferramenta: `--tools ""`): usados só pela vila.
 - `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
   sessão, rodapé com contexto e uso, nomes dos moradores e `@Nome`. Marketplace local em `.claude-plugin/`.
 - `web/` — Vite + Phaser 3 (vila), xterm.js (chat), Monaco (diff), marked + DOMPurify (leitor de docs).
@@ -63,9 +63,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade; rotas por `subir()` de `server/tests/servidor.ts`,
   com imitações; teste que usa classe que grava em `~` troca o `HOME` antes do `import`, como
   `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
-  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 50 rotas e o pombal; WebSockets e front
+  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 54 rotas e o pombal; WebSockets e front
   seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor, `npm test` e `npm run build` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 03/11/2026 (169/169).
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 04/11/2026 (213/213).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Prévia dos moradores em PNG, sem navegador: `npx tsx scripts/previa-moradores.ts <saida.png> [quantos|catalogo]`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com
@@ -88,10 +88,11 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
    backup) só nas entradas do Dev Valley (os hooks de shell de `PermissionRequest` e `Notification`; o mod não vê
    quando o diálogo de permissão abre):** nunca sobrescreve agente do usuário com o mesmo nome, e o
    uninstall remove só o que é do Dev Valley.
-5. **Consultas da bibliotecária, do administrador da praça, do escrevente do pombal e do jornaleiro da banca usam `claude -p --no-session-persistence`** para não
+5. **Consultas da bibliotecária, do administrador da praça, do maestro mirim, do escrevente do pombal e do jornaleiro da banca usam `claude -p --no-session-persistence`** para não
    virarem moradores (base comum em `server/src/consulta.ts`). **O administrador só edita `PROGRESS.md`,
    `PENDENCIAS.md`, `docs-dev/painel.json` e `docs-dev/a-codar/` dos projetos da vila**, por regra `Edit(//caminho)`
-   passada na chamada; nunca liberar `Edit` inteiro nem outra ferramenta de escrita para ele.
+   passada na chamada; nunca liberar `Edit` inteiro nem outra ferramenta de escrita para ele. **O maestro mirim só lê** (Read, Grep, Glob e `git -C <projeto> status/diff/log/show`, em modo estrito: o
+   resto é negado mesmo com o `auto` do usuário) e não fala com o maestro nem com as sessões (decisão do usuário, 04/11/2026).
 6. **Este repositório costuma ser editado de dentro da própria vila.** Reiniciar o servidor (`npm start` de novo,
    `npm run dev`, que reinicia sozinho ao salvar em `server/`) encerra todos os terminais da vila, inclusive a
    sessão que está editando. Nunca reiniciar nem rodar `npm run dev` por conta própria: avisar o usuário e ele

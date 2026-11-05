@@ -22,8 +22,11 @@ export interface Config {
    * do trabalho. Fica no config local (caminho pessoal); sem ele, todo projeto é profissional.
    */
   perfilPessoal: { roots: string[]; configDir: string } | null;
-  /** Porão (MA-1): quantas sessões de trabalho o maestro abre por rodada (padrão e máximo: 5, decisão de 03/11/2026). */
-  porao: { tetoSessoes: number };
+  /**
+   * Porão (MA-1): quantas sessões de trabalho o maestro abre por rodada (padrão e máximo: 5, decisão de 03/11/2026), e o
+   * que elas podem ler fora do projeto sem pedir permissão (`leitura`, absolutos: ex. o contrato "Sob o maestro").
+   */
+  porao: { tetoSessoes: number; leitura: string[] };
 }
 
 /** Sessões de trabalho por rodada do maestro (decisão do usuário, 03/11/2026); `porao.tetoSessoes` no config só baixa. */
@@ -56,7 +59,14 @@ export function loadConfig(): Config {
     perfilPessoal: merged.perfilPessoal?.roots?.length && merged.perfilPessoal.configDir
       ? { roots: merged.perfilPessoal.roots.map(expandHome), configDir: expandHome(merged.perfilPessoal.configDir) }
       : null,
-    porao: { tetoSessoes: Math.min(TETO_PADRAO, Math.max(1, Math.floor(Number(merged.porao?.tetoSessoes) || TETO_PADRAO))) },
+    porao: {
+      tetoSessoes: Math.min(TETO_PADRAO, Math.max(1, Math.floor(Number(merged.porao?.tetoSessoes) || TETO_PADRAO))),
+      // Só caminho absoluto (ou com ~), sem parêntese nem `..`: vira regra `Read(//…)` das sessões de trabalho.
+      leitura: (Array.isArray(merged.porao?.leitura) ? merged.porao.leitura : [])
+        .filter((x): x is string => typeof x === 'string')
+        .map(expandHome)
+        .filter((x) => path.isAbsolute(x) && !/[()\n]/.test(x) && !x.split('/').includes('..')),
+    },
     guardrails: merged.guardrails?.plugin && merged.guardrails.core ? { plugin: merged.guardrails.plugin, core: expandHome(merged.guardrails.core) } : null,
   };
 }

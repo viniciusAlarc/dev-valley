@@ -13,6 +13,135 @@ ganhou o passo `npm run build`, fechando no CI o mesmo gate do `CLAUDE.md` (type
 **Testes:** antes e depois, na máquina: `npm test` 213/213, typecheck e build sem erro, auditor saída 0 (restam 2 avisos
 informativos em entradas antigas do `PROGRESS.md`, sobre um arquivo da estante que não existe mais). O CI de verdade só confirma depois do push.
 
+## 2026-11-04 — Maestro mirim: dúvidas da rodada sem tirar a atenção do maestro, que rege
+
+**O que mudou:** proposta do usuário, com as três recomendações aceitas. Enquanto alguma tarefa da rodada trabalha, o
+maestro **rege** (batuta girando, corpo balançando) e o clique nele abre o **maestro mirim**, agente menor ao lado dele,
+com um botão para ver o terminal do maestro só para ler. Quando o maestro precisa do usuário, chama pela rota nova
+`POST /api/porao/chamar` (`curl`, só o maestro vivo): ❗ nele e no telhado, e o clique abre a conversa (chamado atendido
+por `/api/porao/chamar/atendido`, só pela página). O mirim (`server/agents/maestro-mirim.md`, `server/src/mirim.ts`,
+rota `POST /api/porao/mirim`, só pela página) é uma consulta por pergunta, como a bibliotecária: a vila monta o estado
+da rodada na hora (cada sessão do porão com estado, conversa e últimos passos lidos do fim do `.jsonl`) e ele lê o que
+precisar, só com Read, Grep, Glob e `git -C <projeto> status/diff/log/show`, em modo estrito (`estrito` novo em
+`consulta.ts`; Bash nunca vai liberado inteiro para agente nenhum). No IA, o agente maestro chama o usuário pela rota
+sempre que precisa dele.
+**Arquivos:** `server/src/mirim.ts` (novo), `server/agents/maestro-mirim.md` (novo), `consulta.ts`, `porao.ts`, `app.ts`,
+`world.ts`, `index.ts`; `web/src/api.ts`, `ui/actions.ts`, `ui/librarian.ts`, `ui/terminal.ts`, `game/PoraoScene.ts`,
+`game/interiorTextures.ts`, `game/villagerArt.ts`; `server/tests/mirim.test.ts` (novo), `servidor.ts`; `README.md`,
+`CLAUDE.md` (regra 5), `docs-dev/context/maestro.md`, `PROGRESS.md`; no IA, `~/Documents/IA/claude/agents/maestro.md`.
+**Testes:** `npm test` 203/203 antes → 213/213 depois (resumo das conversas, estado da rodada, ferramentas e modo do
+mirim, Bash nunca inteiro, chamado no `Porao`, as 3 rotas novas: origem, maestro parado, projeto, pergunta vazia,
+NDJSON); tipos do servidor e do front sem erro. **Mirim de verdade** (`askMirim`, agente real): pergunta sobre a tarefa
+respondida em 8 s, lendo a conversa e o `git status`; pedido para editar o README e mandar recado ao maestro recusado em
+6 s, README intacto (hash conferido). A animação da batuta e o tamanho do mirim não foram vistos (sem navegador e sem
+reinício, regra 6). Build não rodado (regra 6). Falta conferir na vila (reinício do usuário).
+
+## 2026-11-04 — Maestro: sessões liberadas só nos arquivos e testes da tarefa, tempo no relatório, relatórios na estante do porão
+
+**O que mudou:** três decisões do usuário. (1) A partitura do portão poluía o mapa: saiu da fachada (`TownScene` e
+`textures.ts` voltaram ao último commit) e os relatórios foram para a estante de partitura que já existe ao lado do
+maestro no porão: sem pedido esperando, o clique abre a lista; um ♪ flutua sobre ela com relatório não aberto. O "novo
+até abrir" e a rota `POST /api/relatorios/lido` continuam. (2) **Permissão só no que a tarefa precisa:** o pedido do
+maestro passa a levar, por tarefa, `{ id, arquivos, testes }` (nome sozinho continua valendo, sem permissão);
+`validarPermissoes` recusa arquivo fora do projeto, com curinga, em `.git/`, `.claude/` ou `.env*`, e comando com o que o
+shell interpreta ou da lista `NUNCA` (rm, git, curl, sudo…). O cartão mostra o que cada tarefa libera; ao aprovar,
+`regrasDaTarefa` monta o `--allowedTools` (ler a rodada e o `porao.leitura` do config, editar só os arquivos, rodar só os
+testes) e `argsDoTerminal` põe as regras depois da primeira mensagem. A rota passa a pasta da casa do maestro ao
+`pedir`. Config local ganhou `porao.leitura` (o contrato "Sob o maestro"). (3) **Tempo no relatório:** o maestro anota a
+hora no `COMECEI` e no `PRONTA`, junto com a ação que já faria (sem volta a mais); coluna Tempo e duração total. No IA:
+agente (`maestro.md`: pedido novo, hora, briefing com "Testes liberados" e "leia com Read") e contrato (`convivencia.md`).
+**Arquivos:** `server/src/porao.ts`, `app.ts`, `config.ts`, `index.ts`, `terminals.ts`, `relatorios.ts`, `world.ts`;
+`web/src/api.ts`, `ui/porao.ts`, `ui/relatorios.ts`, `ui/actions.ts`, `game/PoraoScene.ts`; `server/tests/porao.test.ts`,
+`relatorios.test.ts`, `servidor.ts`; `README.md`, `CLAUDE.md`, `PENDENCIAS.md` (MA-3), `docs-dev/context/maestro.md`,
+`PROGRESS.md`; no IA, `~/Documents/IA/claude/agents/maestro.md` e `~/Documents/IA/guardrails-ia/convivencia.md`.
+**Testes:** `npm test` 194/194 antes → 203/203 depois (validação de arquivos e comandos, regras, pedido misto, aprovação
+com e sem regras, rota com a pasta da casa, ordem dos argumentos); tipos do servidor e do front sem erro; auditor só com
+os avisos antigos. **Validado com o Claude Code de verdade, sem tela** (`claude -p --permission-mode default`, argumentos
+gerados pelas funções novas): editar arquivo liberado e ler a rodada passaram; editar outro arquivo e ler fora foram
+negados; o teste liberado passou puro, com `| tail` e com argumento a mais, e foi negado quando o modelo rodou
+`npm --prefix <pasta> run checar` (por isso o briefing manda rodar exatamente como está). **Rodada de ponta a ponta:**
+rota real → cartão aprovado pela página (sem ela, 403) → `Porao` real → 3 sessões em paralelo com as regras geradas:
+25 s, 6 de 6 mensagens (`COMECEI`/`PRONTA`) entregues a esta sessão no papel de maestro, os 3 arquivos editados e o
+mesmo `PROGRESS.md` somado pelas três; uma negativa só (uma sessão leu o contrato com `sed` no Bash, e o briefing agora
+manda ler com Read). Rodada de teste apagada. Build não rodado (regra 6). Falta conferir na vila (reinício do usuário).
+
+## 2026-11-03 — Partitura do portão: o relatório do maestro à vista, "novo" até abrir; o quadro saiu do porão
+
+**O que mudou:** decisão do usuário (o quadro do porão era inútil: era preciso descer, e nada avisava). Cada casa com
+relatório em `docs-dev/maestro/` ganha uma estante de partitura à direita do caminho da porta, simétrica à placa de
+vistoria. Com relatório não aberto, a folha fica branca com notas e um ♪ flutua em cima; o clique lista os relatórios,
+com selo "novo" nos não abertos, e abrir um o marca como lido. Os lidos ficam em `relatorios-lidos.json`, em
+`~/.claude/dev-valley/` (fora do git, como o `porao.json`), pela classe `RelatoriosLidos`; o mundo leva `lido` em cada
+relatório. Rota nova `POST /api/relatorios/lido`: só pela página (`Origin` local presente) e só relatório listado no
+mundo daquele projeto, senão 404 (G9). O quadro de cortiça e os bilhetes saíram do `PoraoScene`; a lista saiu de
+`ui/porao.ts` para `ui/relatorios.ts`. Na primeira vez, todos os relatórios que já existem aparecem como novos.
+**Arquivos:** `server/src/relatorios.ts`, `world.ts`, `app.ts`, `index.ts`; `web/src/api.ts`, `ui/relatorios.ts` (novo),
+`ui/porao.ts`, `ui/actions.ts`, `game/textures.ts` (`scoreStand`, `scoreStand-new`), `game/TownScene.ts`,
+`game/PoraoScene.ts`; `server/tests/relatorios.test.ts`, `server/tests/servidor.ts`; `README.md`, `CLAUDE.md`,
+`docs-dev/context/maestro.md`, `PROGRESS.md`.
+**Testes:** `npm test` 190/190 antes → 194/194 depois (lidos, arquivo estragado, rota: sucesso, já lido, 403 sem origem
+e de outra origem, 404 por caminho e por projeto); typecheck do servidor e do front (`tsc --noEmit -p web`) sem erro;
+auditor só com os 2 avisos antigos. Prévia da textura em PNG, sem navegador. Build não rodado (regra 6). A partitura do
+portão saiu em 04/11/2026 sem ir à vila (entrada acima): nada a conferir aqui.
+
+## 2026-11-03 — Maestro e porão fechados (MA-1)
+
+**O que mudou:** o usuário rodou uma rodada de verdade pela vila depois da correção das mensagens (relatório
+`docs-dev/maestro/2026-11-03-teste-rapido.md`: 2 sessões, pedido → cartão → `COMECEI` → aviso de parada → `PRONTA` das
+duas) e deu o resultado como satisfatório. Plano movido de `docs-dev/a-codar/` para `docs-dev/context/maestro.md`, com
+cabeçalho dizendo o que vale hoje (simplificação + correção das mensagens) e a seção da correção registrada; MA-1 saiu
+do `PENDENCIAS.md`; o painel passa a mostrar o plano do maestro, as 4 fases feitas.
+**Arquivos:** `docs-dev/context/maestro.md` (movido), `PENDENCIAS.md`, `docs-dev/painel.json`, `README.md` e o
+comentário de `server/src/porao.ts` (caminho novo do plano), `PROGRESS.md`.
+**Testes:** só documento e um comentário; auditor de referências, typecheck do servidor e `npm test` rodados no fechamento.
+
+## 2026-11-03 — Maestro: as sessões avisam de verdade, e o maestro cobra sozinho quem parou
+
+**O que mudou:** investigação da rodada `20261103-2313-testes-modulos`, em que o usuário ficou esperando sem retorno. As
+três sessões terminaram em ~2 min, mas escreveram o `PRONTA` como texto na própria tela: a `SendMessage` é ferramenta
+adiada e o contrato só dizia "mande PRONTA". O maestro, perguntado às 23:16, respondeu "ainda não acabou" sem cobrar;
+só às 23:23 cobrou, e os três avisos chegaram em 3 s (a entrega entre sessões funciona, e o maestro acorda sozinho).
+No repositório IA: o contrato ("Sob o maestro", `convivencia.md`) e o briefing mandam usar a ferramenta `SendMessage`
+(carregando com `ToolSearch` se preciso), dizem que texto na tela não chega e pedem conferir `"success":true`; primeiro
+passo da sessão é um `COMECEI`. O maestro, no `COMECEI`, assina o aviso de parada (`notify_when_idle`) e cobra na hora
+quem parar sem `PRONTA`; quando o usuário pergunta, confere quem está parado e cobra; e fala sempre pelo endereço
+(`from`), porque nomes de sessão se repetem e mudam ao reiniciar.
+**Arquivos:** neste repositório, só `PROGRESS.md` e `RETRABALHO.md`; no IA, `~/Documents/IA/claude/agents/maestro.md` e
+`~/Documents/IA/guardrails-ia/convivencia.md`.
+**Testes:** cadeia de testes com sessões sem tela (`claude -p --no-session-persistence`), briefing no modelo novo e esta
+sessão no papel de maestro: 1 sessão (chamou a ferramenta; falhou só pelo nome do maestro, que tinha mudado no
+reinício, e não mandou a outra sessão), depois 2 rodadas de 3 sessões em paralelo: **12 de 12 mensagens entregues**
+(`COMECEI` e `PRONTA`), 15 a 21 s cada. Rodada de teste apagada depois. O lado do maestro (aviso de parada e cobrança)
+só se testa numa rodada de verdade pela vila.
+
+## 2026-11-03 — Teste do quadro negro (rodada `20261103-2313-testes-modulos`, t1)
+
+**O que mudou:** `readQuadro` ganhou teste (4 casos): sem painel ou sem `doc` → vazio; `doc` do plano primeiro e o de
+cada fase depois, em qualquer estado, com caminho absoluto e tipo (`.md`, `.htm`, `.HTML` em maiúscula); fica de fora
+arquivo que não existe, pasta com nome `.md`, extensão que não é HTML/Markdown, e `doc` fora do projeto (absoluto, `../`
+e pasta irmã com o mesmo prefixo). Só teste: `server/src/quadro.ts` não mudou.
+**Arquivos:** `server/tests/quadro.test.ts` (novo), `PROGRESS.md`.
+**Testes:** `npm test` 169/169 antes → 190/190 depois (4 deste arquivo; o resto, de outras sessões da rodada); typecheck do servidor sem erro.
+
+## 2026-11-03 — Teste do quadro de relatórios do porão (rodada `20261103-2313-testes-modulos`, t3)
+
+**O que mudou:** `readRelatorios` ganhou arquivo de teste próprio (10 casos, as bordas que o caso feliz de
+`porao.test.ts` não pega): pasta vazia → lista vazia e sem a pasta → null; só `.md` do primeiro nível (subpasta com nome
+`.md` fica de fora); ordem decrescente pelo nome; `path` absoluto; título do primeiro `# ` (não `## `), aparado, sem
+"Rodada:" em qualquer caixa e só no começo, ou o nome do arquivo quando não há título; data só com `AAAA-MM-DD` no
+começo do nome. Só teste: `server/src/relatorios.ts` não mudou.
+**Arquivos:** `server/tests/relatorios.test.ts` (novo), `PROGRESS.md`.
+**Testes:** `npm test` 169/169 antes → 190/190 depois (10 deste arquivo; o resto, de outras sessões da rodada). Typecheck
+do servidor sem erro no meu arquivo; no momento falha só em `server/tests/quadro.test.ts`, de outra sessão em andamento.
+
+## 2026-11-03 — Teste da caixa de sementes (rodada `20261103-2313-testes-modulos`, t2)
+
+**O que mudou:** `readSementes` ganhou teste (7 casos): sem pasta → null, pasta vazia → lista vazia, só `.md` do primeiro
+nível sem o `README` em ordem de nome, título do primeiro `# ` ou o nome do arquivo, e `toCheck` acendendo com
+"falta conferir na vila" mas não com a frase citada entre aspas. Só teste: `server/src/sementes.ts` não mudou.
+**Arquivos:** `server/tests/sementes.test.ts` (novo), `PROGRESS.md`.
+**Testes:** `npm test` 169/169 antes → 180/180 depois (7 deste arquivo; o resto, de outras sessões da rodada); typecheck do servidor sem erro.
+
 ## 2026-11-03 — Rodada de teste do maestro: commits do que estava pendente
 
 **O que mudou:** rodada `20261103-1600-teste-commits`, 2 sessões só de leitura: uma propôs os commits, a outra conferiu
@@ -33,20 +162,20 @@ erro, tira do `porao.json` o que já foi apagado e responde 500 com "Parou depoi
 ## 2026-11-03 — Maestro simplificado: o usuário divide, o maestro só distribui e evita conflito
 
 **O que mudou:** pedido do usuário depois da rodada de teste "organizar os commits", que levou ~50 min (o maestro
-inventou uma auditoria de 22 min e o processo tinha ~26 min de custo fixo). Decisões no `docs-dev/a-codar/maestro.md`
+inventou uma auditoria de 22 min e o processo tinha ~26 min de custo fixo). Decisões no `docs-dev/context/maestro.md`
 ("Simplificação…"). O agente (`~/Documents/IA/claude/agents/maestro.md`) foi reescrito: recebe as tarefas já divididas,
 levanta os arquivos de cada uma, responde num bloco ✔ paralelo / ⏸ espera, escreve briefings curtos, pede as sessões
 (o clique no cartão é a única aprovação), responde `PEDIDO` com `LIBERADO`/`ESPERE` e, no fim, monta um relatório curto
 só com os `PRONTA`. Não planeja, não revisa, não testa, não commita; hora pelo `date`. Seção "Sob o maestro" do
 `convivencia.md` enxuta: a sessão trabalha como qualquer outra, só nos arquivos dela, anota o próprio rastro e não
 commita (o usuário commita pelo pombal). Código da vila sem mudança.
-**Arquivos:** `README.md`, `docs-dev/a-codar/maestro.md`; no repositório IA, `claude/agents/maestro.md`,
-`guardrails-ia/convivencia.md` e a linha da G21.
+**Arquivos:** `README.md`, `docs-dev/context/maestro.md`; no repositório IA, `~/Documents/IA/claude/agents/maestro.md`,
+`~/Documents/IA/guardrails-ia/convivencia.md` e a linha da G21.
 **Testes:** só instruções e documentação; `npm test` para conferir que nada mudou.
 
 ## 2026-11-03 — Maestro, fase 4: alçapão aceso, ❗ no telhado, quadro de relatórios e gongo de encerrar
 
-**O que mudou:** fase 4 do `docs-dev/a-codar/maestro.md`. O alçapão da casa acende (luz pelas frestas) com rodada em
+**O que mudou:** fase 4 do `docs-dev/context/maestro.md`. O alçapão da casa acende (luz pelas frestas) com rodada em
 andamento e ganha um ❗ quando alguém do porão pede permissão ou o cartão do maestro espera; o mesmo ❗ sobe ao telhado da
 casa no mapa (`rodadaEmAndamento` e `poraoPrecisaDeVoce` no `api.ts`). No porão, um quadro de cortiça com um bilhete por
 relatório de `docs-dev/maestro/` (`server/src/relatorios.ts`, lido no mundo como `relatorios`), que lista e abre no
@@ -56,19 +185,19 @@ aberta em outro terminal, tira os ids do `porao.json` e dá o pedido aberto como
 **Arquivos:** `server/src/relatorios.ts` (novo), `porao.ts`, `app.ts`, `world.ts`; `web/src/api.ts`,
 `web/src/game/PoraoScene.ts`, `InteriorScene.ts`, `TownScene.ts`, `interiorTextures.ts`, `web/src/ui/porao.ts`,
 `web/src/ui/actions.ts`; `server/tests/porao.test.ts`, `servidor.ts`; `CLAUDE.md`, `README.md`,
-`docs-dev/a-codar/maestro.md`, `PENDENCIAS.md`.
+`docs-dev/context/maestro.md`, `PENDENCIAS.md`.
 **Testes:** `npm test` 168/168; tipos do servidor e do front sem erro; prévia em PNG das peças novas (gongo, quadro,
 alçapão aceso) fora do repositório. Falta: reinício e conferir na vila (regra 6).
 
 ## 2026-11-03 — Porão: a conversa do maestro mora no ✦, e as mesas são só das tarefas
 
-**O que mudou:** pedido do usuário depois da primeira rodada de verdade (ajuste registrado no `docs-dev/a-codar/maestro.md`).
+**O que mudou:** pedido do usuário depois da primeira rodada de verdade (ajuste registrado no `docs-dev/context/maestro.md`).
 A sessão do maestro deixa de aparecer como morador numa mesa: o ✦ ganha o balão de estado dela (trabalhando, ❗ de
 permissão) e o clique nele continua a conversa da rodada em andamento, ou começa uma nova quando não há (sessão do
 maestro aberta em outro terminal: o aviso de "ocupado" de sempre). O porão tem 5 mesas fixas, o teto, só para as
 sessões de tarefa; os bancos também. O alçapão diz quando há rodada em andamento.
 **Arquivos:** `web/src/game/PoraoScene.ts`, `web/src/game/InteriorScene.ts`, `web/src/ui/actions.ts`,
-`docs-dev/a-codar/maestro.md`, `RETRABALHO.md`.
+`docs-dev/context/maestro.md`, `RETRABALHO.md`.
 **Testes:** `npm test` 165/165; tipos do servidor e do front sem erro. Conferido na vila pelo usuário (03/11/2026).
 
 ## 2026-11-03 — Rodada do maestro: memórias do perfil pessoal na biblioteca (PP-2) e contorno na carta do painel
@@ -84,7 +213,7 @@ tela. Relatório: `docs-dev/maestro/2026-11-03-biblioteca-carta.md`.
 
 ## 2026-11-03 — Maestro, fase 3: o maestro pede as sessões e o usuário aprova no cartão
 
-**O que mudou:** fase 3 do `docs-dev/a-codar/maestro.md`, com a aprovação decidida pelo usuário (cartão com botão, como o
+**O que mudou:** fase 3 do `docs-dev/context/maestro.md`, com a aprovação decidida pelo usuário (cartão com botão, como o
 push do pombal). A sessão do maestro aberta pela vila recebe `DEV_VALLEY_URL` e `DEV_VALLEY_SESSION`; com elas, ele pede
 as sessões da rodada por `POST /api/porao/pedidos` (só o maestro anotado e vivo, briefing de cada tarefa já escrito,
 teto de 5 por rodada contando as abertas e as pedidas). O pedido vira um ❗ na estante de partitura do porão; o cartão
@@ -114,7 +243,7 @@ avulso na porta 5199 ligado à vila no ar, sem build nem reinício: casa → Esc
 
 ## 2026-11-03 — Maestro, fase 2: o porão na vila
 
-**O que mudou:** fase 2 do `docs-dev/a-codar/maestro.md`. Cada casa ganha um alçapão no chão (canto de baixo à
+**O que mudou:** fase 2 do `docs-dev/context/maestro.md`. Cada casa ganha um alçapão no chão (canto de baixo à
 esquerda); ele desce ao porão (`PoraoScene`): parede e piso de pedra, escada para voltar, o maestro ✦ de terno
 (combinação de pele e cabelo reservada) ao lado da estante de partitura, mesas para as sessões vivas da rodada (maestro e
 tarefas, com o rótulo `maestro`/`t1`…) e dois bancos para as encerradas (rodadas antigas, para reabrir). Clique no
@@ -134,22 +263,22 @@ usuário (regra 6) e conferir na vila; conferido em 03/11/2026, depois da corre�
 
 ## 2026-11-03 — Maestro, fase 1: o agente e a regra (no repositório IA)
 
-**O que mudou:** fase 1 do `docs-dev/a-codar/maestro.md`, feita fora deste repositório (o agente é universal). Em
+**O que mudou:** fase 1 do `docs-dev/context/maestro.md`, feita fora deste repositório (o agente é universal). Em
 `~/Documents/IA`: `~/Documents/IA/claude/agents/maestro.md` (etapas fixas da rodada, matriz de conflito, revisão por entrega e de
 integração, retomada, protocolo `[maestro] <id> <tarefa>: <TIPO>`, modelos de briefing e relatório); `instalar.sh`
 linka `claude/agents/*.md` em `~/.claude/agents/` sem sobrescrever agente alheio; seção "Sob o maestro" em
 `~/Documents/IA/guardrails-ia/convivencia.md` e uma frase na G21. Estado da rodada em `~/.claude/maestro/rodadas/<id>/`. Falta o
 usuário rodar o `instalar.sh` e fazer a primeira rodada no modo manual.
-**Arquivos:** neste repositório, só `docs-dev/a-codar/maestro.md` (fase 1 marcada, tabela de arquivos de controle).
+**Arquivos:** neste repositório, só `docs-dev/context/maestro.md` (fase 1 marcada, tabela de arquivos de controle).
 **Testes:** passo novo do instalador testado em pasta temporária (agente novo, já linkado, alheio intocado);
 `bash -n instalar.sh`; cabeçalho do agente validado como YAML; auditor sem achado novo.
 
 ## 2026-11-03 — Plano do maestro e do porão
 
 **O que mudou:** planejado com o usuário o agente maestro, que coordena até 5 sessões em paralelo no mesmo projeto, e o
-porão da casa onde isso acontece na vila. Decisões A–J e as 4 fases em `docs-dev/a-codar/maestro.md`; aberto o MA-1 no
+porão da casa onde isso acontece na vila. Decisões A–J e as 4 fases em `docs-dev/context/maestro.md`; aberto o MA-1 no
 `PENDENCIAS.md`. Ainda sem código.
-**Arquivos:** `docs-dev/a-codar/maestro.md`, `PENDENCIAS.md`.
+**Arquivos:** `docs-dev/context/maestro.md`, `PENDENCIAS.md`.
 **Testes:** só documentação; nada a rodar.
 
 ## 2026-11-03 — HUD: carta no lugar do pacote nas mudanças sem commit

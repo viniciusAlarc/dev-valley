@@ -1,8 +1,12 @@
 # Maestro: trabalho paralelo de sessões no porão da casa
 
-> Plano decidido em conversa com o usuário em 03/11/2026 (G7). Ainda não codado.
-> Ao implementar cada fase: marcar aqui, registrar no `PROGRESS.md` e, com tudo feito, tirar do índice
-> (`PENDENCIAS.md`, item MA-1) e mover o que virou arquitetura para `docs-dev/context/`.
+> Plano decidido em conversa com o usuário em 03/11/2026 e implementado no mesmo dia (fases 1 a 4). Conferido pelo
+> usuário numa rodada de verdade pela vila em 03/11/2026 (`docs-dev/maestro/2026-11-03-teste-rapido.md`); MA-1 fechado.
+> **Como funciona hoje:** valem a "Simplificação depois da segunda rodada" e a "Correção das mensagens" (seção 6). O
+> que vem antes delas (seções 1 a 3, decisões C e D) descreve o desenho original e vale só no que não contradiz isso.
+> Agente: `~/Documents/IA/claude/agents/maestro.md`; contrato das sessões: "Sob o maestro" em
+> `~/Documents/IA/guardrails-ia/convivencia.md`. Código: `server/src/porao.ts`, `server/src/relatorios.ts`,
+> `web/src/ui/porao.ts`, `PoraoScene`.
 
 ## 1. O que é
 
@@ -191,17 +195,85 @@ aprovações, commits). Decidido: **simplificar ao máximo.**
 - Agente reescrito (`~/Documents/IA/claude/agents/maestro.md`, de 305 para ~90 linhas) e seção "Sob o maestro" do
   `convivencia.md` enxuta. As decisões A, C e D e as regras do maestro acima ficam valendo só no que não contradiz isto.
 
+### Correção das mensagens depois da terceira rodada (03/11/2026)
+
+As sessões terminavam mas escreviam o `PRONTA` na própria tela, e o maestro não cobrava. Corrigido no agente e no
+contrato:
+
+- [x] A sessão manda `COMECEI` primeiro e `PRONTA` no fim **pela ferramenta `SendMessage`** (carregada com `ToolSearch`
+      se preciso), conferindo `"success":true`; texto na tela não chega.
+- [x] O maestro, no `COMECEI`, assina o aviso de parada (`notify_when_idle`) e cobra na hora quem parar sem `PRONTA`.
+- [x] Fala sempre pelo endereço `from` (`uds:…`), nunca pelo nome: nomes de sessão se repetem e mudam ao reiniciar.
+- [x] Conferido numa rodada de verdade pela vila (`docs-dev/maestro/2026-11-03-teste-rapido.md`).
+
+### Relatórios na estante de partitura do porão (decisões do usuário, 03 e 04/11/2026)
+
+O relatório só aparecia no quadro de cortiça do porão, sem aviso de rodada nova, e o usuário achou o quadro inútil. Em
+03/11 foi para uma estante de partitura no portão da casa; em 04/11 o usuário achou que poluía o mapa e ela saiu.
+Ficou assim:
+
+- [x] **A estante de partitura ao lado do maestro**, no porão: com pedido esperando, abre o cartão (como antes); sem
+      pedido, abre a lista dos relatórios, o mais novo primeiro, no leitor da biblioteca. Nada novo no mapa.
+- [x] **Novo até abrir:** um ♪ flutua sobre a estante enquanto houver relatório não aberto (e nenhum pedido); selo
+      "novo" na lista. Abrir um relatório o marca como lido (`POST /api/relatorios/lido`, só pela página, só relatório
+      listado no mundo daquele projeto; outro caminho = 404). Os lidos ficam fora do git, em `relatorios-lidos.json`,
+      em `~/.claude/dev-valley/`.
+- [x] O quadro de cortiça saiu do porão (a textura `corkBoard` continua, é a do quadro de pendências da casa).
+- [ ] Usuário: reinício e conferir na vila.
+
+### Permissão só no que a tarefa precisa, e o tempo de cada sessão (decisões do usuário, 04/11/2026)
+
+As sessões paravam pedindo permissão e o usuário não via. Decidido: o pedido do maestro leva, por tarefa, os
+**arquivos** (relativos ao projeto) e os **testes** (até 5 comandos); o cartão mostra isso e o clique em "Abrir" aprova
+junto. A vila abre cada sessão com `--allowedTools`: `Read` da pasta da rodada e do `porao.leitura` do config (o
+contrato "Sob o maestro"), `Edit` só dos arquivos (cobre o `Write`), `Bash(<teste>:*)` só dos testes. O resto pede
+permissão como sempre.
+
+- [x] Recusado no pedido (400, com o motivo): arquivo fora do projeto, absoluto, com curinga, em `.git/`, `.claude/`
+      (daria mais permissão à sessão) ou `.env*`; comando com o que o shell interpreta (`;`, `|`, `&`, `$`, aspas,
+      curinga) ou que começa por `rm`, `git`, `curl`, `sudo`, `bash` e afins (`NUNCA` em `porao.ts`).
+- [x] `--allowedTools` vai **depois** da primeira mensagem (`argsDoTerminal`): a opção aceita vários valores e engoliria
+      a mensagem.
+- [x] A regra do teste casa pelo começo do comando: a sessão roda o teste **exatamente** como o briefing escreve (sem
+      `cd`/`--prefix` na frente; `| tail` e argumento no fim passam). Visto num teste sem tela: um modelo rodou
+      `npm --prefix <pasta> run checar` e foi negado. Briefing e contrato dizem isso.
+- [x] Tempo: o maestro anota a hora (`date`) a cada `COMECEI` e `PRONTA`, na mesma resposta da ação que já faria; o
+      relatório ganha a coluna Tempo e a duração total. Custo: uma ferramenta a mais em paralelo, sem volta extra.
+- Limite conhecido: sessão retomada (`--resume`, depois de a vila reiniciar) volta sem as regras e pede permissão.
+- [ ] Usuário: reinício e conferir numa rodada de verdade.
+
+### Maestro mirim e a regência (decisões do usuário, 04/11/2026)
+
+Com 5 sessões, toda dúvida do usuário entrava no contexto do maestro e disputava a atenção dele (o `PRONTA` perdido de
+03/11 foi isso). Decidido, com as três recomendações da proposta:
+
+- [x] **O maestro rege:** enquanto alguma tarefa da rodada está viva e não parou (`rodadaConduzindo`), a batuta gira e o
+      corpo balança, e o clique nele abre o **mirim**, com um botão para ver o terminal do maestro **só para ler**
+      (`somenteLeitura`: o teclado não chega ao processo).
+- [x] **O ❗ libera a conversa:** quando precisa do usuário, o maestro chama (`POST /api/porao/chamar`, pelo `curl`, só o
+      maestro vivo do porão); o ❗ aparece nele e no telhado, e o clique abre a conversa e dá o chamado por atendido
+      (`/api/porao/chamar/atendido`, só pela página). Permissão pedida pelo maestro também abre a conversa.
+- [x] **O mirim só lê** (`server/agents/maestro-mirim.md`, `server/src/mirim.ts`): Read, Grep, Glob e
+      `git -C <projeto> status/diff/log/show`, em modo estrito (`--permission-mode default`: o resto é negado mesmo com o
+      `auto` do usuário). Não fala com o maestro nem com as sessões.
+- [x] **Uma consulta por pergunta**, como a bibliotecária (`claude -p --no-session-persistence`, as últimas trocas no
+      prompt): ninguém o atualiza; a vila monta na hora o estado da rodada (cada sessão do porão com estado, conversa e
+      os últimos 8 passos, lidos do fim do `.jsonl`).
+- [x] Visual: agente menor (escala 0,75) à esquerda do maestro, no traje de agente e com a combinação própria de pele e
+      cabelo (`mirim-dev-valley`); batuta gerada em código (`batuta`).
+- [ ] Usuário: reinício e conferir na vila.
+
 ### Fase 4: avisos, relatório e encerramento
 
 - [x] Alçapão aceso (luz pelas frestas) com rodada em andamento, e ❗ quando alguém do porão pede permissão ou o cartão
       do maestro espera; o ❗ sobe ao telhado da casa no mapa (03/11/2026).
-- [x] Quadro de cortiça na parede do porão, um bilhete por relatório de `docs-dev/maestro/` (`server/src/relatorios.ts`);
+- [x] ~~Quadro de cortiça na parede do porão~~ (trocado pela estante de partitura, ver "Relatórios na estante de partitura do porão" acima), um bilhete por relatório de `docs-dev/maestro/` (`server/src/relatorios.ts`);
       o clique lista e abre no leitor (03/11/2026).
 - [x] "Encerrar rodada" no gongo do porão: **apaga as conversas** do porão do projeto, maestro e tarefas, como o encerrar
       de sempre (decisão do usuário, 03/11/2026), com confirmação que lista cada uma; antes, fecha o terminal das que
       estão abertas na vila. `POST /api/porao/encerrar` só pela
       página; recusa se alguma estiver aberta em outro terminal; tira os ids do `porao.json` e recusa o pedido aberto.
-- [ ] Usuário: reinício e conferir na vila. Com isso, o plano vai para `docs-dev/context/` e o MA-1 sai do índice (G7).
+- [x] Usuário: reinício e conferir na vila (03/11/2026). Plano movido para `docs-dev/context/` e MA-1 fora do índice.
 
 ### Ao implementar (G16)
 

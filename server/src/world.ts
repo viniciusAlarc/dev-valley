@@ -15,7 +15,7 @@ import { readQuadro, type PlanoAcao } from './quadro.js';
 import { summarizeProgress, type ProgressSummary } from './progress.js';
 import { readRetrabalho, type Retrabalho } from './retrabalho.js';
 import { readSementes, type Semente } from './sementes.js';
-import { readRelatorios, type Relatorio } from './relatorios.js';
+import { readRelatorios, type Relatorio, type RelatoriosLidos } from './relatorios.js';
 import type { Skills, SkillSummary } from './skills.js';
 import { restartPending, type RestartPending } from './reinicio.js';
 import type { AgentSummary, Agents } from './agents.js';
@@ -46,7 +46,7 @@ export interface Project {
   missingStructure: string[];
   /** Planos em `docs-dev/a-codar/` (caixa de sementes); null = o projeto não tem a pasta. */
   sementes: Semente[] | null;
-  /** Relatórios das rodadas do maestro em `docs-dev/maestro/` (quadro do porão); null = o projeto não tem a pasta. */
+  /** Relatórios das rodadas do maestro em `docs-dev/maestro/` (estante de partitura do porão); null = o projeto não tem a pasta. */
   relatorios: Relatorio[] | null;
   /** `docs-dev/context/` (estante); null = o projeto não tem a pasta. */
   estante: Livro[] | null;
@@ -97,6 +97,8 @@ export interface World {
   conversas: { de: string; para: string }[];
   /** Pedidos do maestro para abrir sessões, esperando o clique no cartão do porão (MA-1, fase 3). */
   pedidosPorao: PedidoPorao[];
+  /** Maestros que chamaram o usuário no meio da rodada: id da sessão → motivo (❗ no maestro, 04/11/2026). */
+  maestroChamando: Record<string, string>;
 }
 
 /** Janelas possíveis quando ainda não sabemos o tamanho real para o modelo. */
@@ -145,7 +147,7 @@ async function discoverProjectDirs(config: Config): Promise<string[]> {
   return [...dirs].sort((a, b) => path.basename(a).localeCompare(path.basename(b)));
 }
 
-async function loadProject(dir: string, config: Config, portas: Map<number, number | null>): Promise<Project> {
+async function loadProject(dir: string, config: Config, portas: Map<number, number | null>, lidos: ReadonlySet<string>): Promise<Project> {
   const [isGit, pendencias, painel, progress, missing, sementes, relatorios, estante, retrabalho, auditoria, lareira] = await Promise.all([
     gitOps.isGitRepo(dir),
     readPendencias(dir),
@@ -153,7 +155,7 @@ async function loadProject(dir: string, config: Config, portas: Map<number, numb
     summarizeProgress(dir),
     missingStructure(dir),
     readSementes(dir),
-    readRelatorios(dir),
+    readRelatorios(dir, lidos),
     readEstante(dir),
     readRetrabalho(dir),
     readAuditoria(dir),
@@ -215,12 +217,14 @@ export async function buildWorld(
   moradores: Moradores,
   agents: Agents,
   skills: Skills,
-  porao: Pick<Porao, 'papeis' | 'pedidosAbertos'>,
+  porao: Pick<Porao, 'papeis' | 'pedidosAbertos' | 'chamadosAbertos'>,
+  relatoriosLidos: Pick<RelatoriosLidos, 'lidos'>,
 ): Promise<World> {
   const dirs = await discoverProjectDirs(config);
   // Uma checagem de portas por atualização, para todas as casas.
   const portas = await portasOcupadas();
-  const projects = await Promise.all(dirs.map((d) => loadProject(d, config, portas)));
+  const lidos = await relatoriosLidos.lidos();
+  const projects = await Promise.all(dirs.map((d) => loadProject(d, config, portas, lidos)));
   const all = await listSessions(config.sessionMaxAgeDays, projectsDirs(config));
   const known = new Set(all.map((s) => s.id));
   const inTown = new Set(terminals.map((t) => t.id));
@@ -264,5 +268,6 @@ export async function buildWorld(
     guardrails: await readGuardrails(config),
     conversas,
     pedidosPorao: porao.pedidosAbertos(),
+    maestroChamando: porao.chamadosAbertos(),
   };
 }

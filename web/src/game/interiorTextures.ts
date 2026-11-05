@@ -828,6 +828,14 @@ function podium(scene: Phaser.Scene) {
   add(scene, 'podium', c);
 }
 
+/** Batuta do maestro (04/11/2026): vareta clara com o cabo escuro; gira em volta do cabo (origem à esquerda). */
+function batuta(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(10, 3);
+  rect(ctx, 0, 0, 3, 3, '#3a2a1c');
+  rect(ctx, 3, 1, 7, 1, '#f4efe2');
+  add(scene, 'batuta', c);
+}
+
 /** Banco de madeira (encosto e assento) para quem já terminou; a frente vem por cima, como no sofá. */
 function bench(scene: Phaser.Scene) {
   const { c, ctx } = makeCanvas(52, 22);
@@ -873,6 +881,7 @@ export function generatePoraoTextures(scene: Phaser.Scene) {
   poraoWall(scene);
   ladder(scene);
   podium(scene);
+  batuta(scene);
   bench(scene);
   benchFront(scene);
   barrel(scene);

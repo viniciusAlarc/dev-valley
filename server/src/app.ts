@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import express from 'express';
 import type { askAdministrador } from './administrador.js';
+import type { askMirim } from './mirim.js';
 import { agentInput, Agents } from './agents.js';
 import type { sugerirMensagem } from './escrevente.js';
 import * as gitOps from './git.js';
@@ -18,6 +19,7 @@ import type { Gasto } from './gasto.js';
 import type { askJornaleiro, Jornal } from './jornal.js';
 import type { Plugins } from './plugins.js';
 import { MAESTRO, type Porao } from './porao.js';
+import type { RelatoriosLidos } from './relatorios.js';
 import { skillInput, type Skills } from './skills.js';
 import type { StatusLineStore } from './statusline.js';
 import type { TerminalManager } from './terminals.js';
@@ -53,13 +55,21 @@ export interface Contexto {
   /** Sessões avulsas novas (banco da praça), esperando o terminal abrir: nascem na home, fora de qualquer projeto. */
   avulsaSessions: Set<string>;
   /** Porão da casa (MA-1): registro das sessões de maestro e se o agente está instalado. */
-  porao: Pick<Porao, 'registrarMaestro' | 'maestroInstalado' | 'pedir' | 'pedido' | 'aprovar' | 'recusar' | 'esquecer'>;
+  porao: Pick<Porao, 'registrarMaestro' | 'maestroInstalado' | 'pedir' | 'pedido' | 'aprovar' | 'recusar' | 'esquecer' | 'chamar' | 'atender'>;
+  /** Relatórios do maestro já abertos (estante de partitura do porão, 04/11/2026). */
+  relatoriosLidos: Pick<RelatoriosLidos, 'marcar'>;
   /** Sessões de trabalho por rodada (`porao.tetoSessoes` do config, até 5). */
   tetoSessoes: number;
-  /** Abre a sessão de trabalho sem tela, com a frase do briefing; devolve o motivo quando não abre. */
-  abrirTarefa: (o: { sessionId: string; cwd: string; prompt: string }) => Promise<string | null>;
+  /**
+   * Abre a sessão de trabalho sem tela, com a frase do briefing e as regras `--allowedTools` da tarefa (vazio = sessão
+   * comum); devolve o motivo quando não abre.
+   */
+  abrirTarefa: (o: { sessionId: string; cwd: string; prompt: string; permitir: string[] }) => Promise<string | null>;
+  /** O que as sessões de trabalho leem fora do projeto sem pedir (`porao.leitura` do config). */
+  leituraPorao: string[];
   askLibrarian: typeof askLibrarian;
   askAdministrador: typeof askAdministrador;
+  askMirim: typeof askMirim;
   sugerirMensagem: typeof sugerirMensagem;
   /** Apaga os arquivos da conversa (`deleteSessionFiles`). */
   apagarConversa: (id: string) => Promise<void>;
@@ -173,7 +183,9 @@ export function criarApp(ctx: Contexto): express.Express {
     if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
     const maestro = ctx.world().sessions.find((s) => s.id === req.body?.maestro);
     if (!maestro?.live || maestro.porao?.papel !== 'maestro') return res.status(403).json({ error: 'Só o maestro aberto no porão, com a sessão viva, pede sessões.' });
-    const r = await porao.pedir({ maestro: maestro.id, rodada: req.body?.rodada, tarefas: req.body?.tarefas }, ctx.tetoSessoes);
+    const casaDoMaestro = findProject(maestro.projectId);
+    if (!casaDoMaestro) return res.status(404).json({ error: 'Projeto do maestro não encontrado.' });
+    const r = await porao.pedir({ maestro: maestro.id, rodada: req.body?.rodada, tarefas: req.body?.tarefas }, ctx.tetoSessoes, casaDoMaestro.path);
     if ('erro' in r) return res.status(r.status).json({ error: r.erro });
     await refreshWorld();
     res.status(201).json({ pedidoId: r.id, estado: r.estado, aviso: 'Peça ao usuário para aprovar no cartão da estante de partitura, no porão.' });
@@ -190,10 +202,24 @@ export function criarApp(ctx: Contexto): express.Express {
     const pedido = porao.pedido(req.params.id);
     const project = pedido && findProject(pedido.projectId);
     if (!pedido || !project) return res.status(404).json({ error: 'Pedido não encontrado.' });
-    const r = await porao.aprovar(pedido.id, (sessionId, prompt) => ctx.abrirTarefa({ sessionId, cwd: project.path, prompt }));
+    const r = await porao.aprovar(pedido.id, (sessionId, prompt, permitir) => ctx.abrirTarefa({ sessionId, cwd: project.path, prompt, permitir }), ctx.leituraPorao);
     if (!r) return res.status(409).json({ error: 'Este pedido já foi decidido.' });
     await refreshWorld();
     res.json({ estado: r.estado, sessoes: r.sessoes });
+  });
+
+  // Estante de partitura do porão (04/11/2026): abrir um relatório do maestro o tira de "novo". Só pela página, e só relatório
+  // listado no mundo daquele projeto; outro caminho responde 404, como inexistente (G9).
+  app.post('/api/relatorios/lido', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila marca relatório como lido.' });
+    const project = findProject(req.body?.projectId);
+    const relatorio = project?.relatorios?.find((r) => r.path === req.body?.path);
+    if (!relatorio) return res.status(404).json({ error: 'Relatório não encontrado.' });
+    if (!relatorio.lido) {
+      await ctx.relatoriosLidos.marcar(relatorio.path);
+      await refreshWorld();
+    }
+    res.json({ ok: true });
   });
 
   // "Encerrar rodada" (fase 4, decisão do usuário de 03/11/2026): apaga as conversas do porão do projeto (maestro e
@@ -236,6 +262,53 @@ export function criarApp(ctx: Contexto): express.Express {
     if (!porao.recusar(req.params.id)) return res.status(409).json({ error: 'Este pedido já foi decidido.' });
     await refreshWorld();
     res.json({ estado: 'recusado' });
+  });
+
+  // O maestro chama o usuário no meio da rodada (04/11/2026): como o pedido, vem do curl do maestro vivo (sem Origin).
+  // Com o chamado, o ❗ aparece no maestro e o clique nele abre a conversa em vez do mirim.
+  app.post('/api/porao/chamar', async (req, res) => {
+    if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+    const maestro = ctx.world().sessions.find((s) => s.id === req.body?.maestro);
+    if (!maestro?.live || maestro.porao?.papel !== 'maestro') return res.status(403).json({ error: 'Só o maestro aberto no porão, com a sessão viva, chama o usuário.' });
+    if (!(await porao.chamar(maestro.id, req.body?.motivo))) return res.status(403).json({ error: 'Só o maestro aberto no porão chama o usuário.' });
+    await refreshWorld();
+    res.status(201).json({ ok: true });
+  });
+
+  // A página abriu a conversa com o maestro: o chamado foi atendido.
+  app.post('/api/porao/chamar/atendido', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila atende o chamado.' });
+    if (typeof req.body?.maestro !== 'string') return res.status(400).json({ error: 'maestro inválido' });
+    porao.atender(req.body.maestro);
+    await refreshWorld();
+    res.json({ ok: true });
+  });
+
+  // Maestro mirim (04/11/2026): dúvidas do usuário sobre a rodada em andamento, só lendo. Mesmo formato NDJSON da
+  // bibliotecária. Só pela página: o mirim lê as conversas das sessões do porão.
+  app.post('/api/porao/mirim', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila fala com o mirim.' });
+    const project = findProject(req.body?.projectId);
+    if (!project) return res.status(404).json({ error: 'Projeto não encontrado.' });
+    const question = String(req.body?.question ?? '').trim();
+    if (!question) return res.status(400).json({ error: 'pergunta vazia' });
+    const history = Array.isArray(req.body?.history) ? req.body.history : [];
+    res.setHeader('Content-Type', 'application/x-ndjson');
+    const cancel = await ctx.askMirim(
+      question,
+      history,
+      project,
+      ctx.world().sessions,
+      (event) => {
+        res.write(JSON.stringify(event) + '\n');
+        if (event.type !== 'step') res.end();
+      },
+      internalSessions,
+    );
+    if (res.writableEnded) return;
+    res.on('close', () => {
+      if (!res.writableEnded) cancel();
+    });
   });
 
   app.delete('/api/agents', async (req, res) => {

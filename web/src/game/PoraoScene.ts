@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { activityOf, getWorld, onWorld, type PedidoPorao, type Project, type Session, type World } from '../api';
+import { activityOf, getWorld, onWorld, rodadaConduzindo, type PedidoPorao, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { label, makeInteractive, VillagerView } from './common';
 import { generateInteriorTextures, generatePoraoTextures } from './interiorTextures';
@@ -22,11 +22,9 @@ const BENCH_X = [W / 2 - 62, W / 2 + 62];
 const BENCH_SEATS = 3;
 const MAESTRO_X = W / 2 - 8;
 const MAESTRO_Y = WALL_H + 30;
-/** Quadro de relatórios (`docs-dev/maestro/`) na parede, entre a escada e o maestro: um bilhete por relatório, até 15. */
-const BOARD_X = 74;
-const BOARD_Y = WALL_H - 4;
-const NOTE_COLS = 5;
-const MAX_NOTES = 15;
+/** O mirim fica à esquerda do maestro, menor, no espaço onde era o quadro. */
+const MIRIM_X = MAESTRO_X - 30;
+const MIRIM_Y = WALL_H + 32;
 /** Gongo de "Encerrar rodada", no chão à direita, abaixo dos barris. */
 const GONGO_X = W - 24;
 const GONGO_Y = WALL_H + 52;
@@ -58,10 +56,14 @@ export class PoraoScene extends Phaser.Scene {
   /** ❗ em cima da estante de partitura enquanto o maestro espera o cartão ser decidido. */
   private avisoPedido?: Phaser.GameObjects.Image;
   private pedidoKey = '';
+  /** ♪ em cima da estante de partitura quando há relatório de rodada que o usuário ainda não abriu (e nenhum pedido). */
+  private notaRelatorio?: Phaser.GameObjects.Text;
   /** Balão do ✦: o estado da conversa do maestro da rodada em andamento. */
   private maestroBubble?: StatusBubble;
-  private notes: Phaser.GameObjects.Image[] = [];
-  private notesKey = '';
+  /** Regência (04/11/2026): a batuta e o balanço do maestro, ligados só enquanto alguma tarefa da rodada trabalha. */
+  private batuta?: Phaser.GameObjects.Image;
+  private regencia: Phaser.Tweens.Tween[] = [];
+  private regendo = false;
 
   constructor() {
     super('porao');
@@ -153,9 +155,12 @@ export class PoraoScene extends Phaser.Scene {
     }
     for (const s of sessions) this.villagers.get(s.id)?.update(s);
     const ativo = this.maestroAtivo(world);
-    this.maestroBubble?.set(ativo ? activityOf(ativo) : 'offline');
-    this.mostrarPedido(this.pedidoDaqui(world));
-    this.pinRelatorios(project);
+    // Chamou você no meio da rodada: o ❗ aparece nele, como o da permissão.
+    this.maestroBubble?.set(ativo ? (ativo.id in world.maestroChamando ? 'permission' : activityOf(ativo)) : 'offline');
+    this.reger(!!ativo && rodadaConduzindo(world, project.id));
+    const pedido = this.pedidoDaqui(world);
+    this.mostrarPedido(pedido);
+    this.notaRelatorio?.setVisible(!pedido && (project.relatorios ?? []).some((r) => !r.lido));
     for (const [id, monitor] of this.monitors) {
       const s = sessions.find((x) => x.id === id);
       const a = s ? activityOf(s) : 'offline';
@@ -180,7 +185,7 @@ export class PoraoScene extends Phaser.Scene {
     this.add.tileSprite(0, 0, W, WALL_H, 'poraoWall').setOrigin(0).setDepth(-19);
     const frame = this.add.graphics().setDepth(100000 - 1);
     frame.fillStyle(0x2a2520).fillRect(-6, 0, 6, H).fillRect(W, 0, 6, H).fillRect(-6, H, W + 12, 6);
-    ui.setLocation(`${project.name} · porão`, 'Maestro ✦: conversar sobre a rodada · estante: cartão do maestro · morador: abrir a sessão · escada ou Esc: voltar');
+    ui.setLocation(`${project.name} · porão`, 'Maestro ✦: rodada nova ou conversa (regendo, ele fica com o mirim) · mirim ✦: dúvidas da rodada · estante: cartão e relatórios · morador: abrir a sessão · escada ou Esc: voltar');
 
     const escada = this.prop('ladder', 22, WALL_H + 12);
     makeInteractive(escada, () => 'Escada — voltar para a casa (Esc)', () => this.leave());
@@ -196,13 +201,40 @@ export class PoraoScene extends Phaser.Scene {
     makeInteractive(
       maestro,
       () => {
-        const ativo = this.maestroAtivo(getWorld());
-        return ativo
-          ? `✦ Maestro — rodada em andamento, ${ESTADO_MAESTRO[activityOf(ativo)]} — clique para continuar a conversa`
-          : '✦ Maestro — agente permanente\n"Quer dividir um trabalho entre várias sessões? Me diga o quê." — clique para começar uma rodada';
+        const w = getWorld();
+        const ativo = this.maestroAtivo(w);
+        if (!ativo) return '✦ Maestro — agente permanente\n"Quer dividir um trabalho entre várias sessões? Me diga o quê." — clique para começar uma rodada';
+        const motivo = w.maestroChamando[ativo.id];
+        if (motivo !== undefined) return `✦ Maestro — chamou você${motivo ? `: ${motivo}` : ''} — clique para conversar`;
+        if (ativo.status !== 'permission' && rodadaConduzindo(w, this.projectId))
+          return '✦ Maestro — regendo a rodada, não interrompa: ele te chama com o ❗ quando precisar — clique para falar com o mirim';
+        return `✦ Maestro — rodada em andamento, ${ESTADO_MAESTRO[activityOf(ativo)]} — clique para continuar a conversa`;
       },
       () => void ui.falarComMaestro(this.project(getWorld()) ?? project, this.maestroAtivo(getWorld())),
     );
+    // A batuta na mão direita (do lado da estante); gira enquanto ele rege, e o corpo balança junto.
+    this.batuta = this.add.image(MAESTRO_X + 5, MAESTRO_Y - 13, 'batuta').setOrigin(0, 0.5).setDepth(MAESTRO_Y + 0.5).setVisible(false);
+    this.regencia = [
+      this.tweens.add({ targets: this.batuta, angle: { from: -55, to: 15 }, yoyo: true, repeat: -1, duration: 420, ease: 'Sine.inOut', paused: true }),
+      this.tweens.add({ targets: maestro, angle: { from: -3, to: 3 }, yoyo: true, repeat: -1, duration: 840, ease: 'Sine.inOut', paused: true }),
+    ];
+    this.regendo = false;
+
+    // ---- o maestro mirim ✦: o assistente, para as dúvidas enquanto o maestro rege (04/11/2026) ----
+    const mirim = this.add
+      .sprite(MIRIM_X, MIRIM_Y, villagerTexture(this, 'mirim-dev-valley', true), 0)
+      .setOrigin(0.5, 1)
+      .setScale(0.75)
+      .setDepth(MIRIM_Y);
+    this.add.image(MIRIM_X, MIRIM_Y + 1, 'shadow').setOrigin(0.5).setScale(0.75).setDepth(MIRIM_Y - 1);
+    makeInteractive(
+      mirim,
+      () => '✦ Maestro mirim — assistente do maestro\n"Quer saber como está a rodada? Me pergunte, que eu olho sem atrapalhar ele." — clique para perguntar',
+      () => ui.openMirim(this.project(getWorld()) ?? project),
+    );
+    const estrelinha = this.add.text(MIRIM_X + 5, MIRIM_Y - 26, '✦', { fontFamily: 'serif', fontSize: '8px', color: '#f7d046', resolution: 4 }).setOrigin(0.5).setDepth(100000);
+    estrelinha.setStroke('#5e3a1c', 2);
+    this.tweens.add({ targets: estrelinha, y: estrelinha.y - 2, alpha: 0.6, yoyo: true, repeat: -1, duration: 1100, ease: 'Sine.inOut' });
     this.maestroBubble = new StatusBubble(this);
     this.maestroBubble.setPosition(MAESTRO_X - 6, MAESTRO_Y - 33);
     const partitura = this.prop('podium', MAESTRO_X + 20, MAESTRO_Y + 2);
@@ -210,13 +242,29 @@ export class PoraoScene extends Phaser.Scene {
       partitura,
       () => {
         const p = this.pedidoDaqui(getWorld());
-        return p ? `Estante de partitura — o maestro pediu ${p.tarefas.length} sessão(ões) para a rodada ${p.rodada} — clique para decidir` : 'Estante de partitura — nenhum pedido do maestro esperando você';
+        if (p) return `Estante de partitura — o maestro pediu ${p.tarefas.length} sessão(ões) para a rodada ${p.rodada} — clique para decidir`;
+        const list = this.project(getWorld())?.relatorios ?? [];
+        const novos = list.filter((r) => !r.lido).length;
+        if (!list.length) return 'Estante de partitura — nenhum pedido esperando e nenhuma rodada fechada ainda';
+        return novos
+          ? `Estante de partitura — ${novos} relatório(s) de rodada que você ainda não abriu — clique para ler`
+          : `Estante de partitura — ${list.length} relatório(s) de rodada — clique para ver`;
       },
+      // Com pedido esperando, o cartão; senão, os relatórios das rodadas (a partitura tocada, 04/11/2026).
       () => {
+        const cur = this.project(getWorld()) ?? project;
         const p = this.pedidoDaqui(getWorld());
-        if (p) ui.openPedidoPorao(p, this.project(getWorld()) ?? project);
+        if (p) ui.openPedidoPorao(p, cur);
+        else ui.openRelatorios(cur);
       },
     );
+    this.notaRelatorio = this.add
+      .text(MAESTRO_X + 20, MAESTRO_Y - 28, '♪', { fontFamily: 'serif', fontSize: '10px', color: '#fffaf0', resolution: 4 })
+      .setOrigin(0.5)
+      .setDepth(100000)
+      .setVisible(false);
+    this.notaRelatorio.setStroke('#2b1a0e', 2);
+    this.tweens.add({ targets: this.notaRelatorio, y: this.notaRelatorio.y - 3, alpha: 0.6, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut' });
     // A sala foi refeita: o ❗ do pedido volta por cima dela.
     this.pedidoKey = '';
     this.avisoPedido = undefined;
@@ -224,18 +272,7 @@ export class PoraoScene extends Phaser.Scene {
     star.setStroke('#5e3a1c', 2);
     this.tweens.add({ targets: star, y: star.y - 3, alpha: 0.6, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut' });
 
-    // ---- quadro de relatórios e gongo de encerrar ----
-    const quadro = this.prop('corkBoard', BOARD_X, BOARD_Y);
-    makeInteractive(
-      quadro,
-      () => {
-        const n = this.project(getWorld())?.relatorios?.length ?? 0;
-        return n ? `Quadro de relatórios — ${n} rodada(s) do maestro em docs-dev/maestro/ — clique para ler` : 'Quadro de relatórios — nenhuma rodada fechada ainda';
-      },
-      () => ui.openRelatorios(this.project(getWorld()) ?? project),
-    );
-    this.notes = [];
-    this.notesKey = '';
+    // ---- gongo de encerrar (os relatórios ficam na estante de partitura, ao lado do maestro) ----
     const gongo = this.prop('poraoGongo', GONGO_X, GONGO_Y);
     makeInteractive(
       gongo,
@@ -290,21 +327,19 @@ export class PoraoScene extends Phaser.Scene {
     this.frameCamera();
   }
 
-  /** Um bilhete por relatório no quadro; só redesenha quando a quantidade muda. */
-  private pinRelatorios(project: Project) {
-    const n = Math.min(project.relatorios?.length ?? 0, MAX_NOTES);
-    if (String(n) === this.notesKey) return;
-    this.notesKey = String(n);
-    for (const note of this.notes) note.destroy();
-    const left = BOARD_X - 23 + 3;
-    const top = BOARD_Y - 30 + 3;
-    const jitter = [0, 1, 0, -1, 1, -1, 0, 1, 0, 0, 1, -1, 0, 1, -1];
-    this.notes = Array.from({ length: n }, (_, i) =>
-      this.add
-        .image(left + (i % NOTE_COLS) * 8, top + Math.floor(i / NOTE_COLS) * 8 + jitter[i]!, 'note4')
-        .setOrigin(0)
-        .setDepth(BOARD_Y + 0.5),
-    );
+  /** Liga ou desliga a regência; parado, a batuta some e o maestro volta ao prumo. */
+  private reger(sim: boolean) {
+    if (sim === this.regendo || !this.batuta?.active) return;
+    this.regendo = sim;
+    this.batuta.setVisible(sim);
+    for (const t of this.regencia) {
+      if (sim) t.play();
+      else {
+        t.pause();
+        t.seek(0);
+        for (const alvo of t.targets as Phaser.GameObjects.Components.Transform[]) alvo.angle = 0;
+      }
+    }
   }
 
   private frameCamera() {

@@ -24,4 +24,4 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
-| MA-1 | 💻 | Maestro e porão (trabalho paralelo de até 5 sessões): fases 1 a 3 feitas e conferidas, fase 4 feita (falta o usuário conferir na vila); plano em `docs-dev/a-codar/maestro.md`. | 2026-11-03 |
+| MA-3 | 💻 | Sessão de trabalho do porão retomada (`--resume`, depois de a vila reiniciar no meio da rodada) volta sem as regras de permissão da tarefa e pede permissão para tudo. Guardar as regras no `porao.json` e repassar no resume. Ver `docs-dev/context/maestro.md`. | 2026-11-04 |

@@ -1,15 +1,16 @@
 {
   "plano": {
-    "nome": "Moradores variados e coerentes com o nome (31/10/2026)",
-    "doc": "docs-dev/context/moradores-variados.md",
+    "nome": "Maestro e porão: trabalho paralelo de até 5 sessões (03/11/2026)",
+    "doc": "docs-dev/context/maestro.md",
     "fases": [
-      { "nome": "Arte sem Phaser e prévia em PNG", "estado": "feito" },
-      { "nome": "Nome marcado e sorteio respeitando a marca", "estado": "feito" },
-      { "nome": "Penteados, roupas e acessórios novos", "estado": "feito" },
-      { "nome": "Testes e conferência na vila", "estado": "feito" }
+      { "nome": "O agente e a regra (universal)", "estado": "feito" },
+      { "nome": "O porão na vila", "estado": "feito" },
+      { "nome": "O maestro cria as sessões", "estado": "feito" },
+      { "nome": "Avisos, relatório e encerramento", "estado": "feito" }
     ]
   },
   "entregas": [
+    { "data": "2026-11-03", "o_que": "Maestro e porão fechados: rodada de verdade pela vila com COMECEI e PRONTA chegando ao maestro; MA-1 encerrada", "como": "docs-dev/context/maestro.md; agente e contrato em ~/Documents/IA" },
     { "data": "2026-10-31", "o_que": "Moradores com aparência que combina com o nome e muito mais variados: 10 penteados, 10 roupas, 5 acessórios de cabeça, óculos, lenço, barba e bigode", "como": "villagerArt.ts sem Phaser, generoDoNome no servidor, scripts/previa-moradores.ts" },
     { "data": "2026-10-30", "o_que": "NPCs conversando: quem cita @Nome anda até o citado e os dois conversam com balão até a resposta terminar, na vila e dentro da casa", "como": "idsCitados no mod (0.2.0), citados no HookStore, World.conversas, syncConversas na TownScene e InteriorScene" },
     { "data": "2026-10-29", "o_que": "Testes no CI do GitHub junto com o auditor; plano de testes fechado (PD-8)", "como": "job testes em .github/workflows/auditor.yml: npm ci, typecheck do servidor e npm test" },
