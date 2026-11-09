@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Bash(npm start*)",
+      "Bash(npm run start*)",
+      "Bash(npm run dev*)",
+      "Bash(npm -w server start*)",
+      "Bash(npm run dev -w *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/conferir-ao-parar.sh\"",
+            "timeout": 120,
+            "statusMessage": "Conferindo os tipos"
+          }
+        ]
+      }
+    ]
+  }
+}

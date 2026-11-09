@@ -39,7 +39,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   - `src/index.ts` (entrada: serviços de verdade, WebSockets e `listen`), `app.ts` (rotas HTTP em `criarApp(ctx)`: o que
     age fora da pasta do projeto chega pelo `Contexto`, nunca importado direto na rota), `seguranca.ts` (origem local e o que `/api/arquivo` pode entregar), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
     `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `consulta.ts` (base dos agentes da vila),
-    `administrador.ts` (administrador da praça), `mirim.ts` (maestro mirim: dúvidas da rodada, só lendo), `agents.ts`/`skills.ts`/`plugins.ts` (Fábrica: agentes, skills e, só leitura, plugins e MCP), `gasto.ts` (moinho: gasto por projeto), `jornal.ts` (banca de jornal), `perfil.ts` (projeto pessoal: terminal em outro perfil do Claude Code, com outra API), `reinicio.ts` (sino:
+    `administrador.ts` (administrador da praça), `mirim.ts` (maestro mirim: dúvidas da rodada, só lendo), `agents.ts`/`skills.ts`/`plugins.ts` (Fábrica: agentes, skills e, só leitura, plugins e MCP), `gasto.ts` (moinho: gasto por projeto), `jornal.ts` (banca de jornal), `perfil.ts` (projeto pessoal: terminal em outro perfil do Claude Code, com outra API), `bastao.ts` (passagem de bastão: resumo e sucessor), `reinicio.ts` (sino:
     reinício pendente), `estrutura.ts` (casa em obra e
     placa de vistoria), `sementes.ts` (caixa
     de sementes), `retrabalho.ts` (ervas do quintal), `porao.ts` (porão da casa: quem é do maestro), `relatorios.ts` (estante de partitura do porão: relatórios do maestro, novo até abrir), `quadro.ts` (quadro negro), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
@@ -63,9 +63,11 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade; rotas por `subir()` de `server/tests/servidor.ts`,
   com imitações; teste que usa classe que grava em `~` troca o `HOME` antes do `import`, como
   `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
-  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 54 rotas e o pombal; WebSockets e front
+  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 57 rotas e o pombal; WebSockets e front
   seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor, `npm test` e `npm run build` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 04/11/2026 (213/213).
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 08/11/2026 (240/240). O hook `Stop` do `.claude/settings.json` roda
+  `scripts/conferir-ao-parar.sh`: a sessão que editou `.ts` daqui só termina a resposta com os tipos do servidor e do front
+  passando (G4 cobrado pelo harness, 08/11/2026).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Prévia dos moradores em PNG, sem navegador: `npx tsx scripts/previa-moradores.ts <saida.png> [quantos|catalogo]`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com
@@ -80,9 +82,11 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 2. **O servidor escuta só em `127.0.0.1` e recusa WebSocket de outra origem:** os terminais rodam comandos de
    verdade. Nunca afrouxar isso.
 3. **O mod (`mod/`) e os hooks de permissão mandam à vila só `session_id`, `cwd`, nome do evento, tipo de
-   notificação e os ids das sessões citadas com `@Nome`** (e contexto/limites no `/api/statusline`). Nunca conteúdo de
+   notificação, a categoria da ferramenta em uso (`ler`, `editar`, `rodar`, `web`, `agente`) e os ids das sessões
+   citadas com `@Nome`** (e contexto/limites no `/api/statusline`). Nunca conteúdo de
    arquivo ou prompt, nem o nome digitado: o prompt é lido **só localmente**, para achar `@Nome` no mapa
-   `~/.claude/dev-valley/moradores.json`; os ids citados servem aos NPCs conversando (decisão do usuário, 30/10/2026). O
+   `~/.claude/dev-valley/moradores.json`; os ids citados servem aos NPCs conversando (decisão do usuário, 30/10/2026); a categoria desenha o balão de quem trabalha,
+   nunca leva o nome da ferramenta, o arquivo nem o comando (decisão do usuário, 08/11/2026). O
    teste `mod/tests/dev-valley.test.ts` confere isso.
 4. **`hooks:install` instala o mod (`claude plugin install`) e mexe em `~/.claude/settings.json` (global, com
    backup) só nas entradas do Dev Valley (os hooks de shell de `PermissionRequest` e `Notification`; o mod não vê
@@ -96,8 +100,10 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 6. **Este repositório costuma ser editado de dentro da própria vila.** Reiniciar o servidor (`npm start` de novo,
    `npm run dev`, que reinicia sozinho ao salvar em `server/`) encerra todos os terminais da vila, inclusive a
    sessão que está editando. Nunca reiniciar nem rodar `npm run dev` por conta própria: avisar o usuário e ele
-   reinicia quando as sessões terminarem (G21).
-7. **Pixel art é gerada em código** (`web/src/game/textures.ts`, `interiorTextures.ts`; moradores em `villagerArt.ts`,
+   reinicia quando as sessões terminarem (G21). O `.claude/settings.json` do repositório nega `npm start` e `npm run dev` às sessões
+   (regra dura, 08/11/2026): o usuário reinicia pelo próprio terminal.
+7. **Pixel art é gerada em código** (`web/src/game/textures.ts`, `interiorTextures.ts`; ícones do balão em grade de
+   caracteres em `iconesBalao.ts`; moradores em `villagerArt.ts`,
    sem Phaser); prévia em `web/sprites.html` e, dos moradores, em PNG por `scripts/previa-moradores.ts` (o `catalogo`
    mostra cada peça). A aparência do morador combina com a marca do nome (`generoDoNome` no servidor): barba nunca em
    nome feminino, vestido e laço nunca em masculino (decisão do usuário, 31/10/2026). A roupa (camisa, calça, jaqueta,
@@ -114,7 +120,8 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 10. **Sessão de trabalho do porão (`server/src/porao.ts`) só nasce do clique do usuário no cartão.** O maestro pede pela
    rota (`curl` local), mas aprovar e recusar exigem `Origin` local presente (a página), nunca só a ausência dele. Teto de
    5 sessões por rodada (o config só baixa), e cada sessão é anotada no `porao.json` antes de o terminal abrir
-   (decisão do usuário, 03/11/2026).
+   (decisão do usuário, 03/11/2026). A sessão do roteiro de testes (`/api/porao/roteiro`, uma por rodada) também só nasce
+   do clique, mas na **casa**: não é anotada, não conta no teto e o gongo não a apaga (decisão do usuário, 05/11/2026).
 
 ## Regras de processo deste projeto
 

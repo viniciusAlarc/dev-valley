@@ -49,6 +49,7 @@ export function openEncerrarRodada(project: Project) {
  * rodada e elas só abrem com este clique, como o push do pombal. A rota de aprovar só aceita vinda da página.
  */
 export function openPedidoPorao(pedido: PedidoPorao, project: Project) {
+  if (pedido.roteiro) return openPedidoRoteiro(pedido, project);
   const n = pedido.tarefas.length;
   const panel = openPanel({ title: `O maestro quer abrir ${n} ${n === 1 ? 'sessão' : 'sessões'}`, subtitle: `${project.name} · rodada ${pedido.rodada}` });
   panel.body.innerHTML = `
@@ -88,6 +89,46 @@ export function openPedidoPorao(pedido: PedidoPorao, project: Project) {
             return `<li><b>${escapeHtml(t)}</b> ${s && 'sessionId' in s ? 'aberta, já está numa mesa do porão' : `não abriu: ${escapeHtml(s && 'erro' in s ? s.erro : 'sem resposta')}`}</li>`;
           })
           .join('')}</ul>`;
+      } catch (e) {
+        resultado.innerHTML = `<p>${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`;
+      }
+    });
+  }
+}
+
+/**
+ * Cartão do roteiro de testes (05/11/2026): a rodada mexeu em tela e o maestro pede a sessão que monta o roteiro. Ela
+ * nasce na casa, como morador comum (fora do teto, o gongo não a apaga), e continua a triagem e o reteste com você.
+ */
+function openPedidoRoteiro(pedido: PedidoPorao, project: Project) {
+  const panel = openPanel({ title: 'Roteiro de testes da rodada', subtitle: `${project.name} · rodada ${pedido.rodada}` });
+  panel.body.innerHTML = `
+    <p>A rodada mexeu no que você vê na tela. Abrir cria um morador na casa que começa com
+    <code>/roteiro-testes ${escapeHtml(pedido.roteiro ?? '')}</code>: lê o relatório, o PROGRESS.md e a spec de cada tela,
+    e te entrega o link do roteiro para executar.</p>
+    <p class="muted">Depois, cole nele o resultado: ele separa cada falha, corrige o que for defeito e gera o reteste.
+    É uma sessão comum: pede permissão como qualquer outra, e o gongo do porão não a apaga.</p>
+    <p class="porao-acoes">
+      <button class="btn btn-primary" data-acao="aprovar">Abrir a sessão do roteiro</button>
+      <button class="btn btn-danger" data-acao="recusar">Agora não</button>
+    </p>
+    <div class="porao-resultado"></div>`;
+  const botoes = [...panel.body.querySelectorAll<HTMLButtonElement>('[data-acao]')];
+  const resultado = panel.body.querySelector<HTMLElement>('.porao-resultado')!;
+  for (const b of botoes) {
+    b.addEventListener('click', async () => {
+      for (const x of botoes) x.disabled = true;
+      try {
+        if (b.dataset.acao === 'recusar') {
+          await api.recusarPedido(pedido.id);
+          resultado.innerHTML = '<p>Sem sessão do roteiro. Para montar depois, numa sessão da casa: <code>/roteiro-testes ' + escapeHtml(pedido.roteiro ?? '') + '</code></p>';
+          return;
+        }
+        const r = await api.aprovarPedido(pedido.id);
+        const s = r.sessoes.roteiro;
+        resultado.innerHTML = s && 'sessionId' in s
+          ? '<p>Aberta: o morador novo está na casa montando o roteiro. Quando ele te der o link, é só seguir.</p>'
+          : `<p>Não abriu: ${escapeHtml(s && 'erro' in s ? s.erro : 'sem resposta')}</p>`;
       } catch (e) {
         resultado.innerHTML = `<p>${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`;
       }

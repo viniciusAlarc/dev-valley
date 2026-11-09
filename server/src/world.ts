@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { Config } from './config.js';
 import * as gitOps from './git.js';
-import type { HookState, SessionStatus } from './hooks.js';
+import type { Atividade, HookState, SessionStatus } from './hooks.js';
 import type { StatusLineStore, Usage } from './statusline.js';
 import { readEstante, type Livro } from './estante.js';
 import { missingStructure, readAuditoria } from './estrutura.js';
@@ -75,6 +75,8 @@ export interface WorldSession extends SessionInfo {
   live: boolean;
   /** Estado informado pelos hooks; null = sem hooks para esta sessão. */
   status: SessionStatus | null;
+  /** O que está fazendo agora, pela categoria da ferramenta (balão da vila); null = sem categoria ou parada. */
+  atividade: Atividade | null;
   /** Janela de contexto usada. `estimated` = calculada do .jsonl, sem o status line. */
   context: { percent: number; tokens: number; window: number; estimated: boolean } | null;
   /** Mora no porão da casa (maestro ou tarefa de uma rodada, ver porao.ts): não aparece no mapa nem na casa. */
@@ -251,6 +253,7 @@ export async function buildWorld(
       inTown: inTown.has(s.id),
       live: inTown.has(s.id) || !!hook,
       status: hook?.status ?? null,
+      atividade: hook?.atividade ?? null,
       context: contextOf(s, statusLine, guessed),
       porao: papeis.get(s.id) ?? (s.briefing ? { papel: 'tarefa', ...s.briefing } : null),
     };

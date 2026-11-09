@@ -5,6 +5,10 @@
 
 export type SessionStatus = 'working' | 'permission' | 'idle';
 
+/** Categoria da ferramenta em uso, mandada pelo mod (regra 3: nunca o nome dela, o arquivo nem o comando). */
+export type Atividade = 'ler' | 'editar' | 'rodar' | 'web' | 'agente';
+const ATIVIDADES: readonly string[] = ['ler', 'editar', 'rodar', 'web', 'agente'];
+
 export interface HookState {
   id: string;
   cwd: string;
@@ -18,6 +22,8 @@ export interface HookState {
   paradoEm: number;
   /** Desde quando está trabalhando sem parar (ou pedindo permissão); 0 = parada. */
   trabalhandoDesde: number;
+  /** O que está fazendo agora (última ferramenta); null = sem categoria ou parada. */
+  atividade: Atividade | null;
 }
 
 export interface HookPayload {
@@ -28,6 +34,8 @@ export interface HookPayload {
   message?: string;
   /** Ids das sessões citadas, mandados pelo mod junto do `UserPromptSubmit` (regra 3: nunca o texto). */
   citados?: unknown;
+  /** Categoria da ferramenta, mandada pelo mod junto do `PreToolUse`. */
+  atividade?: unknown;
 }
 
 /** Sem evento há tanto tempo, "trabalhando" provavelmente é um processo que morreu. */
@@ -107,10 +115,14 @@ export class HookStore {
     } else if (p.hook_event_name === 'Stop') paradoEm = now;
     const estava = prev ? ativa(prev) : false;
     const trabalhandoDesde = status === 'working' || status === 'permission' ? (estava ? prev!.trabalhandoDesde : now) : 0;
+    // A categoria vale da ferramenta até a próxima; mensagem nova ou fim de turno a apaga.
+    let atividade = prev?.atividade ?? null;
+    if (p.hook_event_name === 'PreToolUse') atividade = typeof p.atividade === 'string' && ATIVIDADES.includes(p.atividade) ? (p.atividade as Atividade) : null;
+    else if (status === 'idle' || p.hook_event_name === 'UserPromptSubmit') atividade = null;
 
     if (status === null) this.states.delete(id);
-    else this.states.set(id, { id, cwd, status, updatedAt: now, citados, citadosEm, paradoEm, trabalhandoDesde });
-    return status !== prev?.status || citados.join() !== (prev?.citados ?? []).join();
+    else this.states.set(id, { id, cwd, status, updatedAt: now, citados, citadosEm, paradoEm, trabalhandoDesde, atividade });
+    return status !== prev?.status || atividade !== (prev?.atividade ?? null) || citados.join() !== (prev?.citados ?? []).join();
   }
 
   /** Sessão apagada na vila: some do estado ao vivo sem esperar o `SessionEnd`. */
@@ -122,7 +134,10 @@ export class HookStore {
     const now = Date.now();
     for (const [id, s] of this.states) {
       if (now - s.updatedAt > FORGET_MS) this.states.delete(id);
-      else if (s.status === 'working' && now - s.updatedAt > WORKING_STALE_MS) s.status = 'idle';
+      else if (s.status === 'working' && now - s.updatedAt > WORKING_STALE_MS) {
+        s.status = 'idle';
+        s.atividade = null;
+      }
     }
     // Conversa encerrada não volta: o citado trabalhar de novo mais tarde não reabre.
     for (const s of this.states.values()) {

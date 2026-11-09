@@ -18,6 +18,7 @@ import { Moradores } from './moradores.js';
 import { buscar } from './pombal.js';
 import { isLocalOrigin } from './seguranca.js';
 import { ambienteDoTerminal, projectsDirs } from './perfil.js';
+import { Bastao } from './bastao.js';
 import { deleteSessionFiles } from './sessions.js';
 import { Gasto } from './gasto.js';
 import { askJornaleiro, Jornal } from './jornal.js';
@@ -58,6 +59,25 @@ const agentSessions = new Map<string, { cwd: string; agent: string }>();
 const avulsaSessions = new Set<string>();
 /** Quem mora no porão das casas (maestro e tarefas das rodadas, MA-1). */
 const porao = new Porao();
+const bastao = new Bastao();
+
+/** Abre uma sessão nova sem ninguém olhando, já com a primeira mensagem (tarefa do porão, roteiro, sucessor do bastão). */
+async function abrirSessao({ sessionId, cwd, prompt, permitir }: { sessionId: string; cwd: string; prompt: string; permitir: string[] }) {
+  const ambiente = await ambienteDoTerminal(cwd, config);
+  if ('erro' in ambiente) return ambiente.erro;
+  terminals.start({ sessionId, cwd, mode: 'new', prompt, permitir, env: ambiente.env, cols: 120, rows: 32 });
+  return null;
+}
+
+// Passagem de bastão (BT-1): quando o resumo pedido aparece, nasce o sucessor na mesma pasta.
+setInterval(() => {
+  void bastao
+    .conferir(abrirSessao)
+    .then(async (abertos) => {
+      if (abertos.length) await refreshWorld();
+    })
+    .catch(() => {});
+}, 3000);
 const relatoriosLidos = new RelatoriosLidos();
 
 async function refreshWorld() {
@@ -100,12 +120,9 @@ const app = criarApp({
   relatoriosLidos,
   tetoSessoes: config.porao.tetoSessoes,
   leituraPorao: config.porao.leitura,
-  abrirTarefa: async ({ sessionId, cwd, prompt, permitir }) => {
-    const ambiente = await ambienteDoTerminal(cwd, config);
-    if ('erro' in ambiente) return ambiente.erro;
-    terminals.start({ sessionId, cwd, mode: 'new', prompt, permitir, env: ambiente.env, cols: 120, rows: 32 });
-    return null;
-  },
+  abrirTarefa: abrirSessao,
+  bastao,
+  terminaisDoBastao: terminals,
   askLibrarian,
   askAdministrador,
   askMirim,

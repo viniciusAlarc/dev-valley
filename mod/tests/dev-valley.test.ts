@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { citados, contextoCitados, corpoStatus, idsCitados, textoRodape, type Mapa } from '../hooks/moradores'
+import { atividadeDe, citados, contextoCitados, corpoStatus, idsCitados, textoRodape, type Mapa } from '../hooks/moradores'
 
 const MAPA: Mapa = {
   atualizadoEm: '2026-10-26T18:00:00.000Z',
@@ -15,6 +15,24 @@ const ok = (text: string) => ({ value: { status: 200, ok: true, headers: {}, tex
 /** O limite de espera do mod (`$.clock.after`) nunca dispara: a vila de teste responde na hora. */
 const semRelogio = (on: any) => on('clock.after', () => new Promise(() => {}))
 
+
+describe('atividade do morador (regra 3: só a categoria)', () => {
+  test('cada ferramenta cai na sua categoria', () => {
+    expect(atividadeDe('Read', false)).toBe('ler')
+    expect(atividadeDe('Grep', false)).toBe('ler')
+    expect(atividadeDe('Edit', false)).toBe('editar')
+    expect(atividadeDe('Write', false)).toBe('editar')
+    expect(atividadeDe('Bash', false)).toBe('rodar')
+    expect(atividadeDe('WebFetch', false)).toBe('web')
+    expect(atividadeDe('Agent', false)).toBe('agente')
+  })
+
+  test('ferramenta de subagente conta como agente; MCP e desconhecida ficam sem categoria', () => {
+    expect(atividadeDe('Edit', true)).toBe('agente')
+    expect(atividadeDe('mcp__servidor__ferramenta', false)).toBeUndefined()
+    expect(atividadeDe('Inventada', false)).toBeUndefined()
+  })
+})
 
 describe('@Nome', () => {
   test('acha citações; e-mail e @pacote não contam', () => {
@@ -117,7 +135,7 @@ describe('mod', () => {
       expect(c).not.toContain('segredo')
       expect(c).not.toContain('Vera')
       const corpo = JSON.parse(c)
-      expect(Object.keys(corpo).every((k) => ['session_id', 'cwd', 'hook_event_name', 'citados'].includes(k))).toBe(true)
+      expect(Object.keys(corpo).every((k) => ['session_id', 'cwd', 'hook_event_name', 'citados', 'atividade'].includes(k))).toBe(true)
       // Da mensagem, só o id da sessão citada (NPCs conversando): nunca o nome digitado nem o texto.
       if (corpo.citados) expect(corpo).toEqual({ session_id: 'sid-2', cwd: expect.any(String), hook_event_name: 'UserPromptSubmit', citados: ['aaaa'] })
     }

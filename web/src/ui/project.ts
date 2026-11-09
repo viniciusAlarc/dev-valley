@@ -39,7 +39,7 @@ export function openProject(project: Project) {
   panel.body.querySelector('.button-row')!.append(
     button('Nova sessão', async () => {
       const { sessionId } = await api.newSession(project.id);
-      openTerminal({ sessionId, projectId: project.id, title: 'Nova sessão' });
+      openTerminal({ sessionId, projectId: project.id, title: 'Nova sessão', bastao: true });
     }, 'primary'),
     button('Abrir no VS Code', () => api.openVsCode(project.id)),
     button('📚 Documentação', () => ui.openLibrary({ sectionId: `project:${project.id}` })),

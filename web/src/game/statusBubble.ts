@@ -1,27 +1,45 @@
 import Phaser from 'phaser';
-import type { SessionStatus } from '../api';
+import type { Atividade, SessionStatus } from '../api';
 
 type Activity = SessionStatus | 'offline';
 
-/** Balão sobre a cabeça: "..." trabalhando, "!" pedindo permissão, nada quando parado. */
+const ATIVIDADES: Atividade[] = ['ler', 'editar', 'rodar', 'web', 'agente'];
+
+/**
+ * Balão sobre a cabeça: trabalhando, o ícone do que está fazendo (lupa, lápis, terminal, globo, ✦; texturas
+ * `bubble-<atividade>` de `iconesBalao.ts`) ou "..." sem categoria; "!" pedindo permissão; nada quando parado.
+ */
 export class StatusBubble {
   readonly container: Phaser.GameObjects.Container;
   private working: Phaser.GameObjects.Container;
+  private pontos: Phaser.GameObjects.Container;
+  private icones: Record<Atividade, Phaser.GameObjects.Image>;
   private alert: Phaser.GameObjects.Image;
   private alertTween: Phaser.Tweens.Tween;
 
   constructor(scene: Phaser.Scene) {
     const dots = [0, 1, 2].map((i) => scene.add.rectangle(-4 + i * 4, -8, 2, 2, 0x3b2312));
     dots.forEach((d, i) => scene.tweens.add({ targets: d, y: d.y - 2, yoyo: true, repeat: -1, duration: 300, delay: i * 150 }));
-    this.working = scene.add.container(0, 0, [scene.add.image(0, -6, 'bubble'), ...dots]);
+    this.pontos = scene.add.container(0, 0, [scene.add.image(0, -6, 'bubble'), ...dots]);
+    // Balão do ícone: 18×14, com a base no mesmo lugar do balão dos "..."; um balanço leve, para não parecer parado.
+    this.icones = Object.fromEntries(
+      ATIVIDADES.map((a) => {
+        const img = scene.add.image(0, -7, `bubble-${a}`);
+        scene.tweens.add({ targets: img, y: -8, yoyo: true, repeat: -1, duration: 450, ease: 'Sine.inOut' });
+        return [a, img];
+      }),
+    ) as Record<Atividade, Phaser.GameObjects.Image>;
+    this.working = scene.add.container(0, 0, [this.pontos, ...Object.values(this.icones)]);
     this.alert = scene.add.image(0, -8, 'alert');
     this.alertTween = scene.tweens.add({ targets: this.alert, y: -11, yoyo: true, repeat: -1, duration: 260, ease: 'Sine.inOut', paused: true });
     this.container = scene.add.container(0, 0, [this.working, this.alert]).setDepth(100000);
     this.set('offline');
   }
 
-  set(activity: Activity) {
+  set(activity: Activity, atividade: Atividade | null = null) {
     this.working.setVisible(activity === 'working');
+    this.pontos.setVisible(!atividade);
+    for (const [a, img] of Object.entries(this.icones)) img.setVisible(a === atividade);
     this.alert.setVisible(activity === 'permission');
     if (activity === 'permission') this.alertTween.resume();
     else this.alertTween.pause();

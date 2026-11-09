@@ -1,5 +1,5 @@
 import { getWorld, type GastoView } from '../api';
-import { comparacao, faltam, fatia, numeroCurto, projecao } from './gasto-texto';
+import { comparacao, faltam, fatia, numeroCurto, projecao, textoLimite } from './gasto-texto';
 import { escapeHtml, openPanel } from './panel';
 
 const PERFIL = { profissional: 'Trabalho (Claude)', pessoal: 'Pessoal (DeepSeek)' } as const;
@@ -57,8 +57,13 @@ export function openGasto(v: GastoView | null) {
       : 'Últimos 7 dias';
   const quanto = decorrido(v);
   const totais = v.perfis.map((p) => `${PERFIL[p.perfil]}: ${numeroCurto(p.total)} nesta semana, ${numeroCurto(p.anterior)} na anterior.`);
+  // Previsão dos limites do plano (08/11/2026): o mesmo número da torre, com quando estoura no ritmo de agora.
+  const limites = (v.limites ?? [])
+    .map((l) => `<p class="gasto-ritmo"><strong>${escapeHtml(l.label)}: ${Math.round(l.percent)}%.</strong> ${escapeHtml(textoLimite(l))}</p>`)
+    .join('');
   panel.body.innerHTML = `
     <p class="gasto-janela">${escapeHtml(janela)}</p>
+    ${limites ? `<h3>Limites do plano: até quando dá</h3>${limites}` : ''}
     ${v.perfis.map((p) => secao(p, quanto)).join('') || '<p class="empty">Nenhuma conversa nesta semana.</p>'}
     <details class="gasto-como">
       <summary>Como é calculado</summary>
@@ -67,6 +72,7 @@ export function openGasto(v: GastoView | null) {
         <li>O gasto soma os tokens de entrada, de saída e de criação de cache; a leitura de cache conta 1/10, porque custa bem menos.</li>
         <li>A comparação projeta o gasto de agora para a semana inteira e compara com a semana passada.</li>
         <li>${v.janela.fonte === 'plano' ? 'A semana é a mesma da torre do relógio.' : 'A semana do plano aparece depois da primeira resposta do Claude numa sessão; até lá, valem os últimos 7 dias.'}</li>
+        <li>Os limites são os mesmos da torre do relógio. A sessão de 5h é prevista pelo ritmo da última hora; a semana, pelo ritmo médio desde que começou. A medição recomeça quando a vila reinicia.</li>
         <li>As pás do moinho giram mais rápido quando o gasto passa o ritmo da semana passada.</li>
         ${totais.map((t) => `<li>${escapeHtml(t)} (em tokens)</li>`).join('')}
       </ul>

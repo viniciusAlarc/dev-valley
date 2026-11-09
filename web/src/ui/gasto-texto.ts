@@ -63,3 +63,36 @@ export function fatia(peso: number, total: number): string {
   const p = (peso / total) * 100;
   return p < 1 ? 'menos de 1%' : `${Math.round(p)}%`;
 }
+
+/** Previsão de um limite do plano, como vem de `/api/gasto` (espelha `RitmoLimite` do servidor). */
+export interface LimiteRitmo {
+  label: string;
+  group: string;
+  percent: number;
+  resetsAt: string | null;
+  porHora: number | null;
+  estouraEm: number | null;
+  aoRenovar: number | null;
+}
+
+/** "às 15h40" no mesmo dia; "qui 10h" em outro. `timeZone` só para o teste. */
+export function quando(t: number, agora = Date.now(), timeZone?: string): string {
+  const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('pt-BR', { timeZone, ...o }).format(t);
+  const hora = fmt({ hour: '2-digit', minute: '2-digit' }).replace(':', 'h').replace(/h00$/, 'h').replace(/^0/, '');
+  const mesmoDia = fmt({ dateStyle: 'short' }) === new Intl.DateTimeFormat('pt-BR', { timeZone, dateStyle: 'short' }).format(agora);
+  return mesmoDia ? `às ${hora}` : `${fmt({ weekday: 'short' }).replace('.', '')} ${hora}`;
+}
+
+/**
+ * A previsão de um limite em linguagem de gente (decisão do usuário, 08/11/2026): na sessão de 5h, pelo ritmo da última
+ * hora; na semana, pelo ritmo médio dela.
+ */
+export function textoLimite(l: LimiteRitmo, agora = Date.now(), timeZone?: string): string {
+  const base = l.group === 'session' ? 'No ritmo da última hora' : 'No ritmo médio da semana';
+  const renova = l.resetsAt ? Date.parse(l.resetsAt) : NaN;
+  const renovaTxt = Number.isFinite(renova) ? ` ${quando(renova, agora, timeZone)}` : '';
+  if (l.porHora === null) return l.group === 'session' ? 'Ainda medindo o ritmo: leva uns 10 minutos de uso.' : 'Ainda medindo o ritmo.';
+  if (l.estouraEm !== null) return `${base}, chega a 100% ${quando(l.estouraEm, agora, timeZone)}, antes de renovar${renovaTxt}.`;
+  if (l.porHora === 0) return `Parado na última hora: fica em ${Math.round(l.percent)}% até renovar${renovaTxt}.`;
+  return `${base}, chega a uns ${Math.round(l.aoRenovar ?? l.percent)}% quando renovar${renovaTxt}.`;
+}

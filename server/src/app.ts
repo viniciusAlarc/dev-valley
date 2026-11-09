@@ -15,6 +15,7 @@ import type { Moradores } from './moradores.js';
 import { buscar, cartas, PombalError, voar } from './pombal.js';
 import { markChecked, readProgress } from './progress.js';
 import { arquivoPermitido, isLocalOrigin } from './seguranca.js';
+import type { Bastao } from './bastao.js';
 import type { Gasto } from './gasto.js';
 import type { askJornaleiro, Jornal } from './jornal.js';
 import type { Plugins } from './plugins.js';
@@ -34,10 +35,14 @@ export interface Contexto {
   world: () => World;
   refreshWorld: () => Promise<void>;
   terminals: Pick<TerminalManager, 'kill'>;
+  /** Passagem de bastão (BT-1, 08/11/2026): o pedido do resumo; o sucessor é aberto pelo `index.ts`. */
+  bastao: Pick<Bastao, 'pedir' | 'pendente' | 'arquivoDe'>;
+  /** Os terminais da vila, para o bastão achar a pasta da sessão e digitar o pedido nela. */
+  terminaisDoBastao: Pick<TerminalManager, 'live' | 'escrever'>;
   lareiras: Pick<Lareiras, 'acender' | 'apagar'>;
   hooks: Pick<HookStore, 'handle' | 'forget'>;
   library: Pick<Library, 'sections' | 'read' | 'htmlPath' | 'write' | 'createClaudeMd' | 'search'>;
-  statusLine: Pick<StatusLineStore, 'handle'>;
+  statusLine: Pick<StatusLineStore, 'handle' | 'ritmo'>;
   moradores: Pick<Moradores, 'claim'>;
   agents: Pick<Agents, 'read' | 'create' | 'save' | 'remove'>;
   skills: Pick<Skills, 'read' | 'create' | 'save' | 'remove'>;
@@ -55,7 +60,7 @@ export interface Contexto {
   /** Sessões avulsas novas (banco da praça), esperando o terminal abrir: nascem na home, fora de qualquer projeto. */
   avulsaSessions: Set<string>;
   /** Porão da casa (MA-1): registro das sessões de maestro e se o agente está instalado. */
-  porao: Pick<Porao, 'registrarMaestro' | 'maestroInstalado' | 'pedir' | 'pedido' | 'aprovar' | 'recusar' | 'esquecer' | 'chamar' | 'atender'>;
+  porao: Pick<Porao, 'registrarMaestro' | 'maestroInstalado' | 'pedir' | 'pedirRoteiro' | 'pedido' | 'aprovar' | 'recusar' | 'esquecer' | 'chamar' | 'atender'>;
   /** Relatórios do maestro já abertos (estante de partitura do porão, 04/11/2026). */
   relatoriosLidos: Pick<RelatoriosLidos, 'marcar'>;
   /** Sessões de trabalho por rodada (`porao.tetoSessoes` do config, até 5). */
@@ -191,6 +196,20 @@ export function criarApp(ctx: Contexto): express.Express {
     res.status(201).json({ pedidoId: r.id, estado: r.estado, aviso: 'Peça ao usuário para aprovar no cartão da estante de partitura, no porão.' });
   });
 
+  // Fim da rodada que mexeu em tela (05/11/2026): o maestro pede a sessão do roteiro de testes. Mesmas travas do pedido
+  // de sessões (maestro vivo, e o clique do usuário no cartão abre); a sessão nasce na casa, com /roteiro-testes.
+  app.post('/api/porao/roteiro', async (req, res) => {
+    if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+    const maestro = ctx.world().sessions.find((s) => s.id === req.body?.maestro);
+    if (!maestro?.live || maestro.porao?.papel !== 'maestro') return res.status(403).json({ error: 'Só o maestro aberto no porão, com a sessão viva, pede sessões.' });
+    const casaDoMaestro = findProject(maestro.projectId);
+    if (!casaDoMaestro) return res.status(404).json({ error: 'Projeto do maestro não encontrado.' });
+    const r = await porao.pedirRoteiro({ maestro: maestro.id, rodada: req.body?.rodada, relatorio: req.body?.relatorio }, casaDoMaestro.path);
+    if ('erro' in r) return res.status(r.status).json({ error: r.erro });
+    await refreshWorld();
+    res.status(201).json({ pedidoId: r.id, estado: r.estado, aviso: 'Peça ao usuário para abrir a sessão do roteiro no cartão do porão.' });
+  });
+
   app.get('/api/porao/pedidos/:id', (req, res) => {
     const p = porao.pedido(req.params.id);
     if (!p) return res.status(404).json({ error: 'Pedido não encontrado.' });
@@ -206,6 +225,21 @@ export function criarApp(ctx: Contexto): express.Express {
     if (!r) return res.status(409).json({ error: 'Este pedido já foi decidido.' });
     await refreshWorld();
     res.json({ estado: r.estado, sessoes: r.sessoes });
+  });
+
+  // Passagem de bastão (BT-1, decisão do usuário de 08/11/2026): só pela página, só sessão comum aberta pela vila e parada
+  // (escrever no meio de uma resposta embaralharia o terminal). A vila digita o pedido do resumo no terminal dela; quando o
+  // arquivo aparece, o `index.ts` abre o sucessor na mesma pasta.
+  app.post('/api/bastao', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila passa o bastão.' });
+    const s = ctx.world().sessions.find((x) => x.id === req.body?.sessionId);
+    const terminal = s && ctx.terminaisDoBastao.live().find((t) => t.id === s.id);
+    if (!s || !terminal || s.porao) return res.status(404).json({ error: 'Sessão não encontrada entre as abertas pela vila.' });
+    if (s.status === 'working' || s.status === 'permission') return res.status(409).json({ error: 'Espere ele terminar a resposta para passar o bastão.' });
+    if (ctx.bastao.pendente(s.id)) return res.status(409).json({ error: 'O bastão desta sessão já foi pedido: espere o resumo.' });
+    const texto = await ctx.bastao.pedir(s.id, s.name, terminal.cwd);
+    ctx.terminaisDoBastao.escrever(s.id, texto);
+    res.status(202).json({ arquivo: ctx.bastao.arquivoDe(s.id) });
   });
 
   // Estante de partitura do porão (04/11/2026): abrir um relatório do maestro o tira de "novo". Só pela página, e só relatório
@@ -370,7 +404,7 @@ export function criarApp(ctx: Contexto): express.Express {
 
   // ---- Moinho: gasto por projeto na semana do plano, só leitura ----
   app.get('/api/gasto', async (_req, res) => {
-    res.json(await gasto.resumo(ctx.world().usage));
+    res.json({ ...(await gasto.resumo(ctx.world().usage)), limites: statusLine.ritmo() });
   });
 
   // ---- Plugins e MCP na Fábrica (quadro de força): só leitura ----

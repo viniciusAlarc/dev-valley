@@ -263,6 +263,21 @@ Com 5 sessões, toda dúvida do usuário entrava no contexto do maestro e disput
       cabelo (`mirim-dev-valley`); batuta gerada em código (`batuta`).
 - [ ] Usuário: reinício e conferir na vila.
 
+### Sessão do roteiro de testes (decisões do usuário, 05/11/2026)
+
+Rodada que mexeu no que o usuário vê na tela termina com o roteiro de testes na interface (skill `/roteiro-testes` do
+repositório de regras: HTML com Ok/Falhou, triagem do resultado e reteste até zerar). O maestro não monta (pede spec e
+conferência de dado); ele pede a sessão que monta.
+- [x] Rota `POST /api/porao/roteiro` (`curl` do maestro vivo, com a rodada e o relatório em `docs-dev/maestro/`, que
+      precisa existir): um pedido por rodada; o recusado libera outro.
+- [x] **Só com o clique** no cartão (a mesma estante de partitura), como as outras sessões (regra 10).
+- [x] **Só quando mexeu em tela**: quem julga é o maestro, pelos `PRONTA`; rodada só de documentação ou de backend sem
+      efeito visível não pede.
+- [x] A sessão nasce **na casa**, como morador comum, com `/roteiro-testes <relatório>`: fora do teto, o gongo não a
+      apaga nem recusa o cartão dela, sem regras de permissão e fora do contrato "Sob o maestro". O usuário continua a
+      triagem e o reteste com ela.
+- [ ] Usuário: reinício e conferir na vila na próxima rodada que mexer em tela.
+
 ### Fase 4: avisos, relatório e encerramento
 
 - [x] Alçapão aceso (luz pelas frestas) com rodada em andamento, e ❗ quando alguém do porão pede permissão ou o cartão

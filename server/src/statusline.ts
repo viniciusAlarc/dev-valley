@@ -73,6 +73,57 @@ function parseRateLimits(rl: any): UsageRow[] | null {
   return rows.length ? rows : null;
 }
 
+/** Uma leitura da porcentagem de um limite. */
+export interface Amostra {
+  t: number;
+  percent: number;
+}
+
+/** Previsão de um limite do plano, no moinho (decisão do usuário, 08/11/2026). */
+export interface RitmoLimite {
+  label: string;
+  /** 'session' (5h) ou 'weekly'. */
+  group: string;
+  percent: number;
+  resetsAt: string | null;
+  /** Pontos percentuais por hora no ritmo usado; null = ainda sem dado bastante. */
+  porHora: number | null;
+  /** Quando chega a 100% nesse ritmo, se for antes de renovar; null = não estoura antes. */
+  estouraEm: number | null;
+  /** Porcentagem prevista na hora de renovar, quando não estoura antes; null = sem previsão. */
+  aoRenovar: number | null;
+}
+
+const HORA = 3_600_000;
+const SEMANA_MS = 7 * 24 * HORA;
+/** O ritmo da sessão de 5h é o da última hora; menos de 10 minutos de leitura ainda não diz nada. */
+const JANELA_SESSAO = HORA;
+const MINIMO_SESSAO = 10 * 60_000;
+
+/**
+ * Previsão de um limite: na sessão de 5h, o ritmo da última hora (o que está acontecendo agora); na semana, o ritmo
+ * médio desde que ela começou (uma hora intensa não diz como a semana fecha). Sem DOM nem relógio, para teste.
+ */
+export function preverLimite(row: UsageRow, amostras: Amostra[], agora: number): RitmoLimite {
+  const base = { label: row.label, group: row.group, percent: row.percent, resetsAt: row.resetsAt };
+  const renova = row.resetsAt ? Date.parse(row.resetsAt) : NaN;
+  let porMs: number | null = null;
+  if (row.group === 'session') {
+    const recentes = amostras.filter((a) => agora - a.t <= JANELA_SESSAO);
+    const [primeira, ultima] = [recentes[0], recentes[recentes.length - 1]];
+    if (primeira && ultima && ultima.t - primeira.t >= MINIMO_SESSAO) porMs = Math.max(0, (ultima.percent - primeira.percent) / (ultima.t - primeira.t));
+  } else if (Number.isFinite(renova)) {
+    const decorrido = agora - (renova - SEMANA_MS);
+    if (decorrido >= HORA) porMs = row.percent / decorrido;
+  }
+  if (porMs === null) return { ...base, porHora: null, estouraEm: null, aoRenovar: null };
+  const estoura = porMs > 0 ? agora + (100 - row.percent) / porMs : Infinity;
+  if (row.percent < 100 && Number.isFinite(estoura) && (!Number.isFinite(renova) || estoura < renova))
+    return { ...base, porHora: porMs * HORA, estouraEm: Math.round(estoura), aoRenovar: null };
+  const aoRenovar = Number.isFinite(renova) ? Math.min(100, row.percent + porMs * Math.max(0, renova - agora)) : null;
+  return { ...base, porHora: porMs * HORA, estouraEm: null, aoRenovar };
+}
+
 /** Guardados em disco para sobreviver a reinícios da vila. */
 const CACHE_DIR = path.join(os.homedir(), '.cache', 'dev-valley');
 const WINDOWS_FILE = path.join(CACHE_DIR, 'context-windows.json');
@@ -100,6 +151,28 @@ export class StatusLineStore {
    * então o último valor conhecido fica salvo e aparece com "atualizado há X".
    */
   usage: Usage | null = readJson<Usage | null>(USAGE_FILE, null);
+  /** Leituras de cada limite (por `label`) desde que a janela dele renovou, para a previsão do moinho. Só na memória. */
+  private amostras = new Map<string, { resetsAt: string | null; lista: Amostra[] }>();
+
+  private amostrar(rows: UsageRow[], agora: number) {
+    for (const r of rows) {
+      const a = this.amostras.get(r.label);
+      const ultima = a?.lista[a.lista.length - 1];
+      // Janela nova (renovou) ou porcentagem que caiu: o ritmo recomeça do zero.
+      if (!a || a.resetsAt !== r.resetsAt || (ultima && r.percent < ultima.percent)) {
+        this.amostras.set(r.label, { resetsAt: r.resetsAt, lista: [{ t: agora, percent: r.percent }] });
+        continue;
+      }
+      if (ultima && ultima.percent === r.percent && agora - ultima.t < 5 * 60_000) continue;
+      a.lista.push({ t: agora, percent: r.percent });
+      a.lista = a.lista.filter((x) => agora - x.t <= 2 * HORA);
+    }
+  }
+
+  /** Previsão de cada limite conhecido (moinho); vazio até a primeira sessão reportar. */
+  ritmo(agora = Date.now()): RitmoLimite[] {
+    return (this.usage?.rows ?? []).map((r) => preverLimite(r, this.amostras.get(r.label)?.lista ?? [], agora));
+  }
 
   private learnWindow(model: string, size: number) {
     if (this.windows.get(model) === size) return;
@@ -112,6 +185,7 @@ export class StatusLineStore {
     const rows = parseRateLimits(p?.rate_limits);
     if (rows) {
       this.usage = { rows, updatedAt: Date.now() };
+      this.amostrar(rows, this.usage.updatedAt);
       writeJson(USAGE_FILE, this.usage);
       // "atualizado há X" também muda, então a vila redesenha a cada reporte.
       changed = true;

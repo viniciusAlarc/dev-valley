@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { activityOf, contextText, type AgentSummary, type Session } from '../api';
+import { activityOf, contextText, horaDoBastao, type AgentSummary, type Session } from '../api';
 import { ui } from '../ui/actions';
 import { villagerName } from './names';
 import { StatusBubble } from './statusBubble';
@@ -63,6 +63,9 @@ const ACTIVITY_LABEL = {
   offline: '',
 };
 
+/** O que o morador trabalhando está fazendo, no tooltip (o balão mostra o desenho). */
+const ATIVIDADE_LABEL = { ler: 'lendo', editar: 'editando', rodar: 'rodando comando', web: 'na web', agente: 'com um agente' };
+
 /** Um morador na tela: sprite, sombra, balão de status, tooltip e clique para abrir o chat. */
 /** NPCs conversando: distância entre os dois, lado a lado, e altura do balão (acima do "..." de quem trabalha). */
 export const CONVERSA_DX = 16;
@@ -74,6 +77,8 @@ export class VillagerView {
   facing: Facing = 'down';
   private shadow: Phaser.GameObjects.Image;
   private bubble: StatusBubble;
+  /** Bastão ao lado da cabeça: contexto a partir de 70%, hora de passar o bastão (BT-1, 08/11/2026). */
+  private bastao: Phaser.GameObjects.Container;
   /** Sentado: esconde as pernas (a cadeira/sofá fica por cima). */
   private seated = false;
 
@@ -87,10 +92,22 @@ export class VillagerView {
     this.shadow = scene.add.image(x, y, 'shadow').setOrigin(0.5);
     this.sprite = scene.add.sprite(x, y, this.texture, 0).setOrigin(0.5, 1);
     this.bubble = new StatusBubble(scene);
+    // Bastão de revezamento: vermelho com as pontas amarelas, inclinado, balançando de leve.
+    this.bastao = scene.add
+      .container(0, 0, [
+        scene.add.rectangle(0, 0, 2, 7, 0xd04a3a).setOrigin(0.5),
+        scene.add.rectangle(0, -3, 2, 1, 0xf5d142).setOrigin(0.5),
+        scene.add.rectangle(0, 3, 2, 1, 0xf5d142).setOrigin(0.5),
+      ])
+      .setAngle(-30)
+      .setDepth(100000)
+      .setVisible(false);
+    scene.tweens.add({ targets: this.bastao, angle: -10, yoyo: true, repeat: -1, duration: 500, ease: 'Sine.inOut' });
     makeInteractive(
       this.sprite,
       () => {
-        const status = ACTIVITY_LABEL[activityOf(this.session)];
+        const a = activityOf(this.session);
+        const status = a === 'working' && this.session.atividade ? `${ACTIVITY_LABEL.working}: ${ATIVIDADE_LABEL[this.session.atividade]}` : ACTIVITY_LABEL[a];
         const context = contextText(this.session);
         return `${villagerName(this.session.id)}: ${this.session.title}${status ? ` (${status})` : ''}${context ? `\n${context}` : ''}`;
       },
@@ -102,7 +119,8 @@ export class VillagerView {
 
   update(session: Session) {
     this.session = session;
-    this.bubble.set(activityOf(session));
+    this.bubble.set(activityOf(session), session.atividade);
+    this.bastao.setVisible(horaDoBastao(session));
   }
 
   face(facing: Facing, flipX = false) {
@@ -146,6 +164,7 @@ export class VillagerView {
     this.sprite.setDepth(y);
     this.shadow.setPosition(x, y).setDepth(y - 1);
     this.bubble.setPosition(x + 5, y - (this.seated ? 30 : 33));
+    this.bastao.setPosition(x - 8, y - (this.seated ? 22 : 25));
   }
 
   destroy() {
@@ -153,6 +172,8 @@ export class VillagerView {
     this.sprite.destroy();
     this.shadow.destroy();
     this.bubble.destroy();
+    this.scene.tweens.killTweensOf(this.bastao);
+    this.bastao.destroy();
   }
 }
 

@@ -24,6 +24,37 @@ describe('HookStore: estado da sessão', () => {
   });
 });
 
+describe('HookStore: o que o morador está fazendo (atividade)', () => {
+  const atividade = (store: HookStore) => store.all().find((s) => s.id === RAFA)?.atividade;
+
+  test('vale da ferramenta até a próxima; mudar de categoria avisa a vila, repetir não', () => {
+    const store = new HookStore();
+    evento(store, 'UserPromptSubmit');
+    assert.equal(atividade(store), null);
+    assert.equal(evento(store, 'PreToolUse', { atividade: 'ler' }), true);
+    assert.equal(atividade(store), 'ler');
+    assert.equal(evento(store, 'PostToolUse'), false);
+    assert.equal(atividade(store), 'ler');
+    assert.equal(evento(store, 'PreToolUse', { atividade: 'ler' }), false);
+    assert.equal(evento(store, 'PreToolUse', { atividade: 'editar' }), true);
+    assert.equal(atividade(store), 'editar');
+  });
+
+  test('fim de turno e mensagem nova apagam; categoria fora da lista vira null (regra 3)', () => {
+    const store = new HookStore();
+    evento(store, 'PreToolUse', { atividade: 'rodar' });
+    evento(store, 'Stop');
+    assert.equal(atividade(store), null);
+    evento(store, 'PreToolUse', { atividade: 'web' });
+    evento(store, 'UserPromptSubmit');
+    assert.equal(atividade(store), null);
+    evento(store, 'PreToolUse', { atividade: '/home/alguem/segredo.ts' });
+    assert.equal(atividade(store), null);
+    evento(store, 'PreToolUse', { atividade: 42 });
+    assert.equal(atividade(store), null);
+  });
+});
+
 describe('HookStore: NPCs conversando', () => {
   /** Evento de outra sessão (o citado). */
   const da = (store: HookStore, id: string, hook_event_name: string) => store.handle({ session_id: id, cwd: '/tmp/y', hook_event_name });

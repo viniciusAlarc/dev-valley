@@ -292,7 +292,7 @@ describe('POST /api/moradores/nome', () => {
 describe('POST /api/statusline e GET /api/statusline/last', () => {
   test('sucesso: guarda o último e repassa ao StatusLineStore', async () => {
     const recebidos: unknown[] = [];
-    const s = await subir({}, { statusLine: { handle: (p) => (recebidos.push(p), false) } });
+    const s = await subir({}, { statusLine: { handle: (p) => (recebidos.push(p), false), ritmo: () => [] } });
     assert.equal(await (await s.get('/api/statusline/last')).text(), 'null');
     assert.equal((await s.enviar('POST', '/api/statusline', { session_id: 'aaa' })).status, 200);
     assert.deepEqual(await (await s.get('/api/statusline/last')).json(), { session_id: 'aaa' });

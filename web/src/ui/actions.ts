@@ -225,7 +225,7 @@ export const ui = {
   async newAvulsa() {
     this.hideTooltip();
     const { sessionId } = await api.newSession();
-    openTerminal({ sessionId, projectId: null, title: 'Nova sessão avulsa' });
+    openTerminal({ sessionId, projectId: null, title: 'Nova sessão avulsa', bastao: true });
   },
   /** `path`: abre já na edição desse agente. */
   openSkills(path?: string) {

@@ -87,3 +87,20 @@ export function corpoStatus(sessionId: string, model: string, m: Medida) {
     rate_limits: Object.keys(rate_limits).length ? rate_limits : undefined,
   };
 }
+
+/** O que o morador está fazendo, mostrado no balão da vila (decisão do usuário, 08/11/2026). */
+export type Atividade = 'ler' | 'editar' | 'rodar' | 'web' | 'agente'
+
+/**
+ * Categoria da ferramenta em uso. À vila vai só ela (regra 3): nunca o nome do arquivo, o comando nem o nome da
+ * ferramenta. Ferramenta de subagente conta como "agente" (o morador delegou); MCP e as demais, sem categoria.
+ */
+export function atividadeDe(tool: string, subagente: boolean): Atividade | undefined {
+  if (subagente) return 'agente'
+  if (/^(Read|Grep|Glob|LS|NotebookRead)$/.test(tool)) return 'ler'
+  if (/^(Edit|Write|MultiEdit|NotebookEdit)$/.test(tool)) return 'editar'
+  if (/^(Bash|BashOutput|KillShell|Monitor)$/.test(tool)) return 'rodar'
+  if (/^(WebFetch|WebSearch)$/.test(tool)) return 'web'
+  if (/^(Agent|Task|SendMessage)$/.test(tool)) return 'agente'
+  return undefined
+}

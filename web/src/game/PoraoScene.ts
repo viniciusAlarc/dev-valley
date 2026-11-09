@@ -93,7 +93,10 @@ export class PoraoScene extends Phaser.Scene {
     this.tweens.add({ targets: this.avisoPedido, y: y - 2, yoyo: true, repeat: -1, duration: 400 });
     makeInteractive(
       this.avisoPedido,
-      () => `Cartão do maestro — quer abrir ${pedido.tarefas.length} sessão(ões) para a rodada ${pedido.rodada} — clique para decidir`,
+      () =>
+        pedido.roteiro
+          ? `Cartão do maestro — roteiro de testes da rodada ${pedido.rodada} — clique para abrir a sessão na casa`
+          : `Cartão do maestro — quer abrir ${pedido.tarefas.length} sessão(ões) para a rodada ${pedido.rodada} — clique para decidir`,
       () => ui.openPedidoPorao(pedido, this.project(getWorld())!),
     );
   }

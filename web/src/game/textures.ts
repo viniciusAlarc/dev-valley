@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { mulberry32 } from './hash';
+import { BALAO_ICONE, ICONES, PALETA_ICONE, posicaoDoIcone } from './iconesBalao';
 
 export { hash, mulberry32 } from './hash';
 
@@ -940,6 +941,25 @@ function bubble(scene: Phaser.Scene) {
   add(scene, 'bubble', c);
 }
 
+/**
+ * Balões com o ícone do que o morador faz (`bubble-ler`, `bubble-editar`…): balão maior que o dos "..." e o ícone de
+ * `iconesBalao.ts` já desenhado dentro, numa textura só (um objeto por morador, não um por pixel).
+ */
+function bubbleIcones(scene: Phaser.Scene) {
+  const { w, h, miolo } = BALAO_ICONE;
+  for (const [atividade, icone] of Object.entries(ICONES)) {
+    const { c, ctx } = makeCanvas(w, h);
+    rect(ctx, 1, 0, w - 2, miolo, '#ffffff');
+    rect(ctx, 0, 1, w, miolo - 2, '#ffffff');
+    rect(ctx, 4, miolo, 3, 2, '#ffffff');
+    rect(ctx, 4, miolo + 2, 1, 1, '#ffffff');
+    outline(ctx, w, h);
+    const { x: ox, y: oy } = posicaoDoIcone(icone);
+    icone.forEach((linha, y) => [...linha].forEach((cor, x) => cor !== '.' && rect(ctx, ox + x, oy + y, 1, 1, PALETA_ICONE[cor]!)));
+    add(scene, `bubble-${atividade}`, c);
+  }
+}
+
 /** Dois balões sobrepostos: dois moradores conversando (um citou o outro com `@Nome`). */
 function talk(scene: Phaser.Scene) {
   const { c, ctx } = makeCanvas(18, 13);
@@ -1027,6 +1047,7 @@ export function generateTextures(scene: Phaser.Scene) {
   signBoard(scene);
   glow(scene);
   bubble(scene);
+  bubbleIcones(scene);
   talk(scene);
   alert(scene);
   shadow(scene);

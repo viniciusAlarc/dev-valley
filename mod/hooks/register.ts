@@ -1,13 +1,14 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { citados, contextoCitados, contextoProprioNome, corpoStatus, idsCitados, textoRodape, type Mapa } from './moradores'
+import { atividadeDe, citados, contextoCitados, contextoProprioNome, corpoStatus, idsCitados, textoRodape, type Atividade, type Mapa } from './moradores'
 
 // Mod do Dev Valley (substitui a status line e quase todos os hooks de shell do settings.json; PD-11).
 // Usa só eventos nativos: os `classic.*` de um mod de usuário são pulados pelo plugin de segurança que roda acima
 // (cc-plugin-sec-default, visto em 26/10/2026). Por isso "pedindo permissão" continua num hook de shell
 // (PermissionRequest e Notification, instalados pelo `npm run hooks:install`): nenhum evento nativo diz quando o
 // diálogo de permissão abre (decisão do usuário, 26/10/2026: híbrido).
-// À vila vão só session_id, cwd, nome do evento e os ids das sessões citadas (regra 3 do CLAUDE.md do repo): o texto
+// À vila vão só session_id, cwd, nome do evento, a categoria da ferramenta em uso (ler, editar, rodar, web, agente) e os
+// ids das sessões citadas (regra 3 do CLAUDE.md do repo): o texto
 // das mensagens é lido aqui, localmente, só para achar `@Nome` no mapa de moradores. Vila fechada: tudo falha em
 // silêncio e a sessão segue.
 
@@ -58,7 +59,11 @@ function aTempo<T>($: EngineInterface, p: Promise<T>, ms: number): Promise<T | u
  * Manda o evento à vila (mesmo corpo dos hooks de shell de antes: o servidor não muda), esperando no máximo
  * AVISO_MS. É esperado dentro do hook: trabalho que segue depois de o hook voltar não tem garantia de rodar.
  */
-async function avisar($: EngineInterface, evento: string, { sessionId, citados = [] }: { sessionId?: string; citados?: string[] } = {}) {
+async function avisar(
+  $: EngineInterface,
+  evento: string,
+  { sessionId, citados = [], atividade }: { sessionId?: string; citados?: string[]; atividade?: Atividade } = {},
+) {
   const enviar = async () =>
     post($, '/api/hooks', {
       session_id: sessionId ?? (await $.session.id()),
@@ -66,6 +71,8 @@ async function avisar($: EngineInterface, evento: string, { sessionId, citados =
       hook_event_name: evento,
       // Só ids de sessão do mapa (NPCs conversando, regra 3): nunca o texto da mensagem.
       ...(citados.length ? { citados } : {}),
+      // Só a categoria da ferramenta (regra 3): nunca o nome dela, o arquivo nem o comando.
+      ...(atividade ? { atividade } : {}),
     })
   await aTempo($, enviar(), AVISO_MS)
 }
@@ -117,7 +124,7 @@ export const register: Register = on => {
 
   // Ferramenta: "trabalhando" antes e depois (o diálogo de permissão, se houver, acontece dentro do next).
   on('tool.call', async ($, e, next) => {
-    await avisar($, 'PreToolUse')
+    await avisar($, 'PreToolUse', { atividade: atividadeDe(e.tool, e.agentId !== undefined) })
     const result = await next(e)
     await avisar($, 'PostToolUse')
     return result

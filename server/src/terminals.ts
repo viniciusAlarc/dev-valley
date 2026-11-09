@@ -88,6 +88,18 @@ export class TerminalManager {
   }
 
   /**
+   * Digita uma mensagem no terminal de uma sessão aberta pela vila e manda (passagem de bastão, 08/11/2026). O Enter vai
+   * um instante depois do texto: chegando junto, o Claude Code o trataria como parte de uma colagem. Sem terminal, false.
+   */
+  escrever(sessionId: string, texto: string): boolean {
+    const t = this.terminals.get(sessionId);
+    if (!t) return false;
+    t.pty.write(texto);
+    setTimeout(() => t.pty.write('\r'), 400);
+    return true;
+  }
+
+  /**
    * Encerra o processo e só resolve quando ele saiu de vez: quem apaga a conversa depois disso não corre o risco
    * de o `claude` gravar o `.jsonl` de novo ao fechar. Sem resposta ao SIGHUP em 5s, vai SIGKILL.
    */

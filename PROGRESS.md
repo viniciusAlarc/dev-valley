@@ -3,6 +3,84 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-08 — Ícones do balão redesenhados (lupa, lápis, terminal, globo, ✦)
+
+**O que mudou:** pedido do usuário: o livro e o lápis do balão não se reconheciam. Os ícones viraram grades de
+caracteres com contorno escuro (`web/src/game/iconesBalao.ts`, sem Phaser), desenhados num balão maior (18×14 em vez de
+16×12, base no mesmo lugar) e gerados como uma textura por categoria (`bubble-ler`, `bubble-editar`…) em `textures.ts`: um
+objeto por morador em vez de um retângulo por pixel. "Lendo" virou **lupa** (o livro aberto ficou ilegível no tamanho do
+jogo, e a categoria inclui Grep e Glob); lápis na diagonal com borracha e anel, terminal com `>_`, globo com continentes,
+✦ roxa com brilho. Conferido em prévia PNG ampliada e em tamanho de jogo antes de codar (G8: peça visual).
+**Arquivos:** `web/src/game/iconesBalao.ts` (novo), `web/src/game/textures.ts`, `web/src/game/statusBubble.ts`,
+`web/tests/icones-balao.test.ts` (novo); `README.md`, `CLAUDE.md` (regra 7).
+**Testes:** antes 234/234; depois `npm test` 240/240 (6 novos: cada ícone cabe no miolo e só usa a paleta), typecheck
+e build sem erro. Falta conferir na vila, depois do reinício e do `claude plugin update dev-valley@dev-valley`.
+
+## 2026-11-08 — Passagem de bastão (BT-1)
+
+**O que mudou:** decisão do usuário: aviso a partir de 70% de contexto, nunca automático, e a própria sessão escreve o
+resumo. No painel do morador (sessão comum aberta pela vila, também as novas e avulsas), "Passar o bastão" fica ao lado
+de "Encerrar sessão"; a partir de 70% vira botão principal com o aviso "Contexto em X%", e o morador mostra um bastão
+vermelho ao lado da cabeça (o tooltip diz "hora de passar o bastão"; o `CONTEXT_WARN` de 70% que já pintava o contexto
+é o mesmo limiar). O clique pede confirmação; `POST /api/bastao` (só da página, só sessão parada e fora do porão) digita
+no terminal dela o pedido do resumo, numa linha (Objetivo, O que foi feito, O que ficou aberto, Arquivos tocados, Próximo
+passo, Cuidados), para `~/.claude/dev-valley/bastao/<id>.md`. A cada 3 s o servidor confere: quando o arquivo aparece
+(mais novo que o pedido), abre o sucessor na mesma pasta pelo mesmo `abrirSessao` do porão, com a primeira mensagem "leia o
+bastão e diga onde ele parou" e leitura liberada só no arquivo. Pedido sem resumo caduca em 15 min.
+**Arquivos:** `server/src/bastao.ts` (novo), `server/src/terminals.ts` (`escrever`), `server/src/app.ts`, `server/src/index.ts`;
+`server/tests/bastao.test.ts` (novo), `server/tests/servidor.ts`; `web/src/api.ts`, `web/src/ui/terminal.ts`,
+`web/src/ui/project.ts`, `web/src/ui/actions.ts`, `web/src/game/common.ts`, `web/tests/bastao.test.ts` (novo); `README.md`,
+`CLAUDE.md` (57 rotas), `PENDENCIAS.md` (BT-1 sai).
+**Testes:** antes 227/227; depois `npm test` 234/234 (7 novos: pedido e sucessor, resumo velho e validade, rota com as
+travas, limiar do aviso), typecheck e build sem erro. Falta conferir na vila, depois do reinício (regra 6): o Enter
+chegar separado do texto no terminal (400 ms) e o sucessor nascer na casa.
+
+## 2026-11-08 — Regras duras por harness, balão com o que o morador faz e previsão dos limites no moinho
+
+**O que mudou:** a partir da pesquisa de práticas da Anthropic e de repositórios parecidos (decisões do usuário, 08/11):
+1. **Regras duras** (doc da Anthropic: o que não pode ter exceção vira hook ou permissão, não texto). O `.claude/settings.json`
+   do repositório (novo) nega `npm start` e `npm run dev` às sessões (regra 6); no `~/.claude/settings.json` global, `git push`
+   passa a perguntar sempre (`ask`; antes só o `--force` era negado). Backup em `settings.json.bak-20261108-185141`.
+2. **Conferência ao parar:** hook `Stop` do mesmo arquivo roda `scripts/conferir-ao-parar.sh`: sessão que editou `.ts` de
+   `server/`, `web/` ou `mod/` só termina a resposta com o typecheck do servidor e do front passando (erro volta à sessão,
+   exit 2). Pula consulta de agente e sessão que só leu, e não roda de novo se o código não mudou desde a última que
+   passou (marca em `.git/dev-valley-conferido`). Uns 8 s quando roda.
+3. **Balão com o que o morador faz** (ideia do pixel-agents): o mod manda junto do `PreToolUse` só a categoria da
+   ferramenta (`ler`, `editar`, `rodar`, `web`, `agente`; subagente conta como `agente`); o balão troca os "..." por livro,
+   lápis, terminal, globo ou ✦ roxo, e o tooltip diz "trabalhando: editando". Regra 3 do `CLAUDE.md` ampliada; mod sobe para 0.3.0
+   (o instalado é cópia: `claude plugin update dev-valley@dev-valley`).
+4. **Moinho prevê os limites do plano** (ideia do Claude-Code-Usage-Monitor): "Limites do plano: até quando dá", com os
+   números da torre; sessão de 5h pelo ritmo da última hora (mínimo 10 min de leitura), semana pelo ritmo médio dela.
+   As leituras ficam só na memória do servidor (recomeçam no reinício).
+**Arquivos:** `.claude/settings.json`, `scripts/conferir-ao-parar.sh`; `mod/hooks/moradores.ts`, `mod/hooks/register.ts`,
+`mod/tests/dev-valley.test.ts`, `mod/.claude-plugin/plugin.json`; `server/src/hooks.ts`, `world.ts`, `statusline.ts`, `app.ts`; `server/tests/hooks.test.ts`,
+`gasto.test.ts`, `rotas.test.ts`, `servidor.ts`; `web/src/api.ts`, `web/src/game/statusBubble.ts`, `web/src/game/common.ts`,
+`web/src/ui/gasto.ts`, `web/src/ui/gasto-texto.ts`, `web/tests/gasto-texto.test.ts`; `README.md`, `CLAUDE.md`, `RETRABALHO.md`.
+**Testes:** antes 219/219; depois `npm test` 227/227 (8 novos), typecheck e build sem erro, mod 12/12
+(`claude plugin validate` ok), hook testado nos 4 casos (passa, pula sem mudança, ignora consulta, barra erro de tipo).
+**Aberto na mesma conversa:** RV-1 (revisor do pombal, plano em `docs-dev/a-codar/revisor-pombal.md`, só depois de
+commitar esta entrega), BT-1 (passagem de bastão, falta o limiar) e MA-4 (worktree no porão, ideia não decidida).
+Fora deste repositório: enxugamento do núcleo dos guardrails (157 → 124 linhas) na branch `vinicius` do IA, numa cópia
+separada (`~/Documents/IA-vinicius`), sem efeito nas sessões até o usuário juntar.
+Falta conferir na vila: reinício (regra 6) e `claude plugin update dev-valley@dev-valley` para o balão (vale nas sessões novas); o moinho mede o
+ritmo depois de uns 10 minutos de uso.
+
+## 2026-11-05 — Sessão do roteiro de testes: o maestro pede, o clique abre um morador na casa
+
+**O que mudou:** decisão do usuário. Rodada que mexeu em tela termina com a sessão que monta o roteiro de testes na
+interface (skill `/roteiro-testes`, nova no repositório de regras). O maestro pede por `POST /api/porao/roteiro` (`curl`,
+só o maestro vivo, com a rodada e o relatório em `docs-dev/maestro/`, que precisa existir; um por rodada, o recusado
+libera outro). O cartão aparece na estante de partitura do porão e **só o clique** abre a sessão (regra 10). Ela nasce
+**na casa**, como morador comum, com `/roteiro-testes <relatório>`: não é anotada no `porao.json`, não conta no teto, não
+recebe regras de permissão, e o gongo não a apaga nem recusa o cartão dela. Reaproveita o pedido e o `aprovar` que já
+existiam (campo `roteiro` no `PedidoPorao`). No IA, o passo 6 do maestro pede a sessão (só quando mexeu em tela).
+**Arquivos:** `server/src/porao.ts`, `server/src/app.ts`; `web/src/api.ts`, `web/src/ui/porao.ts`,
+`web/src/game/PoraoScene.ts`; `server/tests/porao.test.ts`, `server/tests/servidor.ts`; `README.md`, `CLAUDE.md` (regra
+10, rotas e testes), `docs-dev/context/maestro.md`, `PROGRESS.md`.
+**Testes:** antes 213/213; depois `npm test` 219/219 (6 novos: recusas do pedido, um por rodada e fora do teto, abre na
+casa sem anotação nem regra, rota e travas, gongo preserva), typecheck e build sem erro. Falta o reinício e conferir na
+vila (regra 6), na próxima rodada que mexer em tela.
+
 ## 2026-11-05 — CI do GitHub volta a ficar verde e passa a rodar o build do front
 
 **O que mudou:** o job `auditar` falhava desde 29/10 (13 de 14 execuções): a pasta `docs-dev/a-codar/` ficou vazia e o

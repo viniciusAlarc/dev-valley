@@ -1,3 +1,5 @@
+import type { LimiteRitmo } from './ui/gasto-texto';
+
 export interface FileChange {
   path: string;
   status: string;
@@ -171,6 +173,8 @@ export interface Session {
   live: boolean;
   /** Estado vindo dos hooks; null quando não há hooks para a sessão. */
   status: SessionStatus | null;
+  /** O que está fazendo agora (categoria da ferramenta em uso); null = sem categoria ou parada. */
+  atividade: Atividade | null;
   /** Janela de contexto usada; `estimated` quando calculada sem o status line. */
   context: { percent: number; tokens: number; window: number; estimated: boolean } | null;
   model: string | null;
@@ -206,15 +210,21 @@ export function rodadaConduzindo(world: World, projectId: string): boolean {
 }
 
 /** A partir daqui vale começar uma sessão nova (o Claude compacta perto do fim da janela). */
+/** A partir daqui o morador mostra o bastão e o painel sugere passá-lo (BT-1, decisão do usuário: 70%, nunca automático). */
 export const CONTEXT_WARN = 70;
 export const CONTEXT_CRITICAL = 85;
+
+/** Sessão comum aberta pela vila (não do porão) com o contexto a partir de 70%: hora de passar o bastão. */
+export function horaDoBastao(s: Session): boolean {
+  return s.inTown && !s.porao && !!s.context && s.context.percent >= CONTEXT_WARN;
+}
 
 export function contextText(s: Session): string | null {
   if (!s.context) return null;
   const pct = `${s.context.estimated ? '~' : ''}${s.context.percent}%`;
   const filled = Math.round(Math.min(100, s.context.percent) / 10);
   const bar = '▰'.repeat(filled) + '▱'.repeat(10 - filled);
-  const hint = s.context.percent >= CONTEXT_CRITICAL ? ' — hora de uma sessão nova!' : s.context.percent >= CONTEXT_WARN ? ' — ficando cheio' : '';
+  const hint = s.context.percent >= CONTEXT_CRITICAL ? ' — passe o bastão!' : s.context.percent >= CONTEXT_WARN ? ' — hora de passar o bastão' : '';
   return `contexto ${bar} ${pct}${hint}`;
 }
 
@@ -228,6 +238,9 @@ export interface UsageRow {
 }
 
 export type SessionStatus = 'working' | 'permission' | 'idle';
+
+/** Categoria da ferramenta em uso: o desenho dentro do balão de quem trabalha. */
+export type Atividade = 'ler' | 'editar' | 'rodar' | 'web' | 'agente';
 
 /** Estado efetivo para desenhar: sem hooks, sessão viva conta como trabalhando. */
 export function activityOf(s: Session): SessionStatus | 'offline' {
@@ -244,6 +257,8 @@ export interface PedidoPorao {
   tarefas: string[];
   /** Liberado sem pedir permissão, por tarefa: editar só estes arquivos e rodar só estes testes (04/11/2026). */
   permissoes: Record<string, { arquivos: string[]; testes: string[] }>;
+  /** Pedido da sessão do roteiro de testes (05/11/2026): o relatório da rodada. A sessão nasce na casa. */
+  roteiro?: string;
   criadoEm: number;
   estado: 'aguardando' | 'aprovado' | 'recusado';
   sessoes: Record<string, { sessionId: string } | { erro: string }>;
@@ -400,6 +415,8 @@ export interface GastoView {
     anterior: number;
     projetos: { projectId: string | null; nome: string; peso: number; sessoes: { id: string; peso: number }[] }[];
   }[];
+  /** Previsão de cada limite do plano (sessão de 5h e semana), pelos números da torre; vazio até a primeira leitura. */
+  limites: LimiteRitmo[];
 }
 
 export const gasto = {
@@ -491,6 +508,8 @@ export const api = {
   newSession: (project?: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project }),
   /** Encerra e apaga a conversa de vez. */
   deleteSession: (id: string) => request('DELETE', `/api/sessions/${id}`),
+  /** Passagem de bastão: a sessão escreve o resumo e, quando termina, nasce o sucessor na mesma casa (BT-1). */
+  passarBastao: (sessionId: string) => request<{ arquivo: string }>('POST', '/api/bastao', { sessionId }),
   progress: (project: string) => request<ProgressEntry[]>('GET', `/api/progress?project=${encodeURIComponent(project)}`),
   /** Sino: troca "Falta conferir na vila" por "Conferido na vila…" nas entregas escolhidas. */
   conferir: (project: string, items: { date: string; title: string }[]) =>

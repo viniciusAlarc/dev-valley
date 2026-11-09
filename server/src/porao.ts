@@ -42,6 +42,11 @@ export interface PedidoPorao {
    * que pede permissão para tudo.
    */
   permissoes: Record<string, PermissoesDaTarefa>;
+  /**
+   * Pedido da sessão do roteiro de testes (05/11/2026): o relatório da rodada, relativo ao projeto. A sessão nasce na
+   * **casa**, como morador comum: fora do teto, sobrevive ao gongo e não segue o contrato "Sob o maestro".
+   */
+  roteiro?: string;
   criadoEm: number;
   estado: 'aguardando' | 'aprovado' | 'recusado';
   /** Depois de aprovado: tarefa → sessão aberta, ou o motivo de não ter aberto. */
@@ -116,6 +121,16 @@ const caminhoDoBriefing = (rodada: string, tarefa: string) => `~/.claude/maestro
 /** A primeira mensagem da sessão de trabalho: a mesma frase que o maestro manda rodar à mão (etapa 5 do agente). */
 export function promptDoBriefing(rodada: string, tarefa: string): string {
   return `Você trabalha sob o maestro. Leia e siga: ${caminhoDoBriefing(rodada, tarefa)}`;
+}
+
+/** Tarefa do pedido do roteiro: um só por pedido, com este nome no cartão. */
+export const TAREFA_ROTEIRO = 'roteiro';
+/** Relatório da rodada, onde o maestro grava (`docs-dev/maestro/AAAA-MM-DD-<assunto>.md`). */
+const RELATORIO_RE = /^docs-dev\/maestro\/[\w.-]+\.md$/;
+
+/** A primeira mensagem da sessão do roteiro: a skill do repositório de regras, com o relatório da rodada. */
+export function promptDoRoteiro(relatorio: string): string {
+  return `/roteiro-testes ${relatorio}`;
 }
 
 // "Você trabalha sob o maestro. Leia e siga: ~/.claude/maestro/rodadas/<id>/briefings/<tarefa>.md"
@@ -246,7 +261,7 @@ export class Porao {
       permissoes[o.id] = p;
     }
     const jaTem = Object.values(reg.tarefas).filter((t) => t.rodada === rodada).length;
-    const pedidas = this.pedidosAbertos().filter((p) => p.rodada === rodada).reduce((n, p) => n + p.tarefas.length, 0);
+    const pedidas = this.pedidosAbertos().filter((p) => p.rodada === rodada && !p.roteiro).reduce((n, p) => n + p.tarefas.length, 0);
     if (jaTem + pedidas + tarefas.length > teto) {
       return { erro: `Passa do teto de ${teto} sessões por rodada (a rodada já tem ${jaTem} e ${pedidas} pedida(s)).`, status: 409 };
     }
@@ -274,13 +289,59 @@ export class Porao {
   }
 
   /**
+   * Fim da rodada que mexeu em tela (05/11/2026): o maestro pede a sessão que monta o roteiro de testes. Só o maestro
+   * anotado pede, com o relatório já gravado em `docs-dev/maestro/`; um pedido por rodada (o recusado libera outro).
+   * Não conta no teto: a sessão nasce na casa, não no porão.
+   */
+  async pedirRoteiro(entrada: { maestro: unknown; rodada: unknown; relatorio: unknown }, pasta: string): Promise<PedidoPorao | { erro: string; status: number }> {
+    const { maestro, rodada, relatorio } = entrada;
+    const reg = await this.ler();
+    if (typeof maestro !== 'string' || !reg.maestros[maestro]) return { erro: 'Só o maestro aberto no porão pede sessões.', status: 403 };
+    if (typeof rodada !== 'string' || !NOME_RE.test(rodada)) return { erro: 'Rodada inválida.', status: 400 };
+    if (typeof relatorio !== 'string' || !RELATORIO_RE.test(relatorio)) {
+      return { erro: 'Relatório inválido: o caminho relativo ao projeto, docs-dev/maestro/<arquivo>.md.', status: 400 };
+    }
+    if (!path.isAbsolute(pasta)) return { erro: 'Pasta do projeto inválida.', status: 400 };
+    try {
+      await fs.access(path.join(pasta, relatorio));
+    } catch {
+      return { erro: `O relatório ${relatorio} não existe: escreva o relatório antes de pedir o roteiro.`, status: 400 };
+    }
+    if ([...this.pedidos.values()].some((p) => p.roteiro && p.rodada === rodada && p.estado !== 'recusado')) {
+      return { erro: `A rodada ${rodada} já tem o pedido do roteiro.`, status: 409 };
+    }
+    const pedido: PedidoPorao = {
+      id: randomUUID(),
+      projectId: reg.maestros[maestro]!.projeto,
+      pasta,
+      maestro,
+      rodada,
+      tarefas: [TAREFA_ROTEIRO],
+      permissoes: {},
+      roteiro: relatorio,
+      criadoEm: Date.now(),
+      estado: 'aguardando',
+      sessoes: {},
+    };
+    this.pedidos.set(pedido.id, pedido);
+    return pedido;
+  }
+
+  /**
    * Clique em "Abrir" no cartão: uma sessão por tarefa, anotada no porão **antes** de abrir (para nunca aparecer na
-   * casa). `abrir` devolve o motivo quando não abre (ex.: perfil pessoal sem configuração).
+   * casa). `abrir` devolve o motivo quando não abre (ex.: perfil pessoal sem configuração). O pedido do roteiro abre uma
+   * sessão comum, sem anotação nem regra: ela nasce na casa.
    */
   async aprovar(id: string, abrir: (sessionId: string, prompt: string, permitir: string[]) => Promise<string | null>, leitura: string[] = []): Promise<PedidoPorao | null> {
     const pedido = this.pedidos.get(id);
     if (!pedido || pedido.estado !== 'aguardando') return null;
     pedido.estado = 'aprovado';
+    if (pedido.roteiro) {
+      const sessionId = randomUUID();
+      const erro = await abrir(sessionId, promptDoRoteiro(pedido.roteiro), []);
+      pedido.sessoes[TAREFA_ROTEIRO] = erro ? { erro } : { sessionId };
+      return pedido;
+    }
     for (const tarefa of pedido.tarefas) {
       const sessionId = randomUUID();
       const reg = await this.ler();
@@ -302,7 +363,7 @@ export class Porao {
 
   /**
    * "Encerrar rodada" (fase 4): depois que as conversas foram apagadas, tira os ids do registro e dá como recusado o
-   * pedido do projeto que ainda esperava o cartão.
+   * pedido do projeto que ainda esperava o cartão. O do roteiro fica: a sessão dele é da casa, e a rodada já acabou.
    */
   async esquecer(projectId: string, ids: string[]): Promise<void> {
     const reg = await this.ler();
@@ -312,7 +373,7 @@ export class Porao {
       this.chamados.delete(id);
     }
     await this.gravar(reg);
-    for (const p of this.pedidosAbertos()) if (p.projectId === projectId) p.estado = 'recusado';
+    for (const p of this.pedidosAbertos()) if (p.projectId === projectId && !p.roteiro) p.estado = 'recusado';
   }
 
   recusar(id: string): PedidoPorao | null {

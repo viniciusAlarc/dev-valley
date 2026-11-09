@@ -2,7 +2,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { api, wsUrl, type Session } from '../api';
+import { api, getWorld, horaDoBastao, onWorld, wsUrl, type Session } from '../api';
 import { villagerName } from '../game/names';
 import { button, openPanel } from './panel';
 
@@ -18,7 +18,10 @@ export function openTerminal(opts: {
   agent?: { subtitle: string };
   /** Só para ver: o teclado não chega ao processo (o maestro regendo, 04/11/2026). */
   somenteLeitura?: boolean;
+  /** Sessão comum: mostra "Passar o bastão" (BT-1, 08/11/2026). */
+  bastao?: boolean;
 }) {
+  let paraDeOuvir: (() => void) | null = null;
   let ws: WebSocket | null = null;
   const term = new Terminal({
     fontFamily: '"Cascadia Mono", "Cascadia Code", Consolas, "DejaVu Sans Mono", monospace',
@@ -49,14 +52,55 @@ export function openTerminal(opts: {
     subtitle: opts.agent ? opts.agent.subtitle : `sessão ${opts.sessionId.slice(0, 8)}`,
     size: 'lg',
     onClose: () => {
+      paraDeOuvir?.();
       resizeObserver.disconnect();
       ws?.close();
       term.dispose();
     },
   });
+  const aviso = (texto: string) => {
+    const q = document.createElement('span');
+    q.className = 'agent-confirm';
+    q.textContent = texto;
+    return q;
+  };
+  // Os botões de baixo: só reagem ao mundo (contexto passando de 70%) enquanto nenhuma confirmação está aberta.
+  let emRepouso = false;
   // Encerrar apaga a conversa de vez (não dá para retomar), então pede confirmação ali mesmo, como na Fábrica.
-  const showEnd = () => panel.actions.replaceChildren(button('Encerrar sessão', confirmEnd, 'danger'));
+  const showEnd = () => {
+    emRepouso = true;
+    const s = getWorld().sessions.find((x) => x.id === opts.sessionId);
+    const hora = !!s && horaDoBastao(s);
+    panel.actions.replaceChildren(
+      ...(opts.bastao && hora ? [aviso(`Contexto em ${s!.context!.percent}%: hora de passar o bastão.`)] : []),
+      ...(opts.bastao ? [button('Passar o bastão', confirmBastao, hora ? 'primary' : 'normal')] : []),
+      button('Encerrar sessão', confirmEnd, 'danger'),
+    );
+  };
+  // Passagem de bastão (BT-1): a própria sessão escreve o resumo; quando termina, nasce o sucessor na mesma casa.
+  const confirmBastao = () => {
+    emRepouso = false;
+    panel.actions.replaceChildren(
+      aviso(`Pedir a ${villagerName(opts.sessionId)} o resumo para quem continua? Quando ele terminar, nasce um morador novo nesta casa, já lendo o resumo.`),
+      button(
+        'Sim, passar',
+        async () => {
+          try {
+            await api.passarBastao(opts.sessionId);
+            panel.actions.replaceChildren(aviso('Ele está escrevendo o resumo. Quando terminar, o novo morador aparece na casa.'));
+          } catch (err) {
+            term.write(`\r\n\x1b[31m[${(err as Error).message ?? err}]\x1b[0m\r\n`);
+            showEnd();
+          }
+        },
+        'primary',
+      ),
+      button('Cancelar', showEnd),
+    );
+  };
+  if (opts.bastao) paraDeOuvir = onWorld(() => emRepouso && showEnd());
   const confirmEnd = () => {
+    emRepouso = false;
     const q = document.createElement('span');
     q.className = 'agent-confirm';
     q.textContent = 'Apagar esta conversa de vez? Não dá para retomar depois.';
@@ -106,5 +150,5 @@ export function openTerminal(opts: {
 }
 
 export function openSessionTerminal(session: Session) {
-  openTerminal({ sessionId: session.id, projectId: session.projectId, title: session.title });
+  openTerminal({ sessionId: session.id, projectId: session.projectId, title: session.title, bastao: !session.porao });
 }
