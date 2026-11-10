@@ -886,3 +886,99 @@ export function generatePoraoTextures(scene: Phaser.Scene) {
   benchFront(scene);
   barrel(scene);
 }
+
+// ---------------- clínica (09/11/2026) ----------------
+// Mesma paleta da fachada (textures.ts, `clinic`): reboco #eef0ea, verde #5fae8f/#3f8a6c, vidro #a8d8ea.
+
+/** Piso de ladrilho claro em xadrez, como de consultório. */
+function clinicFloor(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(16, 16);
+  rect(ctx, 0, 0, 16, 16, '#e4e9e4');
+  rect(ctx, 0, 0, 8, 8, '#d3ddd6');
+  rect(ctx, 8, 8, 8, 8, '#d3ddd6');
+  rect(ctx, 0, 7, 16, 1, '#bfcac2');
+  rect(ctx, 7, 0, 1, 16, '#bfcac2');
+  rect(ctx, 1, 1, 2, 1, '#f4f7f4');
+  add(scene, 'clinicFloor', c);
+}
+
+/** Parede verde-clara com faixa e rodapé verdes. */
+function clinicWall(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(16, 40);
+  rect(ctx, 0, 0, 16, 26, '#dcebe2');
+  rect(ctx, 0, 0, 16, 1, '#c6d9cd');
+  rect(ctx, 0, 26, 16, 2, '#5fae8f');
+  rect(ctx, 0, 28, 16, 10, '#eef0ea');
+  rect(ctx, 0, 33, 16, 1, '#d5dad2');
+  rect(ctx, 0, 38, 16, 2, '#3f8a6c');
+  add(scene, 'clinicWall', c);
+}
+
+/** Maca de exame: colchonete verde, lençol de papel e travesseiro, pés de metal. */
+function maca(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(56, 26);
+  rect(ctx, 2, 8, 52, 7, '#5fae8f');
+  rect(ctx, 2, 8, 52, 1, '#8fd0b4');
+  rect(ctx, 2, 14, 52, 1, '#3f8a6c');
+  rect(ctx, 14, 9, 38, 4, '#f7f7f2'); // lençol de papel
+  rect(ctx, 3, 5, 11, 5, '#ffffff'); // travesseiro
+  rect(ctx, 3, 9, 11, 1, '#d5dad2');
+  rect(ctx, 4, 15, 48, 2, '#8a8f98');
+  for (const x of [5, 48]) rect(ctx, x, 17, 3, 8, '#8a8f98'), rect(ctx, x, 24, 3, 1, '#4c545c');
+  outline(ctx, 56, 26);
+  add(scene, 'maca', c);
+}
+
+/** Mesa da médica: tampo claro, prontuários e o porta-canetas. */
+function mesaMedica(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(56, 26);
+  rect(ctx, 0, 8, 56, 5, '#d9d3c4');
+  rect(ctx, 0, 8, 56, 1, '#f1ece0');
+  rect(ctx, 2, 13, 52, 12, '#b9b19f');
+  rect(ctx, 34, 15, 18, 8, '#a59d8a');
+  rect(ctx, 42, 18, 3, 1, '#e8c252');
+  // prontuários em prancheta e porta-canetas
+  rect(ctx, 6, 3, 10, 7, '#8a5a2b');
+  rect(ctx, 7, 4, 8, 5, '#fbfbf7');
+  rect(ctx, 8, 5, 6, 1, '#a8b0a8');
+  rect(ctx, 8, 7, 4, 1, '#a8b0a8');
+  rect(ctx, 9, 2, 4, 2, '#8a8f98');
+  rect(ctx, 44, 3, 4, 6, '#5fae8f');
+  rect(ctx, 44, 1, 1, 2, '#c0392b');
+  rect(ctx, 46, 0, 1, 3, '#2e86c1');
+  outline(ctx, 56, 26);
+  add(scene, 'mesaMedica', c);
+}
+
+/** Armário de remédios: branco, portas de vidro com frascos e a cruz verde no alto. */
+function armario(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(28, 44);
+  rect(ctx, 1, 2, 26, 41, '#eef0ea');
+  rect(ctx, 22, 2, 5, 41, '#d5dad2');
+  rect(ctx, 0, 0, 28, 3, '#c9cfc8');
+  // cruz verde no alto
+  rect(ctx, 12, 4, 4, 9, '#3fae6a');
+  rect(ctx, 9, 7, 10, 3, '#3fae6a');
+  // portas de vidro com prateleiras e frascos
+  for (const x of [3, 14]) {
+    rect(ctx, x, 15, 11, 22, '#3f8a6c');
+    rect(ctx, x + 1, 16, 9, 20, '#bfe6f0');
+    rect(ctx, x + 1, 25, 9, 1, '#8a8f98');
+  }
+  const frascos: [number, number, string][] = [[5, 21, '#c0392b'], [8, 22, '#e8a33a'], [16, 21, '#2e86c1'], [19, 20, '#7a4aa0'], [6, 31, '#27ae60'], [17, 31, '#e86fa0'], [20, 32, '#c0392b']];
+  for (const [x, y, cor] of frascos) rect(ctx, x, y, 2, 4, cor), rect(ctx, x, y - 1, 2, 1, '#f4f1ea');
+  rect(ctx, 12, 26, 1, 2, '#e8c252');
+  rect(ctx, 15, 26, 1, 2, '#e8c252');
+  rect(ctx, 2, 38, 24, 4, '#c9cfc8');
+  outline(ctx, 28, 44);
+  add(scene, 'armarioRemedios', c);
+}
+
+export function generateClinicTextures(scene: Phaser.Scene) {
+  if (scene.textures.exists('clinicFloor')) return;
+  armario(scene);
+  clinicFloor(scene);
+  clinicWall(scene);
+  maca(scene);
+  mesaMedica(scene);
+}

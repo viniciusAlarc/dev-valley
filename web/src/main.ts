@@ -5,10 +5,12 @@ import { connectWorld, onWorld } from './api';
 import { FactoryScene } from './game/FactoryScene';
 import { InteriorScene } from './game/InteriorScene';
 import { LibraryScene } from './game/LibraryScene';
+import { ClinicaScene } from './game/ClinicaScene';
 import { PoraoScene } from './game/PoraoScene';
 import { TownScene } from './game/TownScene';
 import './style.css';
 import { mountHud } from './ui/hud';
+import { mountLimitesHud } from './ui/limitesHud';
 
 await document.fonts.load('16px "Pixelify Sans"');
 
@@ -19,10 +21,11 @@ new Phaser.Game({
   pixelArt: true,
   backgroundColor: '#2f5a26',
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
-  scene: [scene, InteriorScene, LibraryScene, FactoryScene, PoraoScene],
+  scene: [scene, InteriorScene, LibraryScene, FactoryScene, PoraoScene, ClinicaScene],
 });
 
 mountHud();
+mountLimitesHud();
 
 onWorld((w) => scene.applyWorld(w));
 connectWorld();

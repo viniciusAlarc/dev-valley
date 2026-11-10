@@ -415,7 +415,7 @@ export interface GastoView {
     anterior: number;
     projetos: { projectId: string | null; nome: string; peso: number; sessoes: { id: string; peso: number }[] }[];
   }[];
-  /** Previsão de cada limite do plano (sessão de 5h e semana), pelos números da torre; vazio até a primeira leitura. */
+  /** Previsão de cada limite do plano (sessão de 5h e semana), pelos números dos limites (os da clínica); vazio até a primeira leitura. */
   limites: LimiteRitmo[];
 }
 
@@ -488,6 +488,64 @@ export const library = {
   openVsCode: (path: string) => request('POST', '/api/library/open-vscode', { path }),
 };
 
+/** Clínica (09/11/2026): o que `/api/clinica` devolve (ver `server/src/clinica.ts`). */
+export interface ComandoRodando {
+  pid: number;
+  comando: string;
+  idadeS: number;
+  cpu: number;
+  estado: string;
+  daSessao: boolean;
+}
+export interface Paciente {
+  id: string;
+  name: string;
+  projectId: string | null;
+  status: SessionStatus | null;
+  live: boolean;
+  inTown: boolean;
+  atividade: Atividade | null;
+  contexto: number | null;
+  trabalhandoDesde: number;
+  ultimoEvento: number;
+  processo: { pid: number; cpu: number } | null;
+  comandos: ComandoRodando[];
+  servidores: ComandoRodando[];
+}
+export interface Vitais {
+  memoria: { totalMb: number; usadaMb: number } | null;
+  swap: { totalMb: number; usadaMb: number } | null;
+  carga: { umMinuto: number; cpus: number } | null;
+  disco: { totalGb: number; livreGb: number } | null;
+}
+/** Armário da clínica (CL-1): o que roda fora da vila e pode ter sido esquecido. */
+export interface Esquecido {
+  pid: number;
+  comando: string;
+  idadeS: number;
+  memMb: number;
+  pasta: string | null;
+  portas: number[];
+  morador: string | null;
+}
+export interface Container {
+  nome: string;
+  imagem: string;
+  status: string;
+  portas: string;
+  compose: string | null;
+}
+export interface Armario {
+  claudes: Esquecido[];
+  servidores: Esquecido[];
+  containers: Container[] | null;
+  dockerErro: string | null;
+}
+export interface Triagem {
+  vitais: Vitais;
+  pacientes: Paciente[];
+}
+
 export const api = {
   diff: (project: string, file: string) =>
     request<{ original: string; modified: string }>(
@@ -509,6 +567,10 @@ export const api = {
   /** Encerra e apaga a conversa de vez. */
   deleteSession: (id: string) => request('DELETE', `/api/sessions/${id}`),
   /** Passagem de bastão: a sessão escreve o resumo e, quando termina, nasce o sucessor na mesma casa (BT-1). */
+  /** Clínica: pacientes vivos e sinais vitais (leva ~1 s: a CPU sai de duas leituras do `/proc`). */
+  clinica: () => request<Triagem>('GET', '/api/clinica'),
+  armario: () => request<Armario>('GET', '/api/clinica/armario'),
+  vitais: () => request<Vitais>('GET', '/api/clinica/vitais'),
   passarBastao: (sessionId: string) => request<{ arquivo: string }>('POST', '/api/bastao', { sessionId }),
   progress: (project: string) => request<ProgressEntry[]>('GET', `/api/progress?project=${encodeURIComponent(project)}`),
   /** Sino: troca "Falta conferir na vila" por "Conferido na vila…" nas entregas escolhidas. */

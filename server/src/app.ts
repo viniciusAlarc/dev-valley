@@ -4,6 +4,7 @@ import path from 'node:path';
 import express from 'express';
 import type { askAdministrador } from './administrador.js';
 import type { askMirim } from './mirim.js';
+import type { askMedica, Clinica } from './clinica.js';
 import { agentInput, Agents } from './agents.js';
 import type { sugerirMensagem } from './escrevente.js';
 import * as gitOps from './git.js';
@@ -75,6 +76,9 @@ export interface Contexto {
   askLibrarian: typeof askLibrarian;
   askAdministrador: typeof askAdministrador;
   askMirim: typeof askMirim;
+  /** Clínica (09/11/2026): triagem dos moradores vivos, sinais vitais e a ficha que a médica recebe. */
+  clinica: Pick<Clinica, 'triagem' | 'ficha' | 'armario' | 'vitais'>;
+  askMedica: typeof askMedica;
   sugerirMensagem: typeof sugerirMensagem;
   /** Apaga os arquivos da conversa (`deleteSessionFiles`). */
   apagarConversa: (id: string) => Promise<void>;
@@ -113,8 +117,19 @@ export function criarApp(ctx: Contexto): express.Express {
   });
 
   // Chamado pelos hooks do Claude Code (curl local) a cada evento de sessão.
+  // Os avisos chegam em rajada (início e fim de cada ferramenta, 08/11/2026): um redesenho só a cada 150 ms. Ferramenta
+  // instantânea (uma leitura) nem chega a piscar o ícone no balão.
+  let redesenho: ReturnType<typeof setTimeout> | null = null;
+  const redesenhar = () => {
+    if (redesenho) return;
+    redesenho = setTimeout(() => {
+      redesenho = null;
+      void refreshWorld();
+    }, 150);
+    redesenho.unref?.();
+  };
   app.post('/api/hooks', (req, res) => {
-    if (!internalSessions.has(req.body?.session_id) && hooks.handle(req.body ?? {})) void refreshWorld();
+    if (!internalSessions.has(req.body?.session_id) && hooks.handle(req.body ?? {})) redesenhar();
     res.json({});
   });
 
@@ -333,6 +348,46 @@ export function criarApp(ctx: Contexto): express.Express {
       history,
       project,
       ctx.world().sessions,
+      (event) => {
+        res.write(JSON.stringify(event) + '\n');
+        if (event.type !== 'step') res.end();
+      },
+      internalSessions,
+    );
+    if (res.writableEnded) return;
+    res.on('close', () => {
+      if (!res.writableEnded) cancel();
+    });
+  });
+
+  // ---- Clínica (09/11/2026): a maca de triagem e os sinais da máquina (canto da tela); a médica examina um morador vivo ----
+  app.get('/api/clinica', async (_req, res) => {
+    res.json(await ctx.clinica.triagem());
+  });
+
+  // Sinais da máquina (WSL) para o canto inferior esquerdo, junto dos limites do Claude: leve, sem a amostra de CPU da triagem.
+  app.get('/api/clinica/vitais', async (_req, res) => {
+    res.json(await ctx.clinica.vitais());
+  });
+
+  // Armário (CL-1): processos `claude` e servidores fora da vila e containers de pé. Só aponta; ninguém encerra por aqui.
+  app.get('/api/clinica/armario', async (_req, res) => {
+    res.json(await ctx.clinica.armario());
+  });
+
+  // A médica lê a conversa da sessão: só pela página, como o mirim. NDJSON igual ao da bibliotecária.
+  app.post('/api/clinica/medica', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila chama a médica.' });
+    const question = String(req.body?.question ?? '').trim();
+    if (!question) return res.status(400).json({ error: 'pergunta vazia' });
+    const ficha = typeof req.body?.sessionId === 'string' ? await ctx.clinica.ficha(req.body.sessionId) : null;
+    if (!ficha) return res.status(404).json({ error: 'Esse morador não está vivo agora: não há o que examinar.' });
+    const history = Array.isArray(req.body?.history) ? req.body.history : [];
+    res.setHeader('Content-Type', 'application/x-ndjson');
+    const cancel = await ctx.askMedica(
+      question,
+      history,
+      ficha,
       (event) => {
         res.write(JSON.stringify(event) + '\n');
         if (event.type !== 'step') res.end();

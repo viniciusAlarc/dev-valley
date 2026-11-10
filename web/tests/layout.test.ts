@@ -54,13 +54,13 @@ describe('layout da vila ocupa a tela (pedido do usuário, 02/11/2026)', () => {
     }
   });
 
-  test('linha cívica: torre, banca e moinho cabem entre biblioteca, praça e Fábrica sem se encostar (02/11/2026)', () => {
+  test('linha cívica: clínica, banca e moinho cabem entre biblioteca, praça e Fábrica sem se encostar (02/11/2026)', () => {
     for (const [n, view] of [[1, LARGA], [3, ESTREITA], [5, LARGA], [10, LARGA]] as const) {
       const l = computeLayout(casas(n), view);
       // largura em tiles de cada peça, em volta da âncora (x no centro)
       const pecas = [
         ['biblioteca', l.library.x, 7],
-        ['torre', l.clockTower.x, 4],
+        ['clínica', l.clinica.x, 4],
         ['praça', l.plaza.x + l.plaza.w / 2, l.plaza.w / TILE],
         ['banca', l.newsstand.x, 5],
         ['moinho', l.windmill.x, 6],

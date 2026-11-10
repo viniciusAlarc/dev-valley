@@ -3,8 +3,8 @@ import { villagerName } from '../game/names';
 import { openConferir } from './conferir';
 import { openGuardrails } from './guardrails';
 import { openLibrary } from './library';
-import { openAdministrador, openJornaleiro, openLibrarian, openMirim } from './librarian';
-import { escapeHtml, isPanelOpen, openPanel } from './panel';
+import { openAdministrador, openJornaleiro, openLibrarian, openMedica, openMirim } from './librarian';
+import { button, escapeHtml, isPanelOpen, openPanel } from './panel';
 import { openDiary } from './diario';
 import { openFactory } from './factory';
 import { openObra } from './obra';
@@ -22,7 +22,7 @@ import { openSkills } from './skills';
 import { openPlugins } from './plugins';
 import { openGasto } from './gasto';
 import { openJornal } from './jornal';
-import { openUsage } from './usage';
+import { openArmario, openTriagem } from './clinica';
 import { openSessionTerminal, openTerminal } from './terminal';
 
 const tooltip = () => document.getElementById('tooltip')!;
@@ -65,6 +65,8 @@ export const ui = {
       panel.body.innerHTML = `
         <p>A sessão <b>${escapeHtml(session.title)}</b> está aberta em outro terminal (VS Code, por exemplo).</p>
         <p class="muted">Continue por lá — ou encerre a sessão lá e clique de novo aqui para retomá-la na vila.</p>`;
+      // Atalho da clínica (09/11/2026): é justamente a sessão de fora que costuma demorar sem ninguém ver.
+      panel.actions.append(button('🩺 Chamar a médica', () => openMedica(session)));
       return;
     }
     openSessionTerminal(session);
@@ -101,9 +103,14 @@ export const ui = {
     this.hideTooltip();
     void openPlugins();
   },
-  openUsage(usage: World['usage']) {
+  /** Clínica (09/11/2026): maca de triagem, armário e a médica. */
+  openTriagem() {
     this.hideTooltip();
-    openUsage(usage);
+    void openTriagem();
+  },
+  openArmario() {
+    this.hideTooltip();
+    void openArmario();
   },
   openConferir(world: World) {
     this.hideTooltip();

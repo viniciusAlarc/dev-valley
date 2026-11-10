@@ -1,6 +1,11 @@
 # Torre do relógio: os limites do plano dentro da vila
 
 > **Implementado em 02/11/2026.** Planejado e codado no mesmo dia; saiu de `docs-dev/a-codar/`.
+>
+> **Substituída pela clínica em 09/11/2026** (decisão do usuário: a torre tinha pouca informação). Os limites foram para
+> o monitor de sinais vitais e a cor do sino para a cruz da fachada; `torre.ts` virou `web/src/game/limites.ts` e o
+> `ui/usage.ts` saiu (o painel agora é o de sinais vitais, `web/src/ui/clinica.ts`). Plano em `docs-dev/context/clinica.md`.
+> O resto deste arquivo é o registro de como a torre era.
 
 ## Por que
 

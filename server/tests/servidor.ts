@@ -103,6 +103,8 @@ export async function subir(mundo: { projects?: Project[]; sessions?: WorldSessi
     askLibrarian: proibido('askLibrarian'),
     askAdministrador: proibido('askAdministrador'),
     askMirim: proibido('askMirim'),
+    clinica: { triagem: proibido('clinica.triagem'), ficha: proibido('clinica.ficha'), armario: proibido('clinica.armario'), vitais: proibido('clinica.vitais') },
+    askMedica: proibido('askMedica'),
     sugerirMensagem: proibido('sugerirMensagem'),
     apagarConversa: proibido('apagarConversa'),
     abrirVscode: proibido('abrirVscode'),

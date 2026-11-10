@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
-import { library, type Project } from '../api';
+import { library, type Project, type Session } from '../api';
 import { ui } from './actions';
 import { button, escapeHtml, openPanel, type Panel } from './panel';
 import { atalhosDoJornaleiro } from './jornaleiro';
@@ -30,6 +30,8 @@ interface ChatAgent {
   atalhos?: (panel: Panel) => void;
   /** Campos a mais no corpo de cada pergunta (o projeto, no mirim). */
   corpo?: Record<string, unknown>;
+  /** Pergunta feita sozinha ao abrir a conversa ainda vazia (o exame da médica). */
+  inicial?: string;
 }
 
 const LIBRARIAN: ChatAgent = {
@@ -190,6 +192,34 @@ export function openMirim(project: Project, verMaestro?: () => void) {
   openChat(a);
 }
 
+/** Uma conversa com a médica por paciente, guardada enquanto a vila está aberta. */
+const CONSULTAS = new Map<string, ChatAgent>();
+
+/**
+ * Médica da clínica (09/11/2026): examina um morador que está demorando e diz se é para esperar ou intervir. Abre já
+ * examinando; as perguntas seguintes recebem a ficha de novo, medida na hora.
+ */
+export function openMedica(s: Session) {
+  let agent = CONSULTAS.get(s.id);
+  if (!agent) {
+    agent = {
+      endpoint: '/api/clinica/medica',
+      title: `✦ Dra. Lia — examinando ${s.name}`,
+      subtitle: 'Médica da clínica: olha a conversa, os comandos e a máquina, e diz se é para esperar ou intervir',
+      placeholder: 'ex.: e agora, melhorou? · o que eu digito para ele? · posso encerrar?',
+      hello: '',
+      working: 'Examinando…',
+      who: 'a médica',
+      conversation: [],
+      pending: null,
+      corpo: { sessionId: s.id },
+      inicial: `Examine ${s.name}: está trabalhando ou travado? Devo intervir?`,
+    };
+    CONSULTAS.set(s.id, agent);
+  }
+  openChat(agent);
+}
+
 function openChat(agent: ChatAgent) {
   const { conversation } = agent;
   const panel = openPanel({ title: agent.title, subtitle: agent.subtitle, size: 'lg' });
@@ -246,4 +276,5 @@ function openChat(agent: ChatAgent) {
     void ask(agent, question, render);
   });
   render();
+  if (!conversation.length && agent.inicial && !agent.pending) void ask(agent, agent.inicial, render);
 }

@@ -3,6 +3,85 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-10 — Clínica sem o monitor de sinais vitais
+
+**O que mudou:** a pedido do usuário, saiu o monitor de sinais vitais da clínica (ficou inútil com limites e máquina no
+canto da tela): a peça, a textura `monitorVital`, o painel `openSinaisVitais` e as barras dele. A maca ficou espelhada com
+a mesa da médica em relação ao corredor. Textos que apontavam para o monitor (fachada, moinho, README) agora apontam para
+o canto da tela. `/api/clinica` segue devolvendo `vitais` para a ficha da médica.
+**Arquivos:** `web/src/game/{ClinicaScene,interiorTextures,limites,layout,TownScene}.ts`,
+`web/src/ui/{clinica,actions,gasto,limitesHud,limites-texto}.ts`, `web/tests/limites-hud.test.ts`, `server/src/app.ts`
+(comentário); `README.md`, `docs-dev/context/clinica.md`.
+**Testes:** antes 259/259; depois 259/259, typecheck do servidor e do front e build sem erro; auditor só com o histórico.
+Falta conferir na vila depois do reinício (regra 6).
+
+## 2026-11-09 — Clínica reorganizada e limites de volta ao canto da tela
+
+**O que mudou:** a pedido do usuário, duas coisas. (1) A planta da clínica: tudo estava espremido na metade de cima e o
+rótulo do monitor quase encostava no da maca. Agora a triagem fica à esquerda (monitor na cabeceira da maca), o
+consultório à direita (mesa da médica, que ganhou rótulo, e o armário na parede atrás dela) e o corredor do meio fica livre
+da porta ao fundo, com os rótulos dos dois lados na mesma linha. (2) Os limites do Claude (5h e semana) voltam ao canto
+inferior esquerdo, no desenho antigo do painel de uso, minimizável em chips, e com a máquina (WSL: memória, swap,
+processador, disco) embaixo. Rota nova `GET /api/clinica/vitais`, leve (sem a amostra de processos da triagem), lida a cada
+30 s. O monitor da clínica e a cruz da fachada continuam iguais.
+**Arquivos:** `server/src/{clinica,app}.ts`, `server/tests/{clinica.test.ts,servidor.ts}`; `web/src/{api,main}.ts`,
+`web/src/style.css`, `web/src/ui/{limitesHud,limites-texto}.ts`, `web/src/game/ClinicaScene.ts`,
+`web/tests/limites-hud.test.ts`; `README.md`, `CLAUDE.md`, `docs-dev/context/clinica.md`.
+**Testes:** antes 256/256; depois 259/259, typecheck do servidor e do front e build sem erro; auditor só com o histórico.
+Falta conferir na vila depois do reinício (regra 6): a planta não foi renderizada aqui.
+
+## 2026-11-09 — Clínica, etapa 2 (CL-1): armário dos pacientes esquecidos
+
+**O que mudou:** o usuário não pôde reiniciar a vila e pediu o próximo passo. O armário da clínica lista o que roda fora
+da vila e pode ter sido esquecido: processos `claude` fora da árvore do servidor (com "provavelmente Fulano" quando um
+morador vivo fora da vila está na mesma pasta), servidores escutando porta fora da lareira (porta `LISTEN` de
+`/proc/net/tcp*` achada pelo inode nos `fd` de cada processo; o `.vscode-server` fica de fora, porque o próprio VS Code
+escuta portas: os dois primeiros achados reais nesta máquina eram ele) e containers Docker de pé (`docker ps`, prazo
+de 4 s, aviso quando o Docker não existe ou não responde). Cada item traz idade, memória, pasta e a linha para o usuário
+encerrar; a vila não encerra nada (decisão 5 do plano). Rota nova `GET /api/clinica/armario`. O `Processo` ganhou a
+memória (`statm`). Plano inteiro implementado: saiu de `a-codar/` para `docs-dev/context/clinica.md` e a
+CL-1 saiu do `PENDENCIAS.md`.
+**Arquivos:** `server/src/{clinica,app}.ts`, `server/tests/{clinica.test.ts,servidor.ts}`; `web/src/{api.ts,style.css}`,
+`web/src/ui/{clinica,actions}.ts`, `web/src/game/{ClinicaScene,interiorTextures}.ts`; `README.md`, `CLAUDE.md`,
+`PENDENCIAS.md`, `docs-dev/context/{clinica,torre-do-relogio}.md`.
+**Testes:** antes 250/250; depois 256/256, typecheck do servidor e do front e build sem erro; auditor só com o histórico
+do `PROGRESS.md` (informativo). Armário conferido nos processos reais desta máquina (Claude, portas e Docker). Falta
+conferir na vila, junto com a etapa 1, depois do reinício.
+
+## 2026-11-09 — Clínica no lugar da torre do relógio, com a médica que examina quem está demorando
+
+**O que mudou:** decisão do usuário. Ele abria uma sessão nova só para conferir se outra, demorada, estava travada.
+Agora a **✦ Dra. Lia** (agente da vila, `server/agents/medica.md`, `claude -p --no-session-persistence`, só Read/Grep/Glob
+em modo estrito) examina o morador e responde 🟢/🟡/🟠/🔴/⚫ com evidências e, se for intervir, o texto para colar. Ela
+recebe a ficha montada pela vila (`server/src/clinica.ts`): estado e tempo pelos hooks, contexto, a ferramenta cuja
+resposta não voltou, erros recentes, últimos passos, os processos filhos do terminal com idade e CPU (duas leituras do
+`/proc` com 1 s entre elas; os que nasceram com a sessão são marcados como MCP/plugin) e a máquina (memória, swap, carga,
+disco). A clínica ocupa o lote da torre, que saiu: a cruz da placa herdou a cor do sino (pior limite) e o texto do
+mouse; por dentro, maca de triagem (moradores vivos e o que rodam), monitor de sinais vitais (limites do Claude, antes
+no clique da torre, e a máquina) e a mesa da médica. Atalho "🩺 Chamar a médica" no painel do morador e no aviso de
+sessão aberta fora da vila. A médica veste o traje de agente com jaleco, máscara, estetoscópio e coque (exceção escrita
+na regra 8). Rotas novas: `GET /api/clinica` e `POST /api/clinica/medica` (só pela página). `ultimosPassos` do mirim
+passou a usar `eventosDoFim`, que a ficha também usa. Etapa 2 (armário dos "pacientes esquecidos") virou CL-1.
+**Arquivos:** `server/src/clinica.ts` (novo), `server/agents/medica.md` (novo), `server/src/{app,index,terminals,mirim,gasto}.ts`,
+`server/tests/{clinica.test.ts (novo),servidor.ts}`; `web/src/game/{ClinicaScene.ts (novo),limites.ts (era torre.ts),TownScene,layout,textures,interiorTextures,villagerArt}.ts`,
+`web/src/ui/{clinica.ts (novo),librarian,terminal,actions,gasto}.ts`, `web/src/ui/usage.ts` (removido), `web/src/{main,api}.ts`,
+`web/src/style.css`, `web/tests/{limites.test.ts (era torre.test.ts),layout,villager-art}.test.ts`, `scripts/previa-moradores.ts`;
+`README.md`, `CLAUDE.md` (estrutura, regras 5 e 8), `PENDENCIAS.md` (CL-1), `docs-dev/context/clinica.md` (plano), `docs-dev/context/torre-do-relogio.md`.
+**Testes:** antes 240/240; depois 250/250, typecheck do servidor e do front e build sem erro; auditor só com o histórico
+do `PROGRESS.md` (informativo). Leituras do `/proc` conferidas nesta máquina e a médica conferida na prévia em PNG.
+Falta conferir na vila, depois do reinício (regra 6): fachada, interior, triagem, sinais vitais e uma consulta de verdade.
+
+## 2026-11-09 — Balão: ícone só enquanto a ferramenta roda; entre ferramentas, os "..." de pensando
+
+**O que mudou:** decisão do usuário. Antes, o ícone da última ferramenta ficava até a próxima (lupa enquanto ele já
+planejava). Agora o `PostToolUse` apaga a categoria no `HookStore`: ferramenta rodando = o ícone dela; entre ferramentas
+e logo depois da mensagem = os três pontinhos de sempre ("pensando"). Pedido de permissão mantém a categoria. Como agora
+cada ferramenta muda o estado duas vezes, os avisos de hook passaram a redesenhar a vila no máximo uma vez a cada 150 ms
+(`/api/hooks` em `app.ts`); ferramenta instantânea nem pisca o ícone.
+**Arquivos:** `server/src/hooks.ts`, `server/src/app.ts`, `server/tests/hooks.test.ts`; `README.md`.
+**Testes:** antes 240/240; depois 240/240 (teste da atividade reescrito para o fim da ferramenta), typecheck e build sem
+erro. Falta conferir na vila, depois do reinício e do `claude plugin update dev-valley@dev-valley`.
+
 ## 2026-11-08 — Ícones do balão redesenhados (lupa, lápis, terminal, globo, ✦)
 
 **O que mudou:** pedido do usuário: o livro e o lápis do balão não se reconheciam. Os ícones viraram grades de

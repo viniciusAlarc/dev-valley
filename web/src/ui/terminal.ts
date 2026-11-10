@@ -4,6 +4,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { api, getWorld, horaDoBastao, onWorld, wsUrl, type Session } from '../api';
 import { villagerName } from '../game/names';
+import { openMedica } from './librarian';
 import { button, openPanel } from './panel';
 
 /**
@@ -73,6 +74,8 @@ export function openTerminal(opts: {
     const hora = !!s && horaDoBastao(s);
     panel.actions.replaceChildren(
       ...(opts.bastao && hora ? [aviso(`Contexto em ${s!.context!.percent}%: hora de passar o bastão.`)] : []),
+      // Atalho da clínica (09/11/2026): a médica examina se ele está trabalhando ou travado.
+      ...(opts.bastao && s ? [button('🩺 Chamar a médica', () => openMedica(s))] : []),
       ...(opts.bastao ? [button('Passar o bastão', confirmBastao, hora ? 'primary' : 'normal')] : []),
       button('Encerrar sessão', confirmEnd, 'danger'),
     );

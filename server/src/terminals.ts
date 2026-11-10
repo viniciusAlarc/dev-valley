@@ -52,6 +52,11 @@ export class TerminalManager {
     return this.terminals.has(sessionId);
   }
 
+  /** O processo `claude` do terminal (a clínica lê os filhos dele no `/proc`); null = sem terminal na vila. */
+  pidDe(sessionId: string): number | null {
+    return this.terminals.get(sessionId)?.pty.pid ?? null;
+  }
+
   live(): LiveSession[] {
     return [...this.terminals.values()].map(({ id, cwd, startedAt }) => ({ id, cwd, startedAt }));
   }

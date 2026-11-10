@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import zlib from 'node:zlib';
 import {
   agentLookFor,
+  MEDICA_ID,
   drawSheet,
   lookFor,
   VILLAGER_H,
@@ -143,7 +144,8 @@ const sorteio = (n: number): [string, Look][] =>
     const genero = (['f', 'm', null] as Genero[])[i % 3];
     return [`morador-${i} (${genero ?? 'n'})`, lookFor(`morador-${i}`, genero, perfil === 'pessoal' ? 'pessoal' : 'profissional')];
   });
-const agentes = Array.from({ length: COLS }, (_, i): [string, Look] => [`agente-${i}`, agentLookFor(`agente-${i}`)]);
+// O primeiro agente é a médica da clínica (kit de médica por cima do traje, 09/11/2026).
+const agentes = Array.from({ length: COLS }, (_, i): [string, Look] => (i === 0 ? ['medica', agentLookFor(MEDICA_ID)] : [`agente-${i}`, agentLookFor(`agente-${i}`)]));
 const moradores = quantos === 'catalogo' ? catalogo() : sorteio(Number(quantos));
 const n = moradores.length;
 // Os agentes começam numa linha nova (fora do catálogo).

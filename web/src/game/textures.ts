@@ -629,110 +629,88 @@ function bell(scene: Phaser.Scene) {
 }
 
 /**
- * Torre do relógio (02/11/2026): limites do plano. O vão do campanário fica vazado para o céu (sprite `tower-sky-*`,
- * atrás) aparecer, e o sino (`tower-bell-*`) e o ponteiro são peças separadas, desenhadas pela cena.
- * Coordenadas usadas pela cena: vão em x 15–28, y 22–36; centro do mostrador em (22, 54).
+ * Clínica (09/11/2026), no lote da antiga torre do relógio: sobrado de reboco claro com faixa verde, toldo listrado e
+ * porta de vidro. A cruz da placa (`clinic-cross-*`) é peça separada: a cena troca a cor pelo pior limite do plano,
+ * como era o sino da torre. Centro da placa em (`sign.x`, `sign.y`).
  */
-export const TOWER = { w: 44, h: 118, sky: { x: 15, y: 22, w: 14, h: 15 }, face: { x: 22, y: 54, r: 9 } };
+export const CLINIC = { w: 56, h: 86, sign: { x: 28, y: 12 } };
 
-function clockTower(scene: Phaser.Scene) {
-  const { w: W, h: H, sky, face } = TOWER;
+function clinic(scene: Phaser.Scene) {
+  const { w: W, h: H, sign } = CLINIC;
   const { c, ctx } = makeCanvas(W, H);
-  // corpo de pedra com fiadas desencontradas
-  rect(ctx, 10, 20, 24, 90, '#b3ab9c');
-  rect(ctx, 30, 20, 4, 90, '#a39b8b');
-  for (let y = 24; y < 108; y += 6) {
-    rect(ctx, 10, y, 24, 1, '#8f877a');
-    for (let x = 10 + ((y / 6) % 2) * 4; x < 34; x += 8) rect(ctx, x, y + 1, 1, 5, '#8f877a');
+  const WALL = '#eef0ea';
+  const WALL_DARK = '#d5dad2';
+  const MINT = '#5fae8f';
+  const MINT_DARK = '#3f8a6c';
+  const GLASS = '#a8d8ea';
+  const GLASS_LIGHT = '#dff2f8';
+  // telhado de quatro águas, em ardósia
+  const pal = ['#5d7a8c', '#465f6e', '#7b98a8'];
+  for (let i = 0; i < 16; i++) {
+    const hw = 14 + Math.round((i * 14) / 15);
+    rect(ctx, 28 - hw, 3 + i, hw * 2, 1, i % 4 === 3 ? pal[1] : pal[0]);
+    if (i % 4 === 0) rect(ctx, 28 - hw + 2, 3 + i, hw - 2, 1, pal[2]);
   }
-  // cunhais claros nas quinas
-  for (let y = 40; y < 108; y += 12) {
-    rect(ctx, 10, y, 3, 6, '#cfc7b6');
-    rect(ctx, 31, y + 6, 3, 6, '#cfc7b6');
+  rect(ctx, 14, 2, 28, 1, pal[1]);
+  // paredes e a faixa verde entre os andares
+  rect(ctx, 3, 19, 50, 61, WALL);
+  rect(ctx, 47, 19, 6, 61, WALL_DARK);
+  rect(ctx, 3, 19, 50, 2, WALL_DARK);
+  rect(ctx, 3, 47, 50, 3, MINT);
+  rect(ctx, 3, 49, 50, 1, MINT_DARK);
+  // placa redonda no alto do telhado (a cruz vem por cima)
+  disc(ctx, sign.x, sign.y, 7, '#c9cfc8');
+  disc(ctx, sign.x, sign.y, 6, '#ffffff');
+  // janelas de cima, com cortina branca
+  for (const x of [8, 37]) {
+    rect(ctx, x, 25, 12, 15, MINT_DARK);
+    rect(ctx, x + 1, 26, 10, 13, GLASS);
+    rect(ctx, x + 1, 26, 10, 4, '#fbfbf7');
+    rect(ctx, x + 1, 30, 1, 3, '#fbfbf7');
+    rect(ctx, x + 10, 30, 1, 3, '#fbfbf7');
+    rect(ctx, x + 6, 26, 1, 13, MINT_DARK);
+    rect(ctx, x + 2, 33, 2, 2, GLASS_LIGHT);
+    rect(ctx, x - 1, 40, 14, 2, '#c9cfc8');
   }
-  // campanário: arco vazado (o céu aparece por trás) com moldura
-  rect(ctx, 13, 20, 18, 19, '#e3dccb');
-  ctx.clearRect(sky.x, sky.y + 3, sky.w, sky.h - 3);
-  ctx.clearRect(sky.x + 2, sky.y + 1, sky.w - 4, 2);
-  ctx.clearRect(sky.x + 4, sky.y, sky.w - 8, 1);
-  rect(ctx, 11, 38, 22, 2, '#cfc7b6');
-  rect(ctx, 11, 38, 22, 1, '#efe9db');
-  // telhado em agulha, com as telhas em faixas
-  const pal = ['#4b6e5a', '#355246', '#6a907a'];
-  for (let i = 0; i < 20; i++) {
-    const hw = 1 + Math.round((i * 14) / 19);
-    rect(ctx, 22 - hw, 1 + i, hw * 2, 1, i % 4 === 3 ? pal[1] : pal[0]);
-    if (i % 4 === 0 && hw > 2) rect(ctx, 22 - hw + 1, 1 + i, hw - 1, 1, pal[2]);
+  // janelas de baixo
+  for (const x of [6, 41]) {
+    rect(ctx, x, 56, 10, 12, MINT_DARK);
+    rect(ctx, x + 1, 57, 8, 10, GLASS);
+    rect(ctx, x + 5, 57, 1, 10, MINT_DARK);
+    rect(ctx, x + 2, 58, 2, 2, GLASS_LIGHT);
+    rect(ctx, x - 1, 68, 12, 2, '#c9cfc8');
   }
-  rect(ctx, 21, 0, 2, 2, '#e8b84a');
-  // mostrador: aro de bronze, face creme e as quatro marcas das horas
-  disc(ctx, face.x, face.y, face.r + 1, '#8a6a2a');
-  disc(ctx, face.x, face.y, face.r, '#f7f0dc');
-  for (const [dx, dy] of [[0, -7], [7, 0], [0, 7], [-7, 0]]) rect(ctx, face.x + dx, face.y + dy, 1, 1, '#5a4630');
-  for (const [dx, dy] of [[4, -6], [6, -4], [6, 4], [4, 6], [-4, 6], [-6, 4], [-6, -4], [-4, -6]])
-    rect(ctx, face.x + dx, face.y + dy, 1, 1, '#b8ad90');
-  // seteira
-  rect(ctx, 21, 72, 3, 12, '#3a2a1a');
-  rect(ctx, 20, 71, 5, 1, '#cfc7b6');
-  rect(ctx, 20, 84, 5, 1, '#cfc7b6');
-  // porta em arco
-  rect(ctx, 18, 93, 8, 1, '#4a2a12');
-  rect(ctx, 17, 94, 10, 16, '#4a2a12');
-  rect(ctx, 18, 94, 8, 16, '#6b3f1f');
-  rect(ctx, 22, 94, 1, 16, '#4a2a12');
-  rect(ctx, 24, 102, 1, 2, '#e8c252');
-  // base
-  rect(ctx, 6, 110, 32, 8, '#8a8478');
-  rect(ctx, 6, 110, 32, 1, '#a39b8b');
-  rect(ctx, 15, 110, 14, 3, '#cfc7b6');
+  // toldo listrado sobre a porta
+  for (let x = 18; x < 38; x++) rect(ctx, x, 52, 1, 4, Math.floor((x - 18) / 2) % 2 ? '#ffffff' : MINT);
+  rect(ctx, 18, 56, 20, 1, MINT_DARK);
+  // porta dupla de vidro
+  rect(ctx, 21, 58, 14, 22, MINT_DARK);
+  rect(ctx, 22, 59, 5, 21, GLASS);
+  rect(ctx, 29, 59, 5, 21, GLASS);
+  rect(ctx, 23, 60, 1, 6, GLASS_LIGHT);
+  rect(ctx, 30, 60, 1, 6, GLASS_LIGHT);
+  rect(ctx, 26, 69, 1, 2, '#e8c252');
+  rect(ctx, 29, 69, 1, 2, '#e8c252');
+  // base e degrau
+  rect(ctx, 1, 80, 54, 6, '#a39b8b');
+  rect(ctx, 1, 80, 54, 1, '#bdb5a5');
+  rect(ctx, 18, 80, 20, 3, '#cfc7b6');
   outline(ctx, W, H);
-  add(scene, 'clock-tower', c);
+  add(scene, 'clinic', c);
 
-  // céu do vão, um por fase da semana
-  const skies: Record<string, (k: Ctx) => void> = {
-    manha: (k) => {
-      for (let y = 0; y < sky.h; y++) rect(k, 0, y, sky.w, 1, y < 6 ? '#9fd0f0' : y < 11 ? '#f7c6a8' : '#f4a27c');
-      disc(k, 4, 13, 3, '#ffe27a');
-    },
-    dia: (k) => {
-      for (let y = 0; y < sky.h; y++) rect(k, 0, y, sky.w, 1, y < 8 ? '#6fb8ec' : '#9fd0f0');
-      disc(k, 7, 5, 3, '#ffe27a');
-      rect(k, 6, 4, 2, 1, '#fff6c8');
-    },
-    tarde: (k) => {
-      for (let y = 0; y < sky.h; y++) rect(k, 0, y, sky.w, 1, y < 5 ? '#8a6aa8' : y < 10 ? '#e88a5a' : '#f2b44a');
-      disc(k, 10, 13, 3, '#ffcf5a');
-    },
-    noite: (k) => {
-      rect(k, 0, 0, sky.w, sky.h, '#1e2650');
-      disc(k, 9, 5, 3, '#f2ecd0');
-      disc(k, 10, 4, 2, '#1e2650');
-      for (const [x, y] of [[2, 3], [4, 10], [12, 11], [6, 2]]) rect(k, x, y, 1, 1, '#f7f0dc');
-    },
+  // cruz da placa, na cor do pior limite do plano
+  const cruzes: Record<string, [string, string]> = {
+    normal: ['#3fae6a', '#7fd49a'],
+    warning: ['#f0b030', '#fff1a8'],
+    critical: ['#d0402c', '#f5a090'],
   };
-  for (const [name, paint] of Object.entries(skies)) {
-    const s = makeCanvas(sky.w, sky.h);
-    paint(s.ctx);
-    add(scene, `tower-sky-${name}`, s.c);
-  }
-
-  // sino do campanário, na cor do pior limite
-  const bells: Record<string, [string, string, string]> = {
-    normal: ['#c99a3a', '#f2d68a', '#8a6a2a'],
-    warning: ['#f0b030', '#fff1a8', '#b87a10'],
-    critical: ['#d0402c', '#f5a090', '#8c2018'],
-  };
-  for (const [name, [body, light, shade]] of Object.entries(bells)) {
-    const b = makeCanvas(10, 11);
-    rect(b.ctx, 4, 0, 2, 1, '#3f464c');
-    rect(b.ctx, 3, 1, 4, 2, body);
-    rect(b.ctx, 2, 3, 6, 4, body);
-    rect(b.ctx, 1, 7, 8, 2, body);
-    rect(b.ctx, 3, 2, 1, 5, light);
-    rect(b.ctx, 6, 3, 2, 6, shade);
-    rect(b.ctx, 4, 9, 2, 1, '#6b4423');
-    outline(b.ctx, 10, 11);
-    add(scene, `tower-bell-${name}`, b.c);
+  for (const [name, [cor, luz]] of Object.entries(cruzes)) {
+    const k = makeCanvas(9, 9);
+    rect(k.ctx, 3, 0, 3, 9, cor);
+    rect(k.ctx, 0, 3, 9, 3, cor);
+    rect(k.ctx, 3, 0, 1, 3, luz);
+    rect(k.ctx, 0, 3, 3, 1, luz);
+    add(scene, `clinic-cross-${name}`, k.c);
   }
 }
 
@@ -1035,7 +1013,7 @@ export function generateTextures(scene: Phaser.Scene) {
   noticeBoard(scene);
   billboard(scene);
   bell(scene);
-  clockTower(scene);
+  clinic(scene);
   windmill(scene);
   newsstand(scene);
   bench(scene);

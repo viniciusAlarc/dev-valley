@@ -119,6 +119,8 @@ export interface Look {
   scarf: Tone | null;
   /** Nunca em nome feminino. */
   beard: Beard | null;
+  /** Médica da clínica: jaleco por cima do terno, máscara e estetoscópio (exceção da regra 8, 09/11/2026). */
+  medica: boolean;
 }
 
 /**
@@ -151,6 +153,7 @@ export function lookFor(id: string, genero: Genero = null, perfil: Perfil = 'pro
     glasses: chance(0.2) ? pick(FRAMES) : null,
     scarf: chance(0.12) ? tone(pick(P.accents)) : null,
     beard: genero !== 'f' && chance(genero === 'm' ? 0.3 : 0.15) ? pick<Beard>(['mustache', 'beard']) : null,
+    medica: false,
   };
 }
 
@@ -163,8 +166,12 @@ const SUIT = tone('#23252b');
  * paletó e calça pretos, camisa branca, gravata preta e óculos escuros, cabelo curto, sem chapéu. Só pele e cor do
  * cabelo variam, para um agente se distinguir do outro sem deixar de ser nitidamente diferente das sessões.
  */
+/** Id da médica da clínica (09/11/2026): a única agente que veste o kit de médica por cima do traje. */
+export const MEDICA_ID = 'medica-dev-valley';
+
 export function agentLookFor(id: string): Look {
   const combo = agentCombo(id);
+  const medica = id === MEDICA_ID;
   return {
     agent: true,
     skin: tone(SKINS[combo % SKINS.length]),
@@ -172,7 +179,8 @@ export function agentLookFor(id: string): Look {
     shirt: SUIT,
     pants: SUIT,
     eye: '#000000',
-    style: 'short',
+    // A médica usa coque (decisão do usuário, 09/11/2026: é uma médica); os outros agentes, cabelo curto.
+    style: medica ? 'bun' : 'short',
     outfit: 'plain',
     headwear: null,
     accent: SUIT,
@@ -180,6 +188,7 @@ export function agentLookFor(id: string): Look {
     glasses: null,
     scarf: null,
     beard: null,
+    medica,
   };
 }
 
@@ -201,7 +210,7 @@ function agentCombo(id: string): number {
   return combo;
 }
 
-for (const id of ['administrador-dev-valley', 'bibliotecaria-dev-valley', 'jornaleiro-dev-valley', 'maestro-dev-valley', 'mirim-dev-valley']) agentCombo(id);
+for (const id of ['administrador-dev-valley', 'bibliotecaria-dev-valley', 'jornaleiro-dev-valley', 'maestro-dev-valley', 'mirim-dev-valley', MEDICA_ID]) agentCombo(id);
 
 // ---------------- primitivas ----------------
 
@@ -815,6 +824,61 @@ export function drawFrame(ctx: Ctx, L: Look, facing: Facing, frame: number) {
   }
   if (L.scarf) scarf(ctx, L.scarf, facing, u);
   if (L.headwear) headwear(ctx, L, facing, u);
+  if (L.medica) kitDeMedica(ctx, facing, frame, u);
+}
+
+const JALECO = tone('#f4f6f8');
+const MASCARA = tone('#9fd3e6');
+const ESTETO = '#4a5560';
+const ESTETO_METAL = '#c0c7cf';
+
+/**
+ * Por cima do traje de agente (decisão do usuário, 09/11/2026): jaleco branco aberto na frente (terno, camisa e gravata
+ * aparecem no meio) e mais comprido que o paletó, máscara azul sobre a boca e o nariz, estetoscópio no pescoço.
+ */
+function kitDeMedica(ctx: Ctx, facing: Facing, frame: number, u: number) {
+  const J = JALECO;
+  const y = (n: number) => n + u;
+  if (facing === 'side') {
+    px(ctx, 5, 17 + u, 6, 9, J.base);
+    px(ctx, 5, 17 + u, 2, 9, J.dark);
+    px(ctx, 10, 17 + u, 1, 3, '#23252b'); // lapela do terno por baixo
+    px(ctx, 9, 17 + u, 1, 3, ESTETO);
+    px(ctx, 9, 20 + u, 2, 1, ESTETO_METAL);
+    const swing = frame === 1 ? 1 : frame === 3 ? -1 : 0;
+    px(ctx, 7 + swing, 18 + u, 2, 3, J.dark); // manga
+    // máscara de lado: do nariz até a orelha
+    px(ctx, 9, y(12), 5, 3, MASCARA.base);
+    px(ctx, 9, y(14), 5, 1, MASCARA.dark);
+    px(ctx, 7, y(12), 2, 1, MASCARA.light); // elástico
+    return;
+  }
+  if (facing === 'up') {
+    px(ctx, 4, 17 + u, 8, 9, J.base);
+    px(ctx, 10, 17 + u, 2, 9, J.dark);
+    px(ctx, 7, 22 + u, 2, 4, J.dark); // abertura atrás
+  } else {
+    // dois painéis do jaleco, abertos no meio, até abaixo do quadril
+    px(ctx, 4, 17 + u, 2, 9, J.base);
+    px(ctx, 10, 17 + u, 2, 9, J.dark);
+    px(ctx, 5, 17 + u, 1, 9, J.light);
+    px(ctx, 4, 22 + u, 2, 1, J.dark); // bolso
+    // estetoscópio: tubos dos dois lados do pescoço e o diafragma no peito
+    px(ctx, 6, 17 + u, 1, 4, ESTETO);
+    px(ctx, 9, 17 + u, 1, 3, ESTETO);
+    px(ctx, 9, 20 + u, 2, 2, ESTETO_METAL);
+    // máscara: cobre nariz e boca, com os elásticos até as orelhas
+    px(ctx, 4, y(13), 8, 3, MASCARA.base);
+    px(ctx, 4, y(15), 8, 1, MASCARA.dark);
+    px(ctx, 5, y(14), 6, 1, MASCARA.light);
+    px(ctx, 3, y(13), 1, 1, MASCARA.light);
+    px(ctx, 12, y(13), 1, 1, MASCARA.light);
+  }
+  // mangas brancas (por cima das do paletó)
+  const armL = frame === 1 ? 1 : frame === 3 ? -1 : 0;
+  const armR = -armL;
+  px(ctx, 3, 18 + u + armL, 1, 3, J.base);
+  px(ctx, 12, 18 + u + armR, 1, 3, J.dark);
 }
 
 export const FACINGS: Facing[] = ['down', 'side', 'up'];
@@ -822,7 +886,7 @@ export const FACINGS: Facing[] = ['down', 'side', 'up'];
 /** Chave de textura: uma folha por combinação visível. */
 export function lookKey(L: Look): string {
   const tons = [L.skin, L.hair, L.shirt, L.pants, L.accent, L.jacket, L.scarf].map((t) => t?.base ?? '-');
-  return `villager-${[L.agent ? 'agent' : 'npc', ...tons, L.eye, L.style, L.outfit, L.headwear, L.glasses, L.beard].join('-')}`;
+  return `villager-${[L.agent ? 'agent' : 'npc', ...tons, L.eye, L.style, L.outfit, L.headwear, L.glasses, L.beard, L.medica ? 'medica' : ''].join('-')}`;
 }
 
 /** Folha 64x96 inteira (3 direções x 4 quadros), com o contorno colorido de cada quadro. */

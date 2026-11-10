@@ -22,7 +22,7 @@ export interface HookState {
   paradoEm: number;
   /** Desde quando está trabalhando sem parar (ou pedindo permissão); 0 = parada. */
   trabalhandoDesde: number;
-  /** O que está fazendo agora (última ferramenta); null = sem categoria ou parada. */
+  /** A ferramenta que está rodando agora, pela categoria; null = pensando entre ferramentas, sem categoria ou parada. */
   atividade: Atividade | null;
 }
 
@@ -115,10 +115,11 @@ export class HookStore {
     } else if (p.hook_event_name === 'Stop') paradoEm = now;
     const estava = prev ? ativa(prev) : false;
     const trabalhandoDesde = status === 'working' || status === 'permission' ? (estava ? prev!.trabalhandoDesde : now) : 0;
-    // A categoria vale da ferramenta até a próxima; mensagem nova ou fim de turno a apaga.
+    // A categoria vale só enquanto a ferramenta roda: no fim dela, entre ferramentas, o balão volta aos "..." (pensando;
+    // decisão do usuário, 08/11/2026). Pedido de permissão mantém a da ferramenta que pediu.
     let atividade = prev?.atividade ?? null;
     if (p.hook_event_name === 'PreToolUse') atividade = typeof p.atividade === 'string' && ATIVIDADES.includes(p.atividade) ? (p.atividade as Atividade) : null;
-    else if (status === 'idle' || p.hook_event_name === 'UserPromptSubmit') atividade = null;
+    else if (status === 'idle' || p.hook_event_name === 'UserPromptSubmit' || p.hook_event_name === 'PostToolUse') atividade = null;
 
     if (status === null) this.states.delete(id);
     else this.states.set(id, { id, cwd, status, updatedAt: now, citados, citadosEm, paradoEm, trabalhandoDesde, atividade });

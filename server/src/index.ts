@@ -6,6 +6,7 @@ import path from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { askAdministrador } from './administrador.js';
 import { askMirim } from './mirim.js';
+import { askMedica, Clinica } from './clinica.js';
 import { Agents } from './agents.js';
 import { criarApp } from './app.js';
 import { loadConfig, ROOT_DIR } from './config.js';
@@ -79,6 +80,7 @@ setInterval(() => {
     .catch(() => {});
 }, 3000);
 const relatoriosLidos = new RelatoriosLidos();
+const clinica = new Clinica(() => world, () => hooks.all(), (id) => terminals.pidDe(id));
 
 async function refreshWorld() {
   try {
@@ -126,6 +128,8 @@ const app = criarApp({
   askLibrarian,
   askAdministrador,
   askMirim,
+  clinica,
+  askMedica,
   sugerirMensagem,
   askJornaleiro,
   apagarConversa: (id: string) => deleteSessionFiles(id, projectsDirs(config)),

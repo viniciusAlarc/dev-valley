@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { agentLookFor, lookFor, paletaDo, type Genero, type Look } from '../src/game/villagerArt.js';
+import { agentLookFor, lookFor, lookKey, MEDICA_ID, paletaDo, type Genero, type Look } from '../src/game/villagerArt.js';
 
 // Ids no formato de verdade (UUID), gerados de forma fixa para o teste não variar.
 const ids = Array.from({ length: 600 }, (_, i) => `${i.toString(16).padStart(8, '0')}-4a1b-4c2d-8e3f-${(i * 7919).toString(16).padStart(12, '0')}`);
@@ -85,5 +85,15 @@ describe('agentLookFor: traje de agente secreto (regra 8)', () => {
       const L = agentLookFor(`agente-${id}`);
       assert.deepEqual([L.agent, L.style, L.outfit, L.headwear, L.glasses, L.scarf, L.beard], [true, 'short', 'plain', null, null, null, null]);
     }
+  });
+});
+
+describe('a médica da clínica (09/11/2026)', () => {
+  test('traje de agente com o kit de médica e coque; nenhum outro agente nem morador ganha o kit', () => {
+    const m = agentLookFor(MEDICA_ID);
+    assert.deepEqual([m.agent, m.medica, m.style, m.beard, m.headwear], [true, true, 'bun', null, null]);
+    assert.equal(agentLookFor('bibliotecaria-dev-valley').medica, false);
+    assert.equal(lookFor('qualquer-sessao', 'f').medica, false);
+    assert.match(lookKey(m), /-medica$/, 'textura própria, não reaproveita a de outro agente');
   });
 });

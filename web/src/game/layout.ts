@@ -6,8 +6,8 @@ const CIVIC_H = 12; // linha de cima: biblioteca, praça e fábrica
 const PLOT_W = 12;
 const PLOT_H = 11;
 /**
- * Largura mínima da vila (sem a floresta), em tiles: a linha cívica precisa caber biblioteca, torre do relógio, praça,
- * banca de jornal, moinho e Fábrica (02/11/2026). Com menos casas por linha, as linhas de casas ficam centralizadas.
+ * Largura mínima da vila (sem a floresta), em tiles: a linha cívica precisa caber biblioteca, clínica, praça,
+ * banca de jornal, moinho e Fábrica (02/11/2026; a clínica entrou no lote da torre do relógio em 09/11/2026). Com menos casas por linha, as linhas de casas ficam centralizadas.
  */
 const CIVIC_MIN_W = 5 * PLOT_W;
 
@@ -43,8 +43,8 @@ export interface Layout {
   /** Outdoor dos guardrails, atrás da praça (âncora embaixo-centro). */
   billboard: { x: number; y: number };
   factory: { x: number; y: number };
-  /** Torre do relógio (limites do plano), entre a biblioteca e a praça (âncora embaixo-centro). */
-  clockTower: { x: number; y: number };
+  /** Clínica (a médica, a triagem e o armário), entre a biblioteca e a praça (âncora embaixo-centro). */
+  clinica: { x: number; y: number };
   /** Banca de jornal, entre a praça e o moinho (âncora embaixo-centro). */
   newsstand: { x: number; y: number };
   /** Moinho (gasto por projeto), entre a banca e a Fábrica (âncora embaixo-centro). */
@@ -143,15 +143,15 @@ export function computeLayout(projects: Project[], view: View = { w: 1600, h: 90
   reserved.push({ ...libraryTile, w: 7, h: 9 }, { ...factoryTile, w: 7, h: 9 });
   vLine(libraryTile.x + 3, libraryTile.y + 6, civicRoadY);
   vLine(factoryTile.x + 3, factoryTile.y + 7, civicRoadY);
-  // Torre no meio do vão biblioteca → praça; banca e moinho dividem o vão praça → Fábrica (02/11/2026).
+  // Clínica (antes a torre do relógio) no meio do vão biblioteca → praça; banca e moinho dividem o vão praça → Fábrica (02/11/2026).
   const leftGap = { from: libraryTile.x + 7, to: plaza.x };
   const rightGap = { from: plaza.x + plaza.w, to: factoryTile.x };
-  const towerTile = { x: Math.floor((leftGap.from + leftGap.to) / 2) - 2, y: civicTop + 1, w: 4, h: 9 };
+  const clinicaTile = { x: Math.floor((leftGap.from + leftGap.to) / 2) - 2, y: civicTop + 1, w: 4, h: 9 };
   const spacing = Math.max(1, Math.floor((rightGap.to - rightGap.from - 11) / 3));
   const standTile = { x: rightGap.from + spacing, y: civicTop + 3, w: 5, h: 7 };
   const millTile = { x: rightGap.to - spacing - 6, y: civicTop + 1, w: 6, h: 9 };
-  reserved.push(towerTile, standTile, millTile);
-  vLine(towerTile.x + 1, towerTile.y + 7, civicRoadY);
+  reserved.push(clinicaTile, standTile, millTile);
+  vLine(clinicaTile.x + 1, clinicaTile.y + 7, civicRoadY);
   vLine(standTile.x + 2, standTile.y + 5, civicRoadY);
   vLine(millTile.x + 2, millTile.y + 7, civicRoadY);
 
@@ -195,7 +195,7 @@ export function computeLayout(projects: Project[], view: View = { w: 1600, h: 90
     library: { x: (libraryTile.x + 3.5) * TILE, y: (libraryTile.y + 6) * TILE },
     billboard: { x: (plaza.x + plaza.w / 2) * TILE, y: plaza.y * TILE - 2 },
     factory: { x: (factoryTile.x + 3.5) * TILE, y: (factoryTile.y + 7) * TILE },
-    clockTower: { x: (towerTile.x + 2) * TILE, y: (towerTile.y + 7) * TILE },
+    clinica: { x: (clinicaTile.x + 2) * TILE, y: (clinicaTile.y + 7) * TILE },
     newsstand: { x: (standTile.x + 2.5) * TILE, y: (standTile.y + 5) * TILE },
     windmill: { x: (millTile.x + 3) * TILE, y: (millTile.y + 7) * TILE },
     fountain: { x: (plaza.x + plaza.w / 2) * TILE, y: (plaza.y + 3) * TILE },

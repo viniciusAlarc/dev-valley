@@ -16,17 +16,17 @@ const PASSOS = 8;
 /** Só o fim do `.jsonl` é lido para o resumo: a conversa inteira pode ter megabytes. */
 const FIM_DO_ARQUIVO = 256 * 1024;
 
-const curto = (t: string, n: number) => {
+export const curto = (t: string, n: number) => {
   const s = t.replace(/\s+/g, ' ').trim();
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
 };
 
-function hora(iso: unknown): string {
+export function hora(iso: unknown): string {
   const d = typeof iso === 'string' ? new Date(iso) : null;
   return d && !Number.isNaN(d.getTime()) ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '--:--';
 }
 
-function descreverFerramenta(nome: string, input: any): string {
+export function descreverFerramenta(nome: string, input: any): string {
   const arq = typeof input?.file_path === 'string' ? input.file_path : null;
   if (arq) return `${nome} ${arq}`;
   if (nome === 'Bash') return `Bash: ${curto(String(input?.command ?? ''), 120)}`;
@@ -35,10 +35,10 @@ function descreverFerramenta(nome: string, input: any): string {
 }
 
 /**
- * Os últimos passos de uma conversa: o que ela disse, as ferramentas que usou e as mensagens que recebeu, com a hora.
- * Lê só o fim do arquivo; linha cortada no começo ou sendo escrita é pulada.
+ * Os eventos do fim de uma conversa (`.jsonl`), em ordem. Lê só o fim do arquivo; linha cortada no começo ou sendo
+ * escrita é pulada. Arquivo que não abre = nenhum evento. Também usado pela ficha da médica (`clinica.ts`).
  */
-export async function ultimosPassos(file: string, n = PASSOS): Promise<string[]> {
+export async function eventosDoFim(file: string): Promise<any[]> {
   let raw: string;
   try {
     const fh = await fs.open(file, 'r');
@@ -54,14 +54,24 @@ export async function ultimosPassos(file: string, n = PASSOS): Promise<string[]>
   } catch {
     return [];
   }
-  const passos: string[] = [];
+  const eventos: any[] = [];
   for (const line of raw.split('\n')) {
-    let e: any;
     try {
-      e = JSON.parse(line);
+      eventos.push(JSON.parse(line));
     } catch {
-      continue;
+      // linha cortada ou sendo escrita
     }
+  }
+  return eventos;
+}
+
+/**
+ * Os últimos passos de uma conversa: o que ela disse, as ferramentas que usou e as mensagens que recebeu, com a hora.
+ * Lê só o fim do arquivo; linha cortada no começo ou sendo escrita é pulada.
+ */
+export async function ultimosPassos(file: string, n = PASSOS): Promise<string[]> {
+  const passos: string[] = [];
+  for (const e of await eventosDoFim(file)) {
     if (e.isSidechain) continue;
     const h = hora(e.timestamp);
     const content = e.message?.content;

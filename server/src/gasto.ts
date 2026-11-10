@@ -10,7 +10,7 @@ import type { Project } from './world.js';
  * Moinho: quanto cada projeto gastou (decisões do usuário, 02/11/2026, "segue as recomendações"):
  *  - peso de cada resposta = entrada + saída + criação de cache + leitura de cache ÷ 10 (a proporção de preço da API).
  *    Não é custo em reais (o plano é assinatura): é o peso de um projeto em relação aos outros;
- *  - janela = a semana do plano (a mesma da torre do relógio); sem esse dado, os últimos 7 dias;
+ *  - janela = a semana do plano (a mesma dos limites da clínica); sem esse dado, os últimos 7 dias;
  *  - perfil pessoal (DeepSeek) em lista separada.
  *
  * Lê os `.jsonl` das conversas dos dois perfis (inclusive subagentes) de forma incremental: guarda por arquivo até onde

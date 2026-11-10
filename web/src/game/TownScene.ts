@@ -3,10 +3,10 @@ import { bellCount, daCasa, estadoLareira, poraoPrecisaDeVoce, gasto, jornal, ty
 import { ui } from '../ui/actions';
 import { AgentNpc, CONVERSA_DX, label, makeInteractive, TALK_Y, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
-import { generateTextures, hash, mulberry32, NEWSSTAND, ROOFS, TOWER, WINDMILL } from './textures';
+import { CLINIC, generateTextures, hash, mulberry32, NEWSSTAND, ROOFS, WINDMILL } from './textures';
 import { comparacao, fatia, voltaDasPas } from '../ui/gasto-texto';
 import { decorrido } from '../ui/gasto';
-import { estadoTorre } from './torre';
+import { estadoDosLimites, textoDaClinica } from './limites';
 import { villagerTexture } from './villager';
 
 const ROOF_NAMES = Object.keys(ROOFS).filter((r) => r !== 'grey');
@@ -119,7 +119,7 @@ export class TownScene extends Phaser.Scene {
   private bell?: Phaser.GameObjects.Image;
   private stand?: { pile: Phaser.GameObjects.Image; view: JornalView | null };
   private mill?: { blades: Phaser.GameObjects.Image; spin?: Phaser.Tweens.Tween; volta: number; view: GastoView | null };
-  private tower?: { body: Phaser.GameObjects.Image; sky: Phaser.GameObjects.Image; bell: Phaser.GameObjects.Image; hand: Phaser.GameObjects.Graphics };
+  private clinica?: { body: Phaser.GameObjects.Image; cross: Phaser.GameObjects.Image };
   private pendingWorld: World | null = null;
   private keys?: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT', Phaser.Input.Keyboard.Key>;
 
@@ -186,6 +186,7 @@ export class TownScene extends Phaser.Scene {
       const project = firstBuild && world.projects.find((p) => p.name === target);
       if (project) this.enterHouse(project, true);
       else if (firstBuild && target === 'biblioteca') this.enter('library', {}, true);
+      else if (firstBuild && target === 'clinica') this.enter('clinica', {}, true);
     }
     for (const view of this.houses.values()) {
       const project = world.projects.find((p) => p.id === view.plot.project.id);
@@ -195,7 +196,7 @@ export class TownScene extends Phaser.Scene {
     this.syncConversas();
     this.syncAgents();
     this.updateBillboard();
-    this.updateTower();
+    this.updateClinica();
   }
 
   private buildBillboard(layout: Layout) {
@@ -226,48 +227,33 @@ export class TownScene extends Phaser.Scene {
   }
 
   /**
-   * Torre do relógio (02/11/2026): ponteiro = sessão de 5h, céu do campanário = semana, sino = o pior limite. Clique
-   * abre os limites (o painel que antes ficava fixo no canto). Estado calculado em `torre.ts`, sem Phaser.
+   * Clínica (09/11/2026), no lote da antiga torre do relógio: o clique entra (maca de triagem, armário e a médica).
+   * A cruz da placa tem a cor do pior limite do plano, como o sino da torre, e pulsa no vermelho. Estado em `limites.ts`.
    */
-  private buildTower(layout: Layout) {
-    const { x, y } = layout.clockTower;
-    const left = Math.round(x) - TOWER.w / 2;
-    const top = Math.round(y) - TOWER.h;
-    const body = this.addSprite('clock-tower', x, y);
-    const sky = this.add.image(left + TOWER.sky.x, top + TOWER.sky.y, 'tower-sky-dia').setOrigin(0, 0).setDepth(body.depth - 1);
-    const bell = this.add.image(left + 22, top + TOWER.sky.y + 2, 'tower-bell-normal').setOrigin(0.5, 0).setDepth(body.depth + 1);
-    const hand = this.add.graphics().setDepth(body.depth + 1);
-    makeInteractive(body, () => estadoTorre(this.world.usage).texto, () => ui.openUsage(this.world.usage));
-    label(this, x, y + 10, 'Torre do relógio', y + 10);
-    this.tower = { body, sky, bell, hand };
-    this.updateTower();
-    // Sino balança a cada poucos segundos só no vermelho (limite perto de acabar).
-    this.time.addEvent({
-      delay: 5000,
-      loop: true,
-      callback: () => {
-        const t = this.tower;
-        if (!t || !this.world || estadoTorre(this.world.usage).sino !== 'critical' || this.tweens.isTweening(t.bell)) return;
-        this.tweens.add({ targets: t.bell, angle: { from: -16, to: 16 }, duration: 160, yoyo: true, repeat: 3, onComplete: () => t.bell.setAngle(0) });
-      },
-    });
+  private buildClinica(layout: Layout) {
+    if (this.clinica) this.tweens.killTweensOf(this.clinica.cross);
+    const { x, y } = layout.clinica;
+    const body = this.addSprite('clinic', x, y);
+    const cross = this.add
+      .image(Math.round(x) - CLINIC.w / 2 + CLINIC.sign.x, Math.round(y) - CLINIC.h + CLINIC.sign.y, 'clinic-cross-normal')
+      .setDepth(body.depth + 1);
+    makeInteractive(body, () => textoDaClinica(this.world.usage), () => this.enter('clinica', {}));
+    label(this, x, y + 10, 'Clínica', y + 10);
+    this.clinica = { body, cross };
+    this.updateClinica();
+    this.tweens.add({ targets: cross, alpha: { from: 1, to: 0.35 }, duration: 500, yoyo: true, repeat: -1, paused: true });
   }
 
-  private updateTower() {
-    const t = this.tower;
-    if (!t || !this.world) return;
-    const estado = estadoTorre(this.world.usage);
-    t.sky.setTexture(`tower-sky-${estado.ceu ?? 'dia'}`);
-    t.bell.setTexture(`tower-bell-${estado.sino}`);
-    // Ponteiro pixel a pixel (sem linha suavizada): do centro do mostrador até 7px, no ângulo do relógio.
-    t.hand.clear();
-    if (estado.angulo === null) return;
-    const cx = t.body.x - TOWER.w / 2 + TOWER.face.x;
-    const cy = t.body.y - TOWER.h + TOWER.face.y;
-    const rad = ((estado.angulo - 90) * Math.PI) / 180;
-    t.hand.fillStyle(0x2b1a0e);
-    for (let r = 0; r <= 7; r++) t.hand.fillRect(cx + Math.round(Math.cos(rad) * r), cy + Math.round(Math.sin(rad) * r), 1, 1);
-    t.hand.fillStyle(0xb8241c).fillRect(cx, cy, 1, 1);
+  private updateClinica() {
+    const c = this.clinica;
+    if (!c || !this.world) return;
+    const { severidade } = estadoDosLimites(this.world.usage);
+    c.cross.setTexture(`clinic-cross-${severidade}`);
+    // Pisca só no vermelho (limite perto de acabar), como o sino da torre balançava.
+    for (const t of this.tweens.getTweensOf(c.cross)) {
+      if (severidade === 'critical') t.resume();
+      else (t.pause(), c.cross.setAlpha(1));
+    }
   }
 
   /**
@@ -375,7 +361,7 @@ export class TownScene extends Phaser.Scene {
     this.enter('interior', { projectId: project.id }, instant);
   }
 
-  private enter(sceneKey: 'interior' | 'library' | 'factory', data: object, instant = false) {
+  private enter(sceneKey: 'interior' | 'library' | 'factory' | 'clinica', data: object, instant = false) {
     ui.hideTooltip();
     const go = () => {
       this.scene.sleep();
@@ -485,7 +471,7 @@ export class TownScene extends Phaser.Scene {
 
     this.buildPlaza(layout);
     this.buildBillboard(layout);
-    this.buildTower(layout);
+    this.buildClinica(layout);
     this.buildWindmill(layout);
     this.buildNewsstand(layout);
     label(this, layout.fountain.x, layout.plaza.y + layout.plaza.h - 4, 'Praça', layout.plaza.y + layout.plaza.h);

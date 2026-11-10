@@ -27,16 +27,17 @@ describe('HookStore: estado da sessão', () => {
 describe('HookStore: o que o morador está fazendo (atividade)', () => {
   const atividade = (store: HookStore) => store.all().find((s) => s.id === RAFA)?.atividade;
 
-  test('vale da ferramenta até a próxima; mudar de categoria avisa a vila, repetir não', () => {
+  test('vale enquanto a ferramenta roda; no fim dela volta a null (os "..." de pensando) e avisa a vila', () => {
     const store = new HookStore();
     evento(store, 'UserPromptSubmit');
     assert.equal(atividade(store), null);
     assert.equal(evento(store, 'PreToolUse', { atividade: 'ler' }), true);
     assert.equal(atividade(store), 'ler');
-    assert.equal(evento(store, 'PostToolUse'), false);
-    assert.equal(atividade(store), 'ler');
-    assert.equal(evento(store, 'PreToolUse', { atividade: 'ler' }), false);
+    assert.equal(evento(store, 'PostToolUse'), true);
+    assert.equal(atividade(store), null);
+    assert.equal(store.all()[0]!.status, 'working');
     assert.equal(evento(store, 'PreToolUse', { atividade: 'editar' }), true);
+    assert.equal(evento(store, 'PermissionRequest'), true);
     assert.equal(atividade(store), 'editar');
   });
 
