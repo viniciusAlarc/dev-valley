@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
-import { briefingDe, Porao } from '../src/porao.js';
+import { briefingDe, Porao, type AbrirSessao } from '../src/porao.js';
 import { casa, sessao, subir } from './servidor.js';
 import { projeto } from './util.js';
 
@@ -79,7 +79,8 @@ async function poraoComMaestro(nome: string, briefings: string[], rodada = 'r1')
   const rodadas = path.join(base, 'rodadas');
   fs.mkdirSync(path.join(rodadas, rodada, 'briefings'), { recursive: true });
   for (const t of briefings) fs.writeFileSync(path.join(rodadas, rodada, 'briefings', `${t}.md`), '# briefing');
-  const porao = new Porao(path.join(base, 'porao.json'), path.join(base, 'maestro.md'), rodadas);
+  // Gate (maestro v3) de mentira: todo comando passa, e nenhum comando de verdade roda.
+  const porao = new Porao(path.join(base, 'porao.json'), path.join(base, 'maestro.md'), rodadas, undefined, async (comando) => ({ comando, codigo: 0, duracaoMs: 1 }));
   await porao.registrarMaestro('m1', 'p');
   return porao;
 }
@@ -349,8 +350,14 @@ describe('Porao.pedir e aprovar com permissões', () => {
     const pedido = await p.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [{ id: 't1', arquivos: ['a.ts'], testes: ['npm test'] }, 't2'] }, 5, PASTA);
     assert.ok(!('erro' in pedido));
     const abertas = new Map<string, string[]>();
-    await p.aprovar(pedido.id, async (_id, prompt, permitir) => (abertas.set(prompt.match(/(t\d)\.md$/)![1]!, permitir), null), ['/regras/**']);
-    assert.deepEqual(abertas.get('t1'), regrasDaTarefa(PASTA, path.join(TMP, 'perm-aprovar', 'rodadas', 'r1'), { arquivos: ['a.ts'], testes: ['npm test'] }, ['/regras/**']));
+    const abrir: AbrirSessao = async (_id, prompt, permitir) => (abertas.set(prompt.match(/(t\d)\.md$/)![1]!, permitir), null);
+    await p.aprovar(pedido.id, abrir, ['/regras/**']);
+    // Com comando de teste, a linha de base roda antes (maestro v3): as tarefas abrem na volta em que ela termina.
+    assert.equal(abertas.size, 0);
+    await p.gatesEmCurso();
+    await p.avancar([], () => abrir, ['/regras/**']);
+    assert.deepEqual(abertas.get('t1'), regrasDaTarefa(PASTA, path.join(TMP, 'perm-aprovar', 'rodadas', 'r1'), { arquivos: ['a.ts'], testes: ['npm test'] }, ['/regras/**'], 't1'));
+    assert.ok(abertas.get('t1')!.includes(`Edit(/${path.join(TMP, 'perm-aprovar', 'rodadas', 'r1', 'devolutivas', 't1.md')})`), 'grava a própria devolutiva');
     assert.ok(abertas.get('t1')!.includes(`Edit(/${path.join(PASTA, 'a.ts')})`));
     assert.deepEqual(abertas.get('t2'), []);
   });
@@ -375,22 +382,33 @@ describe('Rotas do pedido com permissões', () => {
     const { pedidoId } = await r.json();
     assert.deepEqual(porao.pedido(pedidoId)?.permissoes, { t1: { arquivos: ['src/a.ts'], testes: ['npm test'] } });
     assert.equal((await s.enviar('POST', `/api/porao/pedidos/${pedidoId}/aprovar`, undefined, PAGINA)).status, 200);
+    // Com comando de teste, o clique responde já e nada abre antes da linha de base (maestro v3).
+    assert.equal(abertas.length, 0);
+    await porao.gatesEmCurso();
+    // Sem comando de teste, sem linha de base: a rota abre na pasta da casa do maestro, com as regras da tarefa.
+    fs.mkdirSync(path.join(TMP, 'perm-rota', 'rodadas', 'r2', 'briefings'), { recursive: true });
+    fs.writeFileSync(path.join(TMP, 'perm-rota', 'rodadas', 'r2', 'briefings', 't1.md'), '# briefing');
+    const r2 = await s.enviar('POST', '/api/porao/pedidos', { maestro: 'm1', rodada: 'r2', tarefas: [{ id: 't1', arquivos: ['src/a.ts'] }] });
+    assert.equal((await s.enviar('POST', `/api/porao/pedidos/${(await r2.json()).pedidoId}/aprovar`, undefined, PAGINA)).status, 200);
     assert.equal(abertas[0]!.cwd, dir);
     assert.ok(abertas[0]!.permitir.includes(`Edit(/${path.join(dir, 'src/a.ts')})`));
-    assert.ok(abertas[0]!.permitir.includes('Bash(npm test:*)'));
     assert.ok(abertas[0]!.permitir.includes('Read(//regras/**)'));
   });
 });
 
 describe('argsDoTerminal: a ordem dos argumentos do claude', () => {
-  test('regras por último, depois da primeira mensagem (a opção engoliria a mensagem); resume ignora mensagem e regras', async () => {
+  test('regras por último, depois da primeira mensagem (a opção engoliria a mensagem); resume ignora a mensagem mas leva regras e hooks (MA-3)', async () => {
     const { argsDoTerminal } = await import('../src/terminals.js');
     assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'new', prompt: 'leia o briefing', permitir: ['Edit(//a)', 'Bash(npm test:*)'] }), [
       '--session-id', 's', 'leia o briefing', '--allowedTools', 'Edit(//a)', 'Bash(npm test:*)',
     ]);
     assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'new', prompt: 'oi', permitir: [] }), ['--session-id', 's', 'oi']);
     assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'new', agent: 'maestro' }), ['--session-id', 's', '--agent', 'maestro']);
-    assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'resume', prompt: 'x', permitir: ['Edit(//a)'] }), ['--resume', 's']);
+    assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'resume', prompt: 'x', permitir: ['Edit(//a)'], settings: '{}' }), ['--resume', 's', '--settings', '{}', '--allowedTools', 'Edit(//a)']);
+    assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'resume' }), ['--resume', 's']);
+    assert.deepEqual(argsDoTerminal({ sessionId: 's', mode: 'new', prompt: 'oi', settings: '{"hooks":{}}', permitir: ['Edit(//a)'] }), [
+      '--session-id', 's', 'oi', '--settings', '{"hooks":{}}', '--allowedTools', 'Edit(//a)',
+    ]);
   });
 });
 

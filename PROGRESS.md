@@ -3,6 +3,100 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-11 — Maestro v3: gate com linha de base, aceite e medição
+
+**O que mudou:** o plano `docs-dev/context/maestro-v3.md` (decisões V1 a V5 do usuário), Etapas 0 e 1. (1) Agente:
+3 sessões por padrão, 4 ou 5 só com tarefas independentes de verdade e dizendo por quê; a rota e o cartão continuam
+aceitando até 5. (2) Agente: "vale paralelizar?" virou checklist de cinco itens (tarefa de ~30 min, comando de
+verificação, aceite escrito sem inventar, fila abaixo de ~70%); o bloco de resposta traz a estimativa por tarefa e em
+sessão única. (3) Briefing com "Pronto quando", "Leia primeiro"/"Não precisa ler", "Pode usar, não pode alterar" e o
+arquivo hub como tarefa 0; a devolutiva ganha `aceite` (sim/não e como conferiu), lido pela vila e numa coluna do
+relatório; devolutiva antiga continua sendo lida. (4) Gate rodado pela vila (`server/src/gate.ts`): os `testes` do
+cartão, sem shell, um por vez, com limite de 15 min; **antes** de abrir as sessões (linha de base; o quadro diz
+"conferindo a linha de base" e as tarefas abrem quando ela termina, mesmo vermelha) e com todas prontas, antes do
+relatório. Cada comando sai como passou, já estava vermelho, quebrou ou consertou; algum "quebrou" = **reprovada** no
+topo do relatório, com o caminho da saída, e ❗ na estante; nenhuma sessão é reaberta. Saída só em `<rodada>/gate/`, o
+`rodada.json` guarda comando, código e duração. Fora da trava, idempotente entre voltas, retomado se a vila cair; o
+gongo no meio descarta o resultado. Rodada sem `testes`: "sem verificação automática". (5) O pedido aceita
+`estimativaSessaoUnicaMin`; a tarefa pronta guarda os tokens da conversa (`tokensDaConversa`, mesma regra do moinho, só
+números); o relatório ganha "Custo e ganho" (tempo de parede, linha de base e gate, soma das tarefas, estimativa e
+diferença, tokens por tarefa e total), com a frase fixa de que a estimativa não é medição.
+**Arquivos:** `server/src/gate.ts` (novo), `server/src/{rodada,porao,gasto,app}.ts`, `server/agents/maestro-mirim.md`,
+`web/src/api.ts`, `web/src/ui/porao.ts`, `web/src/game/PoraoScene.ts`, testes `server/tests/gate.test.ts` (novo) e
+`server/tests/{rodada,porao}.test.ts` (o clique com comando de teste não abre mais na hora); `CLAUDE.md` (regra 10,
+módulos, contagem), `README.md`, `docs-dev/context/maestro-v3.md` (era `a-codar/`), `docs-dev/painel.json`,
+`PENDENCIAS.md` (MA-6 sai, MA-7 entra, MA-5 inclui o v3). Fora do repositório: `~/Documents/IA/claude/agents/maestro.md`
+e `~/Documents/IA/guardrails-ia/convivencia.md`.
+**Testes:** antes 279/279; depois 296/296, typecheck do servidor e do front e build sem erro, auditor igual. Ensaio
+isolado com 1 sessão real (c8): linha de base antes de abrir, gate final quebrou, relatório "Reprovada", nenhuma sessão
+reaberta. Tokens conferidos à parte na conversa do ensaio (o script não repassa o `.jsonl`). Falta a rodada real depois
+do reinício (MA-5).
+
+## 2026-11-11 — Maestro v2: corrida do clique, edição pelo Bash e ensaios c1 a c6
+
+**O que mudou:** (1) A 1ª rodada real abriu mais de 5 sessões para 5 tarefas, com trabalho duplicado: o clique
+(`Porao.aprovar`) e a volta automática (`Porao.avancar`) liam e gravavam o `rodada.json` ao mesmo tempo. Agora os dois
+passam por uma trava única (`comTrava`), a tarefa é reservada no estado `abrindo` antes de o terminal subir, o `abrindo`
+que sobra de uma vila que caiu é recuperado sem abrir por cima, e o pedido que repete tarefa da rodada é recusado (409).
+(2) Nos ensaios, as sessões editavam pelo Bash (`sed -i`, `printf >>`) por fora do hook de posse, e o modo `auto` não
+pede permissão: o hook ganhou o modo `bash` (recusa escrita em arquivo e o git que mexe no repositório) e a posse vale
+também para o arquivo que ninguém listou (reserva atômica em `<rodada>/posse/`, a primeira que edita fica dona até
+ficar pronta). Contrato e briefing do agente dizem "edite só com Edit/Write". (3) Ensaios reais isolados da vila
+(script fora de `~/.claude/maestro/rodadas`): c1 independentes, c2 dependência, c3 posse + tela (cartão do roteiro),
+c4 morte + retomada (na 2ª tentativa), c6 "não vale": todos certos; c5 (agente de ponta a ponta) fez o pedido certo e
+parou no limite de uso. Nenhuma tarefa abriu duas vezes. Limite visto no c3: o teste de uma tarefa reprova pelo trabalho
+inacabado da outra na mesma pasta (vai para o gate no fim da rodada, maestro v3).
+**Arquivos:** `server/src/{rodada,porao}.ts`, `scripts/porao-hook.sh`, `server/tests/rodada.test.ts`, `RETRABALHO.md`;
+fora do repositório, `~/Documents/IA/claude/agents/maestro.md` e `~/Documents/IA/guardrails-ia/convivencia.md`.
+**Testes:** suíte completa depois da última mudança no hook (Etapa 0 do v3): 279/279, typecheck do servidor e build sem
+erro, auditor limpo.
+
+## 2026-11-11 — Pesquisa de fundamentos para o maestro v3 (sem código)
+
+**O que mudou:** pesquisa profunda (documentação oficial do Claude Code, papers de 2025–2026, METR, DORA e
+praticantes) sobre quando sessões paralelas pagam, quanto custam e como arquitetá-las. O documento separa
+evidência, interpretação e proposta, e termina em 12 regras para o maestro v3: leitura paralela e escrita
+serial, um dono por arquivo/decisão, tarefa mínima de 45–60 min, contrato antes do spawn, DAG com caminho
+crítico, padrão 3 e teto 5, verificação como gargalo, revisor de contexto limpo por risco, estado em arquivo,
+contexto cirúrgico, orçamento/critério de morte e medição contra a sessão única. Nada foi decidido nem codado.
+**Arquivos:** `docs-dev/context/sessoes-paralelas-fundamentos.md` (novo), `PENDENCIAS.md` (MA-6).
+**Testes:** não se aplica (só documento).
+
+## 2026-11-11 — Maestro v2: a vila conduz a rodada
+
+**O que mudou:** com as cinco recomendações aceitas pelo usuário (D1 a D5), o plano virou código. (1) Cada sessão de
+trabalho termina gravando a **devolutiva** em `~/.claude/maestro/rodadas/<id>/devolutivas/<tN>.md`; um hook `Stop`
+lembra quem tenta parar sem ela (uma vez só, para ela poder parar e perguntar). (2) A vila grava o `rodada.json` no
+clique do cartão e, a cada volta do mundo, marca a tarefa pronta (devolutiva + sessão parada), abre sozinha a que
+dependia dela e, com todas prontas, monta o relatório em `docs-dev/maestro/` sem modelo nenhum, pedindo o cartão do
+roteiro quando alguma devolutiva diz `mexeu_em_tela: sim`. (3) Um hook `PreToolUse` recusa editar arquivo de outra
+tarefa que ainda trabalha (`PROGRESS.md`/`PENDENCIAS.md` somam). Os hooks chegam só às sessões de trabalho, por
+`--settings` no spawn. (4) O pedido aceita `dependeDe` (recusa ciclo e tarefa desconhecida; o teto conta as que
+esperam) e o cartão mostra a ordem. (5) Quadro da rodada na estante (Esperando, Trabalhando, Precisa de você, Pronta),
+com ❗ quando uma tarefa parou sem terminar. (6) MA-3 fechada: sessão de trabalho retomada volta com as regras e os
+hooks. Agente do maestro reescrito (diz quando não vale paralelizar, um pedido só e sai) e contrato "Sob o maestro" com
+o formato da devolutiva, em `~/Documents/IA` (sem commit lá: o repositório já tinha alterações antigas não commitadas
+nos mesmos arquivos). Mirim lê o `rodada.json` e as devolutivas.
+**Arquivos:** `server/src/{rodada,porao,app,index,terminals,world,mirim}.ts`, `server/agents/maestro-mirim.md`,
+`scripts/porao-hook.sh` (novo), `web/src/{api.ts,style.css}`, `web/src/ui/{porao,actions}.ts`,
+`web/src/game/{PoraoScene,TownScene}.ts`, testes `server/tests/rodada.test.ts` (novo), `web/tests/quadro-porao.test.ts`
+(novo), `server/tests/{porao,mirim,clinica}.test.ts`, `server/tests/servidor.ts`; `CLAUDE.md` (regra 10),
+`README.md`, `docs-dev/context/maestro-v2.md` (era `a-codar/`), `docs-dev/context/maestro.md`, `docs-dev/painel.json`,
+`PENDENCIAS.md` (MA-3 sai, MA-5 vira conferência). Fora do repositório: `~/Documents/IA/claude/agents/maestro.md`,
+`~/Documents/IA/guardrails-ia/convivencia.md`, `~/Documents/IA/guardrails-ia/guardrails-core.md` (G21) e
+`~/Documents/IA/claude/skills/roteiro-testes/SKILL.md`.
+**Testes:** antes 259/259; depois 274/274, typecheck do servidor e do front e build sem erro. Falta conferir na vila
+depois do reinício (regra 6), numa rodada de verdade.
+
+## 2026-11-11 — Plano do maestro v2 (sem código)
+
+**O que mudou:** pesquisa de como a Anthropic (agent teams, sistema de pesquisa multi-agente) e a comunidade conduzem
+sessões paralelas, e plano em 4 fases com os itens 1 a 5 escolhidos pelo usuário: devolutiva em arquivo cobrada por
+hook `Stop`, estado da rodada pela vila, posse de arquivo por hook `PreToolUse`, dependências declaradas, quadro de
+status e o maestro dizendo quando não vale paralelizar. Decisões D1 a D5 em aberto.
+**Arquivos:** plano em `a-codar/` (hoje `docs-dev/context/maestro-v2.md`), `PENDENCIAS.md` (MA-5).
+**Testes:** não se aplica (só documento).
+
 ## 2026-11-10 — Clínica sem o monitor de sinais vitais
 
 **O que mudou:** a pedido do usuário, saiu o monitor de sinais vitais da clínica (ficou inútil com limites e máquina no

@@ -15,7 +15,7 @@ import { openRetrabalho } from './retrabalho';
 import { openSementes } from './sementes';
 import { openQuadro } from './quadro';
 import { openPombal } from './pombal';
-import { openEncerrarRodada, openPedidoPorao } from './porao';
+import { openEncerrarRodada, openPedidoPorao, openQuadroRodada } from './porao';
 import { openRelatorios } from './relatorios';
 import { openLareira } from './lareira';
 import { openSkills } from './skills';
@@ -222,6 +222,11 @@ export const ui = {
   openEncerrarRodada(project: Project) {
     this.hideTooltip();
     openEncerrarRodada(project);
+  },
+  /** Estante de partitura durante a rodada: o quadro com o estado de cada tarefa (maestro v2, fase 4). */
+  openQuadroRodada(project: Project) {
+    this.hideTooltip();
+    openQuadroRodada(project);
   },
   /** Cartão do porão: aprovar ou recusar as sessões que o maestro pediu (MA-1, fase 3). */
   openPedidoPorao(pedido: PedidoPorao, project: Project) {

@@ -73,6 +73,64 @@ export function pesoDe(u: any): number {
   return n(u?.input_tokens) + n(u?.output_tokens) + n(u?.cache_creation_input_tokens) + n(u?.cache_read_input_tokens) / 10;
 }
 
+/**
+ * Uma resposta do modelo numa linha do `.jsonl`, com o `usage` dela; null = linha sem gasto (do usuário, de ferramenta,
+ * ou `<synthetic>`). O Claude Code repete o mesmo `usage` em várias linhas da mesma resposta: quem soma conta cada `id`
+ * uma vez.
+ */
+export function respostaDaLinha(e: any): { id: string; usage: any } | null {
+  const u = e?.type === 'assistant' ? e.message?.usage : null;
+  if (!u || e.message?.model === '<synthetic>') return null;
+  return { id: String(e.message?.id ?? e.uuid ?? ''), usage: u };
+}
+
+/** Tokens de uma conversa, separados (maestro v3, medição da rodada). Só números: nada do conteúdo sai daqui. */
+export interface Tokens {
+  entrada: number;
+  saida: number;
+  cacheCriado: number;
+  cacheLido: number;
+}
+
+/**
+ * Soma os tokens de uma conversa: o `<id>.jsonl` e os subagentes dele (`<id>/subagents/*.jsonl`), com a mesma regra do
+ * moinho (cada resposta uma vez, sem `<synthetic>`). Null = arquivo que não dá para ler.
+ */
+export async function tokensDaConversa(file: string): Promise<Tokens | null> {
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  const total: Tokens = { entrada: 0, saida: 0, cacheCriado: 0, cacheLido: 0 };
+  const sub = path.join(file.replace(/\.jsonl$/, ''), 'subagents');
+  const arquivos = [file, ...(await fs.readdir(sub).catch(() => [] as string[])).filter((f) => f.endsWith('.jsonl')).map((f) => path.join(sub, f))];
+  let leu = false;
+  for (const arq of arquivos) {
+    let texto: string;
+    try {
+      texto = await fs.readFile(arq, 'utf8');
+    } catch {
+      continue;
+    }
+    leu = true;
+    const vistos = new Set<string>();
+    for (const line of texto.split('\n')) {
+      if (!line) continue;
+      let e: any;
+      try {
+        e = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      const r = respostaDaLinha(e);
+      if (!r || (r.id && vistos.has(r.id))) continue;
+      if (r.id) vistos.add(r.id);
+      total.entrada += n(r.usage.input_tokens);
+      total.saida += n(r.usage.output_tokens);
+      total.cacheCriado += n(r.usage.cache_creation_input_tokens);
+      total.cacheLido += n(r.usage.cache_read_input_tokens);
+    }
+  }
+  return leu ? total : null;
+}
+
 /** Janela da semana do plano pelo `resetsAt` do limite semanal; sem ele, os últimos 7 dias. */
 export function janelaDe(usage: Usage | null, agora = Date.now()): GastoView['janela'] {
   const semanal = usage?.rows.find((r) => r.kind === 'weekly_all' || r.kind === 'seven_day');
@@ -158,9 +216,9 @@ export class Gasto {
               continue;
             }
             if (!a.cwd && typeof e.cwd === 'string') a.cwd = e.cwd;
-            const u = e.type === 'assistant' ? e.message?.usage : null;
-            if (!u || e.message?.model === '<synthetic>') continue;
-            const id = String(e.message?.id ?? e.uuid ?? '');
+            const r = respostaDaLinha(e);
+            if (!r) continue;
+            const { id, usage: u } = r;
             if (id && a.ultimos.includes(id)) continue;
             if (id) a.ultimos = [...a.ultimos.slice(-49), id];
             const t = Date.parse(e.timestamp);

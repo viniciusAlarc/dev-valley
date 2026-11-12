@@ -257,6 +257,8 @@ export interface PedidoPorao {
   tarefas: string[];
   /** Liberado sem pedir permissão, por tarefa: editar só estes arquivos e rodar só estes testes (04/11/2026). */
   permissoes: Record<string, { arquivos: string[]; testes: string[] }>;
+  /** Tarefa → as que precisam ficar prontas antes de ela abrir; o clique aprova a ordem junto (maestro v2, 11/11/2026). */
+  dependencias?: Record<string, string[]>;
   /** Pedido da sessão do roteiro de testes (05/11/2026): o relatório da rodada. A sessão nasce na casa. */
   roteiro?: string;
   criadoEm: number;
@@ -283,6 +285,58 @@ export interface World {
   pedidosPorao: PedidoPorao[];
   /** Maestros que chamaram você no meio da rodada: id → motivo (❗ no maestro, 04/11/2026). */
   maestroChamando: Record<string, string>;
+  /** Rodadas do maestro em andamento, conduzidas pela vila (maestro v2): o quadro da estante de partitura. */
+  rodadasPorao: RodadaPorao[];
+}
+
+/** Uma tarefa da rodada como a vila a conduz (servidor: `rodada.ts`). */
+export interface TarefaPorao {
+  id: string;
+  estado: 'esperando' | 'abrindo' | 'aberta' | 'pronta' | 'erro';
+  sessionId: string | null;
+  dependeDe: string[];
+  arquivos: string[];
+  abertaEm: number | null;
+  prontaEm: number | null;
+  erro: string | null;
+  /** Aberta, parada sem pedir permissão e sem a devolutiva. */
+  parouSemTerminar: boolean;
+}
+
+export interface RodadaPorao {
+  projectId: string;
+  rodada: string;
+  aprovadaEm: number;
+  relatorio: string | null;
+  tarefas: TarefaPorao[];
+  /**
+   * Gate da rodada (maestro v3): a vila roda os comandos de teste do cartão antes de abrir as sessões (linha de base) e
+   * com todas prontas. null = rodada sem comando de teste. `quebrou` = comandos que passavam e falham.
+   */
+  gate: { estado: 'linha-de-base' | 'trabalhando' | 'conferindo' | 'aprovada' | 'reprovada'; comandos: string[]; quebrou: string[] } | null;
+}
+
+/** Comandos de teste do pedido, na ordem, sem repetição: o que a vila roda antes e depois (maestro v3). */
+export function comandosDoPedido(pedido: PedidoPorao): string[] {
+  const out: string[] = [];
+  for (const t of pedido.tarefas) for (const c of pedido.permissoes?.[t]?.testes ?? []) if (!out.includes(c)) out.push(c);
+  return out;
+}
+
+/** Coluna do quadro do porão: o estado gravado pela vila mais o estado ao vivo da sessão. */
+export type ColunaDoQuadro = 'esperando' | 'trabalhando' | 'precisa' | 'pronta';
+
+export function colunaDa(t: TarefaPorao, world: World): ColunaDoQuadro {
+  if (t.estado === 'pronta') return 'pronta';
+  if (t.estado === 'esperando') return 'esperando';
+  if (t.estado === 'erro' || t.parouSemTerminar) return 'precisa';
+  const s = world.sessions.find((x) => x.id === t.sessionId);
+  return s?.status === 'permission' ? 'precisa' : 'trabalhando';
+}
+
+/** A rodada em andamento no porão do projeto (a mais nova), ou undefined. */
+export function rodadaDoPorao(world: World, projectId: string): RodadaPorao | undefined {
+  return (world.rodadasPorao ?? []).find((r) => r.projectId === projectId);
 }
 
 /** Avulsas encerradas que continuam soltas na praça (elas não têm casa para onde ir). */
@@ -608,7 +662,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {} };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [] };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

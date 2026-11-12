@@ -2,7 +2,25 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { comandosDoGate, executarComando, GATE_LIMITE_MS, resultadoDoGate, saidaDoGate, type ExecutarComando, type MomentoDoGate, type ResultadoDoComando } from './gate.js';
+import { tokensDaConversa } from './gasto.js';
 import { MORADORES_DIR } from './moradores.js';
+import {
+  devolutivaDe,
+  estadoDoGate,
+  gravarRodada,
+  HOOK_SCRIPT,
+  lerDevolutiva,
+  lerRodada,
+  montarRelatorio,
+  caminhoDoRelatorio,
+  mexeuEmTela,
+  settingsDaTarefa,
+  validarDependencias,
+  type Devolutiva,
+  type Rodada,
+  type RodadaNoMundo,
+} from './rodada.js';
 export { TETO_PADRAO } from './config.js';
 
 /**
@@ -42,6 +60,10 @@ export interface PedidoPorao {
    * que pede permissão para tudo.
    */
   permissoes: Record<string, PermissoesDaTarefa>;
+  /** Tarefa → as que precisam ficar prontas antes de ela abrir (maestro v2, fase 3). Sem entrada = abre no clique. */
+  dependencias: Record<string, string[]>;
+  /** Estimativa do maestro para fazer tudo numa sessão só, em minutos (maestro v3, medição). Vai para o `rodada.json`. */
+  estimativaSessaoUnicaMin?: number;
   /**
    * Pedido da sessão do roteiro de testes (05/11/2026): o relatório da rodada, relativo ao projeto. A sessão nasce na
    * **casa**, como morador comum: fora do teto, sobrevive ao gongo e não segue o contrato "Sob o maestro".
@@ -105,16 +127,31 @@ export function validarPermissoes(projeto: string, tarefa: string, arquivos: unk
 
 /**
  * Regras `--allowedTools` da sessão de trabalho: ler o briefing da rodada e o que o config libera (`porao.leitura`),
- * editar só os arquivos da tarefa (`Edit` cobre também o `Write`), rodar só os comandos de teste.
+ * editar só os arquivos da tarefa (`Edit` cobre também o `Write`), rodar só os comandos de teste. Com a tarefa, também
+ * gravar a própria devolutiva (maestro v2: é ela que avisa a vila que a tarefa acabou).
  */
-export function regrasDaTarefa(projeto: string, rodadaDir: string, perm: PermissoesDaTarefa, leitura: string[] = []): string[] {
+export function regrasDaTarefa(projeto: string, rodadaDir: string, perm: PermissoesDaTarefa, leitura: string[] = [], tarefa?: string): string[] {
   const abs = (p: string) => `/${p}`; // `//caminho` = absoluto na sintaxe das regras do Claude Code
   return [
     `Read(${abs(path.join(rodadaDir, '**'))})`,
     ...leitura.map((l) => `Read(${abs(l)})`),
     ...perm.arquivos.map((a) => `Edit(${abs(path.join(projeto, a))})`),
+    ...(tarefa ? [`Edit(${abs(devolutivaDe(rodadaDir, tarefa))})`] : []),
     ...perm.testes.map((t) => `Bash(${t}:*)`),
   ];
+}
+
+/** Abre o terminal da sessão; devolve o motivo quando não abre. `settings` = o `--settings` com os hooks da tarefa. */
+export type AbrirSessao = (sessionId: string, prompt: string, permitir: string[], settings?: string) => Promise<string | null>;
+
+/** O que a vila sabe agora de cada sessão (do mundo), para decidir se a tarefa ficou pronta ou parou. */
+export interface SessaoAgora {
+  id: string;
+  live: boolean;
+  status: 'working' | 'permission' | 'idle' | null;
+  name?: string;
+  /** `.jsonl` da conversa: de onde saem os tokens da tarefa quando ela fica pronta (maestro v3). */
+  file?: string | null;
 }
 const caminhoDoBriefing = (rodada: string, tarefa: string) => `~/.claude/maestro/rodadas/${rodada}/briefings/${tarefa}.md`;
 
@@ -147,6 +184,9 @@ interface Registro {
   tarefas: Record<string, { projeto: string; rodada: string; tarefa: string; criadoEm: string }>;
 }
 
+/** Caminho com `~` no lugar da pasta pessoal: é o que vai no relatório, dentro do projeto. */
+const comTil = (p: string) => (p.startsWith(os.homedir() + path.sep) ? `~${p.slice(os.homedir().length)}` : p);
+
 const objeto = (v: unknown) => (v && typeof v === 'object' ? (v as Record<string, any>) : {});
 
 export class Porao {
@@ -157,11 +197,20 @@ export class Porao {
    * ❗ aparece nele e o clique abre a conversa com ele. Só na memória, como os pedidos: id → o motivo, numa linha.
    */
   private chamados = new Map<string, string>();
+  /** Última volta do `avancar` (quadro do porão no mundo). */
+  private noMundo: RodadaNoMundo[] = [];
+  private trava: Promise<void> = Promise.resolve();
+  private ocupada = false;
+  /** Gates rodando agora (`<pasta da rodada>:<antes|depois>`): a volta seguinte não dispara outro (maestro v3). */
+  private gates = new Map<string, Promise<void>>();
 
   constructor(
     private file = PORAO_FILE,
     private agentFile = MAESTRO_AGENT_FILE,
     private rodadasDir = RODADAS_DIR,
+    private hookScript = HOOK_SCRIPT,
+    private executar: ExecutarComando = executarComando,
+    private limiteDoGate = GATE_LIMITE_MS,
   ) {}
 
   private async ler(): Promise<Registro> {
@@ -239,11 +288,15 @@ export class Porao {
    * O maestro pede sessões para tarefas de uma rodada. Só a sessão de maestro anotada aqui pede, e para o projeto dela;
    * cada tarefa precisa do briefing já escrito; o teto conta as sessões que a rodada já tem mais as pedidas.
    */
-  async pedir(entrada: { maestro: unknown; rodada: unknown; tarefas: unknown }, teto: number, pasta: string): Promise<PedidoPorao | { erro: string; status: number }> {
-    const { maestro, rodada } = entrada;
+  async pedir(entrada: { maestro: unknown; rodada: unknown; tarefas: unknown; estimativaSessaoUnicaMin?: unknown }, teto: number, pasta: string): Promise<PedidoPorao | { erro: string; status: number }> {
+    const { maestro, rodada, estimativaSessaoUnicaMin: est } = entrada;
     const reg = await this.ler();
     if (typeof maestro !== 'string' || !reg.maestros[maestro]) return { erro: 'Só o maestro aberto no porão pede sessões.', status: 403 };
     if (typeof rodada !== 'string' || !NOME_RE.test(rodada)) return { erro: 'Rodada inválida.', status: 400 };
+    // Opcional na rota (o agente sempre manda): minutos, número positivo.
+    if (est !== undefined && (typeof est !== 'number' || !Number.isFinite(est) || est <= 0 || est > 100_000)) {
+      return { erro: '"estimativaSessaoUnicaMin" é a estimativa em minutos para fazer tudo numa sessão só (número positivo).', status: 400 };
+    }
     // Cada tarefa: o nome (sessão comum, pede permissão para tudo) ou { id, arquivos, testes } (04/11/2026).
     const lista = Array.isArray(entrada.tarefas) ? (entrada.tarefas as unknown[]) : [];
     const tarefas = lista.map((t) => (typeof t === 'string' ? t : objeto(t).id));
@@ -253,14 +306,25 @@ export class Porao {
     const projeto = reg.maestros[maestro]!.projeto;
     if (!path.isAbsolute(pasta)) return { erro: 'Pasta do projeto inválida.', status: 400 };
     const permissoes: Record<string, PermissoesDaTarefa> = {};
+    const dependencias: Record<string, string[]> = Object.fromEntries((tarefas as string[]).map((t) => [t, []]));
     for (const t of lista) {
       if (typeof t === 'string') continue;
       const o = objeto(t);
       const p = validarPermissoes(pasta, o.id, o.arquivos, o.testes);
       if (typeof p === 'string') return { erro: p, status: 400 };
       permissoes[o.id] = p;
+      if (o.dependeDe !== undefined) {
+        if (!Array.isArray(o.dependeDe) || o.dependeDe.some((d: unknown) => typeof d !== 'string')) return { erro: `${o.id}: "dependeDe" é a lista das tarefas que ela espera.`, status: 400 };
+        dependencias[o.id] = [...new Set(o.dependeDe as string[])];
+      }
     }
-    const jaTem = Object.values(reg.tarefas).filter((t) => t.rodada === rodada).length;
+    const errDep = validarDependencias(dependencias);
+    if (errDep) return { erro: errDep, status: 400 };
+    // Já tem: as tarefas que a rodada já aprovou (abertas ou esperando a vez), ou, rodada antiga, as anotadas no porão.
+    const salva = await lerRodada(path.join(this.rodadasDir, rodada));
+    const repetida = (tarefas as string[]).find((t) => salva?.tarefas[t]);
+    if (repetida) return { erro: `${repetida} já está na rodada ${rodada}: uma sessão por tarefa.`, status: 409 };
+    const jaTem = salva ? Object.keys(salva.tarefas).length : Object.values(reg.tarefas).filter((t) => t.rodada === rodada).length;
     const pedidas = this.pedidosAbertos().filter((p) => p.rodada === rodada && !p.roteiro).reduce((n, p) => n + p.tarefas.length, 0);
     if (jaTem + pedidas + tarefas.length > teto) {
       return { erro: `Passa do teto de ${teto} sessões por rodada (a rodada já tem ${jaTem} e ${pedidas} pedida(s)).`, status: 409 };
@@ -280,6 +344,8 @@ export class Porao {
       rodada,
       tarefas: tarefas as string[],
       permissoes,
+      dependencias,
+      ...(typeof est === 'number' ? { estimativaSessaoUnicaMin: est } : {}),
       criadoEm: Date.now(),
       estado: 'aguardando',
       sessoes: {},
@@ -318,6 +384,7 @@ export class Porao {
       rodada,
       tarefas: [TAREFA_ROTEIRO],
       permissoes: {},
+      dependencias: {},
       roteiro: relatorio,
       criadoEm: Date.now(),
       estado: 'aguardando',
@@ -328,37 +395,308 @@ export class Porao {
   }
 
   /**
-   * Clique em "Abrir" no cartão: uma sessão por tarefa, anotada no porão **antes** de abrir (para nunca aparecer na
-   * casa). `abrir` devolve o motivo quando não abre (ex.: perfil pessoal sem configuração). O pedido do roteiro abre uma
-   * sessão comum, sem anotação nem regra: ela nasce na casa.
+   * Clique em "Abrir" no cartão. Pedido de tarefas (maestro v2): grava o `rodada.json` com todas as tarefas do pedido e
+   * abre as que não dependem de ninguém; as outras abrem sozinhas quando as donas ficarem prontas (`avancar`), porque o
+   * cartão já as listou e o clique aprovou a rodada inteira (D2, 11/11/2026). O pedido do roteiro abre uma sessão comum,
+   * sem anotação nem regra: ela nasce na casa.
    */
-  async aprovar(id: string, abrir: (sessionId: string, prompt: string, permitir: string[]) => Promise<string | null>, leitura: string[] = []): Promise<PedidoPorao | null> {
+  async aprovar(id: string, abrir: AbrirSessao, leitura: string[] = []): Promise<PedidoPorao | null> {
     const pedido = this.pedidos.get(id);
     if (!pedido || pedido.estado !== 'aguardando') return null;
     pedido.estado = 'aprovado';
+    // Mesma trava da volta automática: as duas juntas abriam cada tarefa livre duas vezes (11/11/2026).
+    return this.comTrava(() => this.aprovarComTrava(pedido, abrir, leitura));
+  }
+
+  private async aprovarComTrava(pedido: PedidoPorao, abrir: AbrirSessao, leitura: string[]): Promise<PedidoPorao> {
     if (pedido.roteiro) {
       const sessionId = randomUUID();
       const erro = await abrir(sessionId, promptDoRoteiro(pedido.roteiro), []);
       pedido.sessoes[TAREFA_ROTEIRO] = erro ? { erro } : { sessionId };
       return pedido;
     }
-    for (const tarefa of pedido.tarefas) {
-      const sessionId = randomUUID();
-      const reg = await this.ler();
-      reg.tarefas[sessionId] = { projeto: pedido.projectId, rodada: pedido.rodada, tarefa, criadoEm: new Date().toISOString() };
-      await this.gravar(reg);
-      const perm = pedido.permissoes[tarefa];
-      const permitir = perm ? regrasDaTarefa(pedido.pasta, path.join(this.rodadasDir, pedido.rodada), perm, leitura) : [];
-      const erro = await abrir(sessionId, promptDoBriefing(pedido.rodada, tarefa), permitir);
-      pedido.sessoes[tarefa] = erro ? { erro } : { sessionId };
-      if (erro) {
-        // Não abriu: tira a anotação, para a vaga não ficar presa no teto.
-        const depois = await this.ler();
-        delete depois.tarefas[sessionId];
-        await this.gravar(depois);
-      }
+    const dir = path.join(this.rodadasDir, pedido.rodada);
+    const rodada: Rodada = (await lerRodada(dir)) ?? {
+      versao: 2,
+      rodada: pedido.rodada,
+      projectId: pedido.projectId,
+      pasta: pedido.pasta,
+      aprovadaEm: Date.now(),
+      tarefas: {},
+    };
+    const novas = pedido.tarefas.filter((t) => !rodada.tarefas[t]);
+    for (const t of novas) {
+      const perm = pedido.permissoes[t];
+      rodada.tarefas[t] = { arquivos: perm?.arquivos ?? [], testes: perm?.testes ?? [], dependeDe: pedido.dependencias?.[t] ?? [], estado: 'esperando' };
+    }
+    if (pedido.estimativaSessaoUnicaMin !== undefined) rodada.estimativaSessaoUnicaMin ??= pedido.estimativaSessaoUnicaMin;
+    // Gate (maestro v3): os comandos de teste do cartão. Primeiro pedido com comandos = linha de base antes de abrir;
+    // pedido seguinte na mesma rodada só soma comandos (esses ficam sem linha de base).
+    const comandos = comandosDoGate([rodada.gate?.comandos ?? [], ...novas.map((t) => rodada.tarefas[t]!.testes)]);
+    if (comandos.length && !rodada.gate) rodada.gate = { comandos, linhaDeBase: { inicio: Date.now() } };
+    else if (rodada.gate) rodada.gate.comandos = comandos;
+    await gravarRodada(dir, rodada);
+    // Conferindo a linha de base: o clique responde já, e as tarefas livres abrem na volta em que ela terminar.
+    if (estadoDoGate(rodada.gate) === 'linha-de-base') {
+      this.lancarGate(dir, rodada, 'antes');
+      return pedido;
+    }
+    for (const t of novas) {
+      if (rodada.tarefas[t]!.dependeDe.length) continue;
+      pedido.sessoes[t] = await this.abrirTarefa(rodada, t, abrir, leitura);
     }
     return pedido;
+  }
+
+  /**
+   * Uma coisa por vez entre o clique em "Abrir" e a volta automática: as duas leem e gravam o `rodada.json` e abrem
+   * terminais, e juntas abriam a mesma tarefa duas vezes (rodada de 11/11/2026: 5 tarefas viraram mais de 5 sessões).
+   */
+  private async comTrava<T>(fn: () => Promise<T>): Promise<T> {
+    const antes = this.trava;
+    let soltar!: () => void;
+    this.trava = new Promise<void>((r) => (soltar = r));
+    await antes;
+    this.ocupada = true;
+    try {
+      return await fn();
+    } finally {
+      this.ocupada = false;
+      soltar();
+    }
+  }
+
+  /**
+   * Abre a sessão de uma tarefa da rodada: anotada no `porao.json` **antes** do terminal (para nunca aparecer na casa),
+   * com as regras e os hooks dela, e o estado gravado no `rodada.json`. A que não abre sai do registro, para a vaga não
+   * ficar presa no teto.
+   */
+  private async abrirTarefa(rodada: Rodada, tarefa: string, abrir: AbrirSessao, leitura: string[]): Promise<{ sessionId: string } | { erro: string }> {
+    const dir = path.join(this.rodadasDir, rodada.rodada);
+    const t = rodada.tarefas[tarefa]!;
+    // Uma sessão por tarefa: só abre quem ainda espera. Reservada (`abrindo`) e gravada antes do terminal subir.
+    if (t.estado !== 'esperando') return { erro: `${tarefa} já está ${t.estado}.` };
+    const sessionId = randomUUID();
+    Object.assign(t, { estado: 'abrindo', sessionId });
+    await gravarRodada(dir, rodada);
+    const reg = await this.ler();
+    reg.tarefas[sessionId] = { projeto: rodada.projectId, rodada: rodada.rodada, tarefa, criadoEm: new Date().toISOString() };
+    await this.gravar(reg);
+    const temPermissao = t.arquivos.length > 0;
+    const permitir = temPermissao ? regrasDaTarefa(rodada.pasta, dir, { arquivos: t.arquivos, testes: t.testes }, leitura, tarefa) : [];
+    const erro = await abrir(sessionId, promptDoBriefing(rodada.rodada, tarefa), permitir, settingsDaTarefa(dir, tarefa, this.hookScript));
+    if (erro) {
+      const depois = await this.ler();
+      delete depois.tarefas[sessionId];
+      await this.gravar(depois);
+      Object.assign(t, { estado: 'erro', erro, sessionId: undefined });
+    } else {
+      Object.assign(t, { estado: 'aberta', sessionId, abertaEm: Date.now() });
+    }
+    await gravarRodada(dir, rodada);
+    return erro ? { erro } : { sessionId };
+  }
+
+  /** Rodadas v2 ainda não encerradas pelo gongo, lidas do disco. */
+  private async rodadasVivas(): Promise<{ dir: string; r: Rodada }[]> {
+    let nomes: string[];
+    try {
+      nomes = await fs.readdir(this.rodadasDir);
+    } catch {
+      return [];
+    }
+    const out: { dir: string; r: Rodada }[] = [];
+    for (const n of nomes) {
+      const dir = path.join(this.rodadasDir, n);
+      const r = await lerRodada(dir);
+      if (r && !r.encerradaEm) out.push({ dir, r });
+    }
+    return out;
+  }
+
+  /**
+   * A vila conduz a rodada (maestro v2), a cada volta do `refreshWorld`:
+   * 1. tarefa aberta com a devolutiva gravada e a sessão parada (ou fechada) = pronta;
+   * 2. tarefa esperando com todas as donas prontas = abre;
+   * 3. nada mais aberto nem para abrir = relatório montado pela vila e, se alguma mexeu em tela, o cartão do roteiro.
+   * Devolve true se mudou algo. Uma volta por vez: duas juntas abririam a mesma tarefa duas vezes.
+   */
+  async avancar(sessoes: SessaoAgora[], abrirNo: (projectId: string) => AbrirSessao, leitura: string[] = []): Promise<boolean> {
+    // Ocupada (clique abrindo ou outra volta): esta volta fica para a próxima, sem empilhar.
+    if (this.ocupada) return false;
+    return this.comTrava(() => this.avancarUmaVez(sessoes, abrirNo, leitura));
+  }
+
+  private async avancarUmaVez(sessoes: SessaoAgora[], abrirNo: (projectId: string) => AbrirSessao, leitura: string[]): Promise<boolean> {
+    const porId = new Map(sessoes.map((s) => [s.id, s]));
+    const parada = (id: string | undefined) => {
+      const s = id ? porId.get(id) : undefined;
+      return !s || !s.live || s.status === 'idle';
+    };
+    let mudou = false;
+    const noMundo: RodadaNoMundo[] = [];
+    for (const { dir, r } of await this.rodadasVivas()) {
+      let gravar = false;
+      const devolutivas: Record<string, Devolutiva | null> = {};
+      for (const [id, t] of Object.entries(r.tarefas)) {
+        // Sob a trava ninguém está abrindo: `abrindo` aqui é resto de uma vila que caiu no meio. Com sessão, segue
+        // aberta (o terminal pode ter subido); sem, volta a esperar. Nunca abre de novo por cima.
+        if (t.estado === 'abrindo') {
+          Object.assign(t, t.sessionId ? { estado: 'aberta', abertaEm: t.abertaEm ?? Date.now() } : { estado: 'esperando' });
+          gravar = true;
+        }
+        devolutivas[id] = await lerDevolutiva(devolutivaDe(dir, id));
+        if (t.estado === 'aberta' && devolutivas[id] && parada(t.sessionId)) {
+          // Medição (maestro v3): os tokens da conversa, só números, lidos do `.jsonl` uma vez, ao ficar pronta.
+          const arquivo = t.sessionId ? porId.get(t.sessionId)?.file : null;
+          const tokens = arquivo ? await tokensDaConversa(arquivo) : null;
+          Object.assign(t, { estado: 'pronta', prontaEm: Date.now() }, tokens ? { tokens } : {});
+          gravar = true;
+        }
+      }
+      if (gravar) await gravarRodada(dir, r);
+      const linhaDeBase = estadoDoGate(r.gate) === 'linha-de-base';
+      // Linha de base rodando (ou interrompida por uma vila que caiu): nenhuma tarefa abre antes de ela terminar.
+      if (linhaDeBase) this.lancarGate(dir, r, 'antes');
+      for (const [id, t] of Object.entries(r.tarefas)) {
+        if (linhaDeBase) break;
+        if (t.estado !== 'esperando' || !t.dependeDe.every((d) => r.tarefas[d]?.estado === 'pronta')) continue;
+        await this.abrirTarefa(r, id, abrirNo(r.projectId), leitura);
+        gravar = true;
+      }
+      const tarefas = Object.values(r.tarefas);
+      const podeAbrir = (t: (typeof tarefas)[number]) => t.estado === 'esperando' && t.dependeDe.every((d) => r.tarefas[d]?.estado === 'pronta');
+      if (!r.relatorio && tarefas.some((t) => t.estado === 'pronta') && !tarefas.some((t) => t.estado === 'aberta' || podeAbrir(t))) {
+        if (r.gate?.comandos.length && !r.gate.final?.fim) {
+          // Todas prontas: antes do relatório, o gate final (fora da trava; o resultado volta numa volta seguinte).
+          if (!r.gate.final) {
+            r.gate.final = { inicio: Date.now() };
+            await gravarRodada(dir, r);
+            gravar = true;
+          }
+          this.lancarGate(dir, r, 'depois');
+        } else {
+          const rel = await caminhoDoRelatorio(r);
+          const nomeDe = (id: string) => porId.get(id)?.name || id.slice(0, 8);
+          await fs.mkdir(path.dirname(path.join(r.pasta, rel)), { recursive: true });
+          await fs.writeFile(path.join(r.pasta, rel), montarRelatorio(r, devolutivas, nomeDe, comTil(dir)));
+          r.relatorio = rel;
+          await gravarRodada(dir, r);
+          if (Object.keys(r.tarefas).some((t) => mexeuEmTela(devolutivas[t] ?? null))) this.pedirRoteiroDaVila(r, rel);
+          gravar = true;
+        }
+      }
+      const eg = estadoDoGate(r.gate);
+      mudou ||= gravar;
+      noMundo.push({
+        projectId: r.projectId,
+        rodada: r.rodada,
+        aprovadaEm: r.aprovadaEm,
+        relatorio: r.relatorio ?? null,
+        tarefas: Object.entries(r.tarefas).map(([id, t]) => ({
+          id,
+          estado: t.estado,
+          sessionId: t.sessionId ?? null,
+          dependeDe: t.dependeDe,
+          arquivos: t.arquivos,
+          abertaEm: t.abertaEm ?? null,
+          prontaEm: t.prontaEm ?? null,
+          erro: t.erro ?? null,
+          parouSemTerminar: t.estado === 'aberta' && !devolutivas[id] && !!t.sessionId && porId.has(t.sessionId) && parada(t.sessionId),
+        })),
+        gate:
+          eg && r.gate
+            ? { estado: eg, comandos: r.gate.comandos, quebrou: eg === 'reprovada' ? (resultadoDoGate(r.gate)?.linhas ?? []).filter((l) => l.veredito === 'quebrou').map((l) => l.comando) : [] }
+            : null,
+      });
+    }
+    noMundo.sort((a, b) => b.aprovadaEm - a.aprovadaEm);
+    if (JSON.stringify(noMundo) !== JSON.stringify(this.noMundo)) mudou = true;
+    this.noMundo = noMundo;
+    return mudou;
+  }
+
+  /**
+   * Roda a linha de base (`antes`) ou o gate final (`depois`) de uma rodada (maestro v3, item 4). Fora da trava: os
+   * comandos podem levar minutos; só a gravação do resultado entra nela. Uma vez por rodada e momento: a volta seguinte,
+   * com o gate ainda rodando, não dispara outro. Rodada encerrada pelo gongo no meio: para e descarta o resultado.
+   */
+  private lancarGate(dir: string, r: Rodada, momento: MomentoDoGate): void {
+    const chave = `${dir}:${momento}`;
+    if (this.gates.has(chave) || !r.gate) return;
+    const comandos = [...r.gate.comandos];
+    const pasta = r.pasta;
+    const encerrada = async () => {
+      const atual = await lerRodada(dir);
+      return !atual || !!atual.encerradaEm;
+    };
+    const rodar = async () => {
+      const resultados: ResultadoDoComando[] = [];
+      for (const [i, c] of comandos.entries()) {
+        if (await encerrada()) return;
+        resultados.push(await this.executar(c, pasta, saidaDoGate(dir, momento, i), this.limiteDoGate).catch(() => ({ comando: c, codigo: null, duracaoMs: 0 })));
+      }
+      await this.comTrava(async () => {
+        const atual = await lerRodada(dir);
+        if (!atual?.gate || atual.encerradaEm) return; // o gongo encerrou a rodada: o resultado é descartado
+        const etapa = momento === 'antes' ? atual.gate.linhaDeBase : atual.gate.final;
+        if (!etapa || etapa.fim) return;
+        Object.assign(etapa, { fim: Date.now(), resultados });
+        await gravarRodada(dir, atual);
+      });
+    };
+    const p = rodar()
+      .catch((err) => console.error('[porão] falha no gate da rodada:', err))
+      .finally(() => this.gates.delete(chave));
+    this.gates.set(chave, p);
+  }
+
+  /** Espera os gates em curso terminarem (testes; a vila não espera: a volta seguinte vê o resultado). */
+  async gatesEmCurso(): Promise<void> {
+    while (this.gates.size) await Promise.all([...this.gates.values()]);
+  }
+
+  /** As rodadas em andamento como a vila as viu na última volta (quadro do porão). */
+  rodadasNoMundo(): RodadaNoMundo[] {
+    return this.noMundo;
+  }
+
+  /** A rodada mexeu em tela: o cartão do roteiro aparece na estante, como o que o maestro pedia (só um por rodada). */
+  private pedirRoteiroDaVila(r: Rodada, relatorio: string): void {
+    if ([...this.pedidos.values()].some((p) => p.roteiro && p.rodada === r.rodada && p.estado !== 'recusado')) return;
+    const pedido: PedidoPorao = {
+      id: randomUUID(),
+      projectId: r.projectId,
+      pasta: r.pasta,
+      maestro: '',
+      rodada: r.rodada,
+      tarefas: [TAREFA_ROTEIRO],
+      permissoes: {},
+      dependencias: {},
+      roteiro: relatorio,
+      criadoEm: Date.now(),
+      estado: 'aguardando',
+      sessoes: {},
+    };
+    this.pedidos.set(pedido.id, pedido);
+  }
+
+  /**
+   * Sessão de trabalho retomada (`--resume`, depois de a vila reiniciar; MA-3): volta com as mesmas regras e hooks com
+   * que nasceu, lidos do `rodada.json`. Null = não é tarefa de rodada v2 (retoma como sessão comum).
+   */
+  async retomada(sessionId: string, leitura: string[] = []): Promise<{ permitir: string[]; settings: string } | null> {
+    const anot = (await this.ler()).tarefas[sessionId];
+    if (!anot) return null;
+    const dir = path.join(this.rodadasDir, String(anot.rodada));
+    const r = await lerRodada(dir);
+    const t = r?.tarefas[String(anot.tarefa)];
+    if (!r || !t) return null;
+    const tarefa = String(anot.tarefa);
+    return {
+      permitir: t.arquivos.length ? regrasDaTarefa(r.pasta, dir, { arquivos: t.arquivos, testes: t.testes }, leitura, tarefa) : [],
+      settings: settingsDaTarefa(dir, tarefa, this.hookScript),
+    };
   }
 
   /**
@@ -374,6 +712,16 @@ export class Porao {
     }
     await this.gravar(reg);
     for (const p of this.pedidosAbertos()) if (p.projectId === projectId && !p.roteiro) p.estado = 'recusado';
+    // A rodada sai do quadro e nada mais abre sozinho (o relatório, se já saiu, fica). Na trava: o gate que termina
+    // agora relê o `rodada.json` nela e descarta o resultado da rodada encerrada (maestro v3).
+    await this.comTrava(async () => {
+      for (const { dir, r } of await this.rodadasVivas()) {
+        if (r.projectId !== projectId) continue;
+        r.encerradaEm = Date.now();
+        await gravarRodada(dir, r);
+      }
+    });
+    this.noMundo = this.noMundo.filter((x) => x.projectId !== projectId);
   }
 
   recusar(id: string): PedidoPorao | null {

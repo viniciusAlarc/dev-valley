@@ -42,7 +42,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
     `administrador.ts` (administrador da praça), `mirim.ts` (maestro mirim: dúvidas da rodada, só lendo), `clinica.ts` (clínica: triagem, sinais vitais e a ficha da médica), `agents.ts`/`skills.ts`/`plugins.ts` (Fábrica: agentes, skills e, só leitura, plugins e MCP), `gasto.ts` (moinho: gasto por projeto), `jornal.ts` (banca de jornal), `perfil.ts` (projeto pessoal: terminal em outro perfil do Claude Code, com outra API), `bastao.ts` (passagem de bastão: resumo e sucessor), `reinicio.ts` (sino:
     reinício pendente), `estrutura.ts` (casa em obra e
     placa de vistoria), `sementes.ts` (caixa
-    de sementes), `retrabalho.ts` (ervas do quintal), `porao.ts` (porão da casa: quem é do maestro), `relatorios.ts` (estante de partitura do porão: relatórios do maestro, novo até abrir), `quadro.ts` (quadro negro), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
+    de sementes), `retrabalho.ts` (ervas do quintal), `porao.ts` (porão da casa: quem é do maestro), `rodada.ts` (estado da rodada, devolutivas e relatório montado pela vila), `gate.ts` (porão: testes do cartão antes e depois da rodada), `relatorios.ts` (estante de partitura do porão: relatórios do maestro, novo até abrir), `quadro.ts` (quadro negro), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
     (outdoor), `install-hooks.ts`.
   - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md`, `agents/maestro-mirim.md`, `agents/escrevente.md`, `agents/medica.md`, `agents/jornaleiro.md` e `agents/jornaleiro-conversa.md` (sem ferramenta: `--tools ""`): usados só pela vila.
 - `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
@@ -65,7 +65,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
   `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 61 rotas e o pombal; WebSockets e front
   seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor, `npm test` e `npm run build` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 09/11/2026 (259/259). O hook `Stop` do `.claude/settings.json` roda
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 11/11/2026 (296/296). O hook `Stop` do `.claude/settings.json` roda
   `scripts/conferir-ao-parar.sh`: a sessão que editou `.ts` daqui só termina a resposta com os tipos do servidor e do front
   passando (G4 cobrado pelo harness, 08/11/2026).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
@@ -121,11 +121,21 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 9. **O pombal (`server/src/pombal.ts`) faz push numa branch que outras pessoas podem usar.** Push só por clique
    confirmado no painel e só de página local, nunca `--force` (o git só aceita fast-forward). Conflito no rebase sempre
    termina em `rebase --abort` (o repositório fica como estava).
-10. **Sessão de trabalho do porão (`server/src/porao.ts`) só nasce do clique do usuário no cartão.** O maestro pede pela
-   rota (`curl` local), mas aprovar e recusar exigem `Origin` local presente (a página), nunca só a ausência dele. Teto de
-   5 sessões por rodada (o config só baixa), e cada sessão é anotada no `porao.json` antes de o terminal abrir
-   (decisão do usuário, 03/11/2026). A sessão do roteiro de testes (`/api/porao/roteiro`, uma por rodada) também só nasce
-   do clique, mas na **casa**: não é anotada, não conta no teto e o gongo não a apaga (decisão do usuário, 05/11/2026).
+10. **Sessão de trabalho do porão (`server/src/porao.ts`) só nasce de uma tarefa que o usuário aprovou no cartão.** O
+   maestro pede pela rota (`curl` local), mas aprovar e recusar exigem `Origin` local presente (a página), nunca só a
+   ausência dele. O clique aprova a rodada inteira: a tarefa com `dependeDe`, listada no cartão, a vila abre sozinha
+   quando as donas ficam prontas; nenhuma tarefa fora do cartão abre (decisão do usuário, 11/11/2026). Teto de 5 sessões
+   por rodada (o config só baixa; conta também as que esperam a vez; o padrão de 3 é só do agente, a rota aceita até 5),
+   e cada sessão é anotada no `porao.json` antes de o
+   terminal abrir (decisão do usuário, 03/11/2026). A vila conduz a rodada pelo `rodada.json` (`server/src/rodada.ts`,
+   único escritor: a vila) e passa às sessões de trabalho, só a elas e por `--settings`, os hooks de
+   `scripts/porao-hook.sh` (devolutiva ao parar, posse de arquivo). **Gate (maestro v3, `server/src/gate.ts`):** a vila
+   roda os comandos de teste do cartão (os que passaram por `validarPermissoes`), sem shell, antes de abrir as sessões
+   (linha de base) e com todas prontas, antes do relatório; saída só em arquivo da pasta da rodada, nunca no
+   `rodada.json`. Gate vermelho só avisa (relatório "Reprovada" e ❗ na estante): nenhuma sessão é reaberta (decisão do
+   usuário, 11/11/2026). A sessão do roteiro de testes (uma por rodada, pedida
+   pela vila quando uma devolutiva diz `mexeu_em_tela: sim`) também só nasce do clique, mas na **casa**: não é anotada,
+   não conta no teto e o gongo não a apaga (decisão do usuário, 05/11/2026).
 
 ## Regras de processo deste projeto
 

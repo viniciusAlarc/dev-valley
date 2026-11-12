@@ -1,5 +1,9 @@
 # Maestro: trabalho paralelo de sessões no porão da casa
 
+> ⚠️ **Desde 11/11/2026 vale o maestro v2** (`docs-dev/context/maestro-v2.md`): a vila conduz a rodada pela devolutiva
+> em arquivo, e saíram `COMECEI`, `PEDIDO`/`LIBERADO`/`ESPERE`/`PARE`, `PRONTA` e o relatório escrito pelo maestro.
+> O que segue é o histórico do desenho e vale só no que o v2 não mudou.
+
 > Plano decidido em conversa com o usuário em 03/11/2026 e implementado no mesmo dia (fases 1 a 4). Conferido pelo
 > usuário numa rodada de verdade pela vila em 03/11/2026 (`docs-dev/maestro/2026-11-03-teste-rapido.md`); MA-1 fechado.
 > **Como funciona hoje:** valem a "Simplificação depois da segunda rodada" e a "Correção das mensagens" (seção 6). O

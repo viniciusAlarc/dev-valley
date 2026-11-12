@@ -75,7 +75,7 @@ describe('preambuloDaRodada: o estado da rodada que o mirim recebe', () => {
       '/rodadas',
     );
     assert.match(texto, new RegExp(`Projeto: .* — ${dir}`));
-    assert.match(texto, /Rodada\(s\): r1 \(briefings em \/rodadas\/r1\/briefings\)/);
+    assert.match(texto, /Rodada\(s\): r1 \(briefings em \/rodadas\/r1\/briefings; estado de cada tarefa, arquivos e dependências em \/rodadas\/r1\/rodada\.json; devolutiva de quem terminou em \/rodadas\/r1\/devolutivas\)/);
     assert.match(texto, /### ✦ Maestro — Ana \(parada/);
     assert.match(texto, /### Tarefa t1 — Bruno \(ESPERANDO PERMISSÃO/);
     assert.match(texto, /disse: editando/);

@@ -37,7 +37,7 @@ const POLL_MS = 3000;
 /** De quanto em quanto tempo o pombal busca o remoto (rede); entre uma busca e outra, o estado vem do disco. */
 const POMBAL_FETCH_MS = 5 * 60_000;
 
-let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {} };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [] };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 
@@ -63,10 +63,10 @@ const porao = new Porao();
 const bastao = new Bastao();
 
 /** Abre uma sessão nova sem ninguém olhando, já com a primeira mensagem (tarefa do porão, roteiro, sucessor do bastão). */
-async function abrirSessao({ sessionId, cwd, prompt, permitir }: { sessionId: string; cwd: string; prompt: string; permitir: string[] }) {
+async function abrirSessao({ sessionId, cwd, prompt, permitir, settings }: { sessionId: string; cwd: string; prompt: string; permitir: string[]; settings?: string }) {
   const ambiente = await ambienteDoTerminal(cwd, config);
   if ('erro' in ambiente) return ambiente.erro;
-  terminals.start({ sessionId, cwd, mode: 'new', prompt, permitir, env: ambiente.env, cols: 120, rows: 32 });
+  terminals.start({ sessionId, cwd, mode: 'new', prompt, permitir, settings, env: ambiente.env, cols: 120, rows: 32 });
   return null;
 }
 
@@ -82,8 +82,20 @@ setInterval(() => {
 const relatoriosLidos = new RelatoriosLidos();
 const clinica = new Clinica(() => world, () => hooks.all(), (id) => terminals.pidDe(id));
 
+/** Tarefa de rodada que a vila abre sozinha (a dependente, maestro v2): na pasta do projeto dela. */
+function abrirDaRodada(projectId: string) {
+  return (sessionId: string, prompt: string, permitir: string[], settings?: string) => {
+    const project = findProject(projectId);
+    return project ? abrirSessao({ sessionId, cwd: project.path, prompt, permitir, settings }) : Promise.resolve('Projeto da rodada não encontrado.');
+  };
+}
+
 async function refreshWorld() {
   try {
+    // A vila conduz as rodadas do maestro (v2): pronta pela devolutiva, dependente abre, relatório no fim.
+    await porao
+      .avancar(world.sessions, abrirDaRodada, config.porao.leitura)
+      .catch((err) => console.error('[porão] falha ao conduzir a rodada:', err));
     const built = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents, skills, porao, relatoriosLidos);
     world = { ...built, projects: built.projects.map((p) => ({ ...p, lareira: lareiras.merge(p.id, p.lareira) })) };
     const json = JSON.stringify(world);
@@ -186,12 +198,16 @@ server.on('upgrade', (req, socket, head) => {
       // Maestro do porão: sabe onde está a vila e qual é a própria sessão, para pedir as sessões da rodada (MA-1, fase 3).
       const ehMaestro = forAgent?.agent === MAESTRO || known?.porao?.papel === 'maestro';
       const porta = ehMaestro ? { DEV_VALLEY_URL: `http://127.0.0.1:${config.port}`, DEV_VALLEY_SESSION: sessionId } : {};
+      // Tarefa do porão retomada: volta com as regras e os hooks com que nasceu (MA-3).
+      const daTarefa = known?.porao?.papel === 'tarefa' && !terminals.has(sessionId) ? await porao.retomada(sessionId, config.porao.leitura) : null;
       terminals.attach(ws, {
         env: { ...ambiente.env, ...porta },
         sessionId,
         cwd,
         mode: known ? 'resume' : 'new',
         agent: forAgent?.agent,
+        permitir: daTarefa?.permitir,
+        settings: daTarefa?.settings,
         cols: Number(url.searchParams.get('cols')) || 120,
         rows: Number(url.searchParams.get('rows')) || 32,
       });

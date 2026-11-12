@@ -1,7 +1,7 @@
-import { api, getWorld, type PedidoPorao, type Project } from '../api';
+import { api, colunaDa, comandosDoPedido, getWorld, onWorld, rodadaDoPorao, type ColunaDoQuadro, type PedidoPorao, type Project, type RodadaPorao, type World } from '../api';
 import { villagerName } from '../game/names';
 import { ui } from './actions';
-import { closePanel, escapeHtml, openPanel } from './panel';
+import { button, closePanel, escapeHtml, openPanel } from './panel';
 
 /**
  * Gongo do porão: "Encerrar rodada" apaga as conversas do porão do projeto, maestro e tarefas, como o encerrar de
@@ -51,23 +51,35 @@ export function openEncerrarRodada(project: Project) {
 export function openPedidoPorao(pedido: PedidoPorao, project: Project) {
   if (pedido.roteiro) return openPedidoRoteiro(pedido, project);
   const n = pedido.tarefas.length;
+  const depois = pedido.tarefas.filter((t) => pedido.dependencias?.[t]?.length).length;
+  // Maestro v3: com comando de teste, a vila roda a linha de base antes de abrir qualquer sessão.
+  const comandos = comandosDoPedido(pedido);
+  const agora = comandos.length ? 'abrem quando a linha de base terminar' : 'abrem agora';
   const panel = openPanel({ title: `O maestro quer abrir ${n} ${n === 1 ? 'sessão' : 'sessões'}`, subtitle: `${project.name} · rodada ${pedido.rodada}` });
+  const lista = (xs: string[]) => xs.map((x) => `<code>${escapeHtml(x)}</code>`).join(', ');
   panel.body.innerHTML = `
-    <p>Uma sessão de trabalho por tarefa. Cada uma começa lendo o briefing dela e fica só no porão. Abrir libera, sem
-    pedir de novo, o que está em cada tarefa:</p>
+    <p>Uma sessão de trabalho por tarefa. Cada uma começa lendo o briefing dela e fica só no porão.${
+      depois ? ` ${n - depois} ${agora}; ${depois === 1 ? 'a outra abre sozinha' : `as outras ${depois} abrem sozinhas`} quando a tarefa de que depende ficar pronta.` : ''
+    } Abrir libera, sem pedir de novo, o que está em cada tarefa:</p>
     <ul class="session-list">${pedido.tarefas
       .map((t) => {
         const perm = pedido.permissoes?.[t];
-        const lista = (xs: string[]) => xs.map((x) => `<code>${escapeHtml(x)}</code>`).join(', ');
         const liberado = perm
           ? `<br><span class="muted">Editar:</span> ${lista(perm.arquivos)}<br><span class="muted">Rodar:</span> ${perm.testes.length ? lista(perm.testes) : 'nenhum comando'}`
           : '<br><span class="muted">Nada liberado: pede permissão para tudo.</span>';
-        return `<li><b>${escapeHtml(t)}</b> <code>~/.claude/maestro/rodadas/${escapeHtml(pedido.rodada)}/briefings/${escapeHtml(t)}.md</code>${liberado}</li>`;
+        const deps = pedido.dependencias?.[t] ?? [];
+        const quando = deps.length ? `<br><span class="muted">Abre quando ${deps.map(escapeHtml).join(' e ')} ${deps.length === 1 ? 'ficar pronta' : 'ficarem prontas'}.</span>` : '';
+        return `<li><b>${escapeHtml(t)}</b> <code>~/.claude/maestro/rodadas/${escapeHtml(pedido.rodada)}/briefings/${escapeHtml(t)}.md</code>${quando}${liberado}</li>`;
       })
       .join('')}</ul>
     <p class="muted">Fora disso elas pedem permissão como qualquer sessão: o ❗ aparece no morador do porão e no topo da tela.</p>
+    ${
+      comandos.length
+        ? `<p>A vila roda ${lista(comandos)} antes de abrir as sessões (linha de base) e de novo quando todas ficarem prontas: o relatório separa o que já estava vermelho do que a rodada quebrou.</p>`
+        : '<p class="muted">Nenhuma tarefa trouxe comando de teste: a rodada sai sem verificação automática.</p>'
+    }
     <p class="porao-acoes">
-      <button class="btn btn-primary" data-acao="aprovar">Abrir ${n} ${n === 1 ? 'sessão' : 'sessões'}</button>
+      <button class="btn btn-primary" data-acao="aprovar">${depois || comandos.length ? 'Aprovar a rodada' : `Abrir ${n} ${n === 1 ? 'sessão' : 'sessões'}`}</button>
       <button class="btn btn-danger" data-acao="recusar">Recusar</button>
     </p>
     <div class="porao-resultado"></div>`;
@@ -86,6 +98,8 @@ export function openPedidoPorao(pedido: PedidoPorao, project: Project) {
         resultado.innerHTML = `<ul class="session-list">${pedido.tarefas
           .map((t) => {
             const s = r.sessoes[t];
+            if (!s && pedido.dependencias?.[t]?.length) return `<li><b>${escapeHtml(t)}</b> espera ${pedido.dependencias[t]!.map(escapeHtml).join(' e ')}</li>`;
+            if (!s && comandos.length) return `<li><b>${escapeHtml(t)}</b> abre quando a linha de base terminar (o quadro na estante mostra)</li>`;
             return `<li><b>${escapeHtml(t)}</b> ${s && 'sessionId' in s ? 'aberta, já está numa mesa do porão' : `não abriu: ${escapeHtml(s && 'erro' in s ? s.erro : 'sem resposta')}`}</li>`;
           })
           .join('')}</ul>`;
@@ -133,5 +147,99 @@ function openPedidoRoteiro(pedido: PedidoPorao, project: Project) {
         resultado.innerHTML = `<p>${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`;
       }
     });
+  }
+}
+
+const COLUNAS: { id: ColunaDoQuadro; titulo: string; dot: string }[] = [
+  { id: 'esperando', titulo: 'Esperando', dot: '' },
+  { id: 'trabalhando', titulo: 'Trabalhando', dot: 'working' },
+  { id: 'precisa', titulo: 'Precisa de você', dot: 'permission' },
+  { id: 'pronta', titulo: 'Pronta', dot: 'idle' },
+];
+
+/** Onde a rodada está no gate (maestro v3), numa linha acima do quadro; vazio = rodada sem comando de teste. */
+function textoDoGate(g: RodadaPorao['gate']): string {
+  if (!g) return '<p class="muted">Sem verificação automática: nenhuma tarefa trouxe comando de teste.</p>';
+  const cmds = g.comandos.map((c) => `<code>${escapeHtml(c)}</code>`).join(', ');
+  switch (g.estado) {
+    case 'linha-de-base':
+      return `<p>Conferindo a linha de base: a vila roda ${cmds} antes de abrir as sessões. As tarefas abrem quando terminar.</p>`;
+    case 'trabalhando':
+      return `<p class="muted">Linha de base feita. Quando todas ficarem prontas, a vila roda ${cmds} de novo, antes do relatório.</p>`;
+    case 'conferindo':
+      return `<p>Conferindo o gate: a vila roda ${cmds} com todas as tarefas prontas. O relatório sai quando terminar.</p>`;
+    case 'aprovada':
+      return '<p>Gate aprovado: nenhum comando de teste quebrou.</p>';
+    case 'reprovada':
+      return `<p>❗ <b>Reprovada:</b> a rodada quebrou ${g.quebrou.map((c) => `<code>${escapeHtml(c)}</code>`).join(', ')}. Nenhuma sessão foi reaberta; o relatório diz onde está a saída. A decisão é sua.</p>`;
+  }
+}
+
+const minutos = (ms: number) => {
+  const min = Math.max(0, Math.round(ms / 60_000));
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${min % 60} min`;
+};
+
+/**
+ * Quadro da rodada (maestro v2, fase 4): o que a vila sabe de cada tarefa, uma coluna por estado. Abre na estante de
+ * partitura enquanto a rodada anda (D4) e se redesenha a cada mudança do mundo. Clique na tarefa abre a sessão dela.
+ */
+export function openQuadroRodada(project: Project) {
+  const unsubscribe = onWorld(draw);
+  const panel = openPanel({ title: 'Quadro da rodada', subtitle: `${project.name} · porão`, size: 'lg', scroll: true, onClose: unsubscribe });
+  let chave = '';
+  draw(getWorld());
+
+  function draw(w: World) {
+    const r = rodadaDoPorao(w, project.id);
+    const vivas = (r?.tarefas ?? []).map((t) => ({ t, coluna: colunaDa(t, w), s: w.sessions.find((x) => x.id === t.sessionId) }));
+    const k = JSON.stringify([r, vivas.map((v) => [v.coluna, v.s?.name])]);
+    if (k === chave) return;
+    chave = k;
+    if (!r) {
+      panel.body.innerHTML = '<p class="empty">Nenhuma rodada em andamento neste porão.</p>';
+      return;
+    }
+    const agora = Date.now();
+    const motivo = (v: (typeof vivas)[number]) => {
+      const t = v.t;
+      if (t.estado === 'esperando') return `depois de ${t.dependeDe.map(escapeHtml).join(' e ')}`;
+      if (t.estado === 'erro') return `não abriu: ${escapeHtml(t.erro ?? '')}`;
+      if (t.estado === 'pronta') return t.abertaEm && t.prontaEm ? `em ${minutos(t.prontaEm - t.abertaEm)}` : 'pronta';
+      if (t.parouSemTerminar) return 'parou sem a devolutiva: abra para ver o que ela pergunta';
+      if (v.coluna === 'precisa') return '❗ pedindo permissão';
+      return t.abertaEm ? `há ${minutos(agora - t.abertaEm)}` : 'abrindo';
+    };
+    const colunas = COLUNAS.map((c) => {
+      const itens = vivas.filter((v) => v.coluna === c.id);
+      const lis = itens.length
+        ? itens
+            .map(
+              (v) => `<li data-tarefa="${escapeHtml(v.t.id)}"${v.s ? '' : ' class="empty"'}>
+                <b>${escapeHtml(v.t.id)}</b>${v.s ? ` <span>${escapeHtml(v.s.name || villagerName(v.s.id))}</span>` : ''}
+                <br><span class="muted">${motivo(v)}</span></li>`,
+            )
+            .join('')
+        : '<li class="empty muted">—</li>';
+      return `<section class="quadro-coluna"><h3><span class="dot ${c.dot}"></span>${c.titulo} <span class="muted">${itens.length}</span></h3>
+        <ul class="session-list">${lis}</ul></section>`;
+    }).join('');
+    const prontas = r.tarefas.filter((t) => t.estado === 'pronta').length;
+    panel.body.innerHTML = `
+      <p>Rodada <code>${escapeHtml(r.rodada)}</code> · ${prontas} de ${r.tarefas.length} pronta(s). A vila marca a tarefa
+      pronta quando a sessão grava a devolutiva, e abre sozinha a que esperava por ela.</p>
+      ${textoDoGate(r.gate)}
+      <div class="quadro-rodada">${colunas}</div>
+      ${
+        r.relatorio
+          ? `<p>Relatório montado: <code>${escapeHtml(r.relatorio)}</code>. Commite pelo pombal; o gongo encerra a rodada.</p>`
+          : '<p class="muted">Quando todas ficarem prontas, o relatório aparece aqui e na estante.</p>'
+      }
+      <p class="porao-acoes"></p>`;
+    for (const li of panel.body.querySelectorAll<HTMLElement>('li[data-tarefa]')) {
+      const v = vivas.find((x) => x.t.id === li.dataset.tarefa);
+      if (v?.s) li.addEventListener('click', () => ui.openSession(v.s!));
+    }
+    if (r.relatorio) panel.body.querySelector('.porao-acoes')!.append(button('Ver os relatórios', () => ui.openRelatorios(project)));
   }
 }

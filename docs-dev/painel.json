@@ -1,15 +1,17 @@
 {
   "plano": {
-    "nome": "Maestro e porão: trabalho paralelo de até 5 sessões (03/11/2026)",
-    "doc": "docs-dev/context/maestro.md",
+    "nome": "Maestro v3: recusar a rodada que não compensa, provar que passou, medir se valeu (11/11/2026)",
+    "doc": "docs-dev/context/maestro-v3.md",
     "fases": [
-      { "nome": "O agente e a regra (universal)", "estado": "feito" },
-      { "nome": "O porão na vila", "estado": "feito" },
-      { "nome": "O maestro cria as sessões", "estado": "feito" },
-      { "nome": "Avisos, relatório e encerramento", "estado": "feito" }
+      { "nome": "Etapa 0: fechar o v2 (suíte completa e rastro)", "estado": "feito" },
+      { "nome": "Etapa 1: padrão 3, viabilidade, contrato, gate com linha de base, medição", "estado": "feito" },
+      { "nome": "Etapa 2: conferir (gate do projeto, ensaio isolado, rodada real)", "estado": "andamento" },
+      { "nome": "Etapa 3: revisor por risco e orçamento, depois de 3 rodadas medidas", "estado": "a fazer" }
     ]
   },
   "entregas": [
+    { "data": "2026-11-11", "o_que": "Maestro v3: a vila roda os testes do cartão antes de abrir as sessões e de novo no fim (rodada aprovada ou reprovada, sem reabrir sessão), aceite na devolutiva, seção Custo e ganho no relatório e agente com padrão de 3 sessões e checklist de viabilidade; falta o ensaio e a rodada real", "como": "server/src/gate.ts, rodada.ts, porao.ts, gasto.ts; agente e contrato em ~/Documents/IA" },
+    { "data": "2026-11-11", "o_que": "Maestro v2: a vila conduz a rodada pela devolutiva em arquivo, hooks de devolutiva e de posse de arquivo, dependências aprovadas no cartão, relatório montado sem modelo, quadro da rodada na estante e resume com as regras (MA-3); falta conferir numa rodada de verdade", "como": "server/src/rodada.ts, porao.ts, scripts/porao-hook.sh, web/src/ui/porao.ts; agente e contrato em ~/Documents/IA" },
     { "data": "2026-11-03", "o_que": "Maestro e porão fechados: rodada de verdade pela vila com COMECEI e PRONTA chegando ao maestro; MA-1 encerrada", "como": "docs-dev/context/maestro.md; agente e contrato em ~/Documents/IA" },
     { "data": "2026-10-31", "o_que": "Moradores com aparência que combina com o nome e muito mais variados: 10 penteados, 10 roupas, 5 acessórios de cabeça, óculos, lenço, barba e bigode", "como": "villagerArt.ts sem Phaser, generoDoNome no servidor, scripts/previa-moradores.ts" },
     { "data": "2026-10-30", "o_que": "NPCs conversando: quem cita @Nome anda até o citado e os dois conversam com balão até a resposta terminar, na vila e dentro da casa", "como": "idsCitados no mod (0.2.0), citados no HookStore, World.conversas, syncConversas na TownScene e InteriorScene" },

@@ -1602,3 +1602,32 @@ h3 {
   font-size: 14px;
   font-style: italic;
 }
+
+/* ---------- quadro da rodada do porão (maestro v2) ---------- */
+/* Contorno neutro inteiro em cada coluna; a cor do estado vive só no ponto antes do título (G19). */
+.quadro-rodada {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.quadro-coluna {
+  border: 1px solid var(--parchment-dark);
+  border-radius: 4px;
+  padding: 6px;
+  min-width: 0;
+}
+
+.quadro-coluna h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: 1em;
+}
+
+.quadro-coluna .session-list li {
+  display: block;
+  overflow-wrap: anywhere;
+}

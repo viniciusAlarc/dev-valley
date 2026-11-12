@@ -112,7 +112,7 @@ export async function preambuloDaRodada(project: Project, sessions: WorldSession
     `Agora: ${agora.toLocaleDateString('pt-BR')} ${hora(agora.toISOString())}.`,
     `Projeto: ${project.name} — ${project.path}`,
     rodadas.length
-      ? `Rodada(s): ${rodadas.map((r) => `${r} (briefings em ${path.join(rodadasDir, r, 'briefings')})`).join('; ')}`
+      ? `Rodada(s): ${rodadas.map((r) => `${r} (briefings em ${path.join(rodadasDir, r, 'briefings')}; estado de cada tarefa, arquivos e dependências em ${path.join(rodadasDir, r, 'rodada.json')}; devolutiva de quem terminou em ${path.join(rodadasDir, r, 'devolutivas')})`).join('; ')}`
       : 'Nenhuma sessão de tarefa no porão agora.',
     `Relatórios das rodadas: ${path.join(project.path, 'docs-dev', 'maestro')}`,
   ];

@@ -11,8 +11,10 @@ export interface SpawnOpts {
   agent?: string;
   /** Primeira mensagem da sessão nova. */
   prompt?: string;
-  /** Regras `--allowedTools` da sessão nova (sessão de trabalho do porão: só os arquivos e testes da tarefa). */
+  /** Regras `--allowedTools` (sessão de trabalho do porão: só os arquivos e testes da tarefa; também no resume, MA-3). */
   permitir?: string[];
+  /** `--settings` em JSON (sessão de trabalho do porão: os hooks da tarefa, maestro v2; também no resume). */
+  settings?: string;
   cols: number;
   rows: number;
   env?: Record<string, string | undefined>;
@@ -28,13 +30,16 @@ interface Terminal extends LiveSession {
  * Argumentos do `claude` de um terminal da vila. As regras de `--allowedTools` vão por último: a opção aceita vários
  * valores e engoliria a primeira mensagem se ela viesse depois.
  */
-export function argsDoTerminal(opts: Pick<SpawnOpts, 'sessionId' | 'mode' | 'agent' | 'prompt' | 'permitir'>): string[] {
+export function argsDoTerminal(opts: Pick<SpawnOpts, 'sessionId' | 'mode' | 'agent' | 'prompt' | 'permitir' | 'settings'>): string[] {
   const args = opts.mode === 'resume' ? ['--resume', opts.sessionId] : ['--session-id', opts.sessionId];
-  if (opts.mode !== 'new') return args;
-  // Conversa com um agente da Fábrica: o próprio agente é quem responde na sessão.
-  if (opts.agent) args.push('--agent', opts.agent);
-  // Primeira mensagem já digitada (sessão de trabalho do porão: a frase do briefing).
-  if (opts.prompt) args.push(opts.prompt);
+  if (opts.mode === 'new') {
+    // Conversa com um agente da Fábrica: o próprio agente é quem responde na sessão.
+    if (opts.agent) args.push('--agent', opts.agent);
+    // Primeira mensagem já digitada (sessão de trabalho do porão: a frase do briefing).
+    if (opts.prompt) args.push(opts.prompt);
+  }
+  // Regras e hooks da tarefa do porão valem também ao retomar (MA-3): sem eles, a sessão voltava pedindo permissão.
+  if (opts.settings) args.push('--settings', opts.settings);
   if (opts.permitir?.length) args.push('--allowedTools', ...opts.permitir);
   return args;
 }

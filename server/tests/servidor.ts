@@ -50,7 +50,7 @@ export interface Servidor {
 
 /** Sobe o `app` numa porta livre de 127.0.0.1 com um mundo de mentira; fecha sozinho no fim do arquivo de teste. */
 export async function subir(mundo: { projects?: Project[]; sessions?: WorldSession[]; conversas?: World['conversas'] }, extra: Partial<Contexto> = {}): Promise<Servidor> {
-  const world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, ...mundo };
+  const world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [], ...mundo };
   const ctx: Contexto = {
     world: () => world,
     refreshWorld: async () => {},

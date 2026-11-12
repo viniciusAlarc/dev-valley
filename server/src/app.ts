@@ -67,10 +67,10 @@ export interface Contexto {
   /** Sessões de trabalho por rodada (`porao.tetoSessoes` do config, até 5). */
   tetoSessoes: number;
   /**
-   * Abre a sessão de trabalho sem tela, com a frase do briefing e as regras `--allowedTools` da tarefa (vazio = sessão
-   * comum); devolve o motivo quando não abre.
+   * Abre a sessão de trabalho sem tela, com a frase do briefing, as regras `--allowedTools` da tarefa (vazio = sessão
+   * comum) e o `--settings` com os hooks dela (maestro v2); devolve o motivo quando não abre.
    */
-  abrirTarefa: (o: { sessionId: string; cwd: string; prompt: string; permitir: string[] }) => Promise<string | null>;
+  abrirTarefa: (o: { sessionId: string; cwd: string; prompt: string; permitir: string[]; settings?: string }) => Promise<string | null>;
   /** O que as sessões de trabalho leem fora do projeto sem pedir (`porao.leitura` do config). */
   leituraPorao: string[];
   askLibrarian: typeof askLibrarian;
@@ -205,7 +205,7 @@ export function criarApp(ctx: Contexto): express.Express {
     if (!maestro?.live || maestro.porao?.papel !== 'maestro') return res.status(403).json({ error: 'Só o maestro aberto no porão, com a sessão viva, pede sessões.' });
     const casaDoMaestro = findProject(maestro.projectId);
     if (!casaDoMaestro) return res.status(404).json({ error: 'Projeto do maestro não encontrado.' });
-    const r = await porao.pedir({ maestro: maestro.id, rodada: req.body?.rodada, tarefas: req.body?.tarefas }, ctx.tetoSessoes, casaDoMaestro.path);
+    const r = await porao.pedir({ maestro: maestro.id, rodada: req.body?.rodada, tarefas: req.body?.tarefas, estimativaSessaoUnicaMin: req.body?.estimativaSessaoUnicaMin }, ctx.tetoSessoes, casaDoMaestro.path);
     if ('erro' in r) return res.status(r.status).json({ error: r.erro });
     await refreshWorld();
     res.status(201).json({ pedidoId: r.id, estado: r.estado, aviso: 'Peça ao usuário para aprovar no cartão da estante de partitura, no porão.' });
@@ -236,7 +236,7 @@ export function criarApp(ctx: Contexto): express.Express {
     const pedido = porao.pedido(req.params.id);
     const project = pedido && findProject(pedido.projectId);
     if (!pedido || !project) return res.status(404).json({ error: 'Pedido não encontrado.' });
-    const r = await porao.aprovar(pedido.id, (sessionId, prompt, permitir) => ctx.abrirTarefa({ sessionId, cwd: project.path, prompt, permitir }), ctx.leituraPorao);
+    const r = await porao.aprovar(pedido.id, (sessionId, prompt, permitir, settings) => ctx.abrirTarefa({ sessionId, cwd: project.path, prompt, permitir, settings }), ctx.leituraPorao);
     if (!r) return res.status(409).json({ error: 'Este pedido já foi decidido.' });
     await refreshWorld();
     res.json({ estado: r.estado, sessoes: r.sessoes });

@@ -23,6 +23,7 @@ import type { Moradores } from './moradores.js';
 import { perfilDe, projectsDirs, type Perfil } from './perfil.js';
 import { listSessions, type SessionInfo } from './sessions.js';
 import type { PapelNoPorao, PedidoPorao, Porao } from './porao.js';
+import type { RodadaNoMundo } from './rodada.js';
 
 export interface Project {
   id: string;
@@ -101,6 +102,8 @@ export interface World {
   pedidosPorao: PedidoPorao[];
   /** Maestros que chamaram o usuário no meio da rodada: id da sessão → motivo (❗ no maestro, 04/11/2026). */
   maestroChamando: Record<string, string>;
+  /** Rodadas do maestro em andamento, conduzidas pela vila (maestro v2): o quadro da estante de partitura. */
+  rodadasPorao: RodadaNoMundo[];
 }
 
 /** Janelas possíveis quando ainda não sabemos o tamanho real para o modelo. */
@@ -219,7 +222,7 @@ export async function buildWorld(
   moradores: Moradores,
   agents: Agents,
   skills: Skills,
-  porao: Pick<Porao, 'papeis' | 'pedidosAbertos' | 'chamadosAbertos'>,
+  porao: Pick<Porao, 'papeis' | 'pedidosAbertos' | 'chamadosAbertos' | 'rodadasNoMundo'>,
   relatoriosLidos: Pick<RelatoriosLidos, 'lidos'>,
 ): Promise<World> {
   const dirs = await discoverProjectDirs(config);
@@ -272,5 +275,6 @@ export async function buildWorld(
     conversas,
     pedidosPorao: porao.pedidosAbertos(),
     maestroChamando: porao.chamadosAbertos(),
+    rodadasPorao: porao.rodadasNoMundo(),
   };
 }

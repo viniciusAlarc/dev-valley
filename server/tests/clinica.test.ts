@@ -159,7 +159,7 @@ describe('a ficha que a médica recebe', () => {
 
   test('Clinica.ficha: só de morador vivo', async () => {
     const c = new Clinica(
-      () => ({ projects: [], sessions: [sessao('morto', { live: false })], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {} }),
+      () => ({ projects: [], sessions: [sessao('morto', { live: false })], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [] }),
       () => [],
       () => null,
       path.join(TMP, 'proc-vazio'),
@@ -295,7 +295,7 @@ describe('armário: pacientes esquecidos (CL-1)', () => {
   test('Clinica.armario: Docker ausente vira aviso, não erro', async () => {
     const semDocker = Object.assign(new Error('x'), { code: 'ENOENT' });
     const c = new Clinica(
-      () => ({ projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {} }),
+      () => ({ projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [] }),
       () => [],
       () => null,
       path.join(TMP, 'proc-vazio'),

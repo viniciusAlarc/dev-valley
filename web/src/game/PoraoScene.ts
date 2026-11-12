@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { activityOf, getWorld, onWorld, rodadaConduzindo, type PedidoPorao, type Project, type Session, type World } from '../api';
+import { activityOf, colunaDa, getWorld, onWorld, rodadaConduzindo, rodadaDoPorao, type PedidoPorao, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { label, makeInteractive, VillagerView } from './common';
 import { generateInteriorTextures, generatePoraoTextures } from './interiorTextures';
@@ -22,6 +22,8 @@ const BENCH_X = [W / 2 - 62, W / 2 + 62];
 const BENCH_SEATS = 3;
 const MAESTRO_X = W / 2 - 8;
 const MAESTRO_Y = WALL_H + 30;
+/** Marca da rodada reprovada no gate entre as tarefas que precisam de você: os dois-pontos nenhum nome de tarefa tem. */
+const REPROVADA = 'gate:reprovada';
 /** O mirim fica à esquerda do maestro, menor, no espaço onde era o quadro. */
 const MIRIM_X = MAESTRO_X - 30;
 const MIRIM_Y = WALL_H + 32;
@@ -80,12 +82,39 @@ export class PoraoScene extends Phaser.Scene {
     return world.pedidosPorao.filter((p) => p.projectId === this.projectId).sort((a, b) => a.criadoEm - b.criadoEm)[0];
   }
 
-  private mostrarPedido(pedido: PedidoPorao | undefined) {
-    const key = pedido?.id ?? '';
-    if (key === this.pedidoKey && (!pedido || this.avisoPedido?.active)) return;
+  /**
+   * O que na rodada precisa do usuário: tarefa parada sem a devolutiva ou que não abriu e, maestro v3, a rodada reprovada
+   * no gate (`REPROVADA`, que nenhum nome de tarefa alcança). ❗ na estante, sem pedido.
+   */
+  private precisando(world: World): string[] {
+    const r = rodadaDoPorao(world, this.projectId);
+    const ids = (r?.tarefas ?? []).filter((t) => t.estado === 'erro' || t.parouSemTerminar).map((t) => t.id);
+    return r?.gate?.estado === 'reprovada' ? [...ids, REPROVADA] : ids;
+  }
+
+  private mostrarPedido(pedido: PedidoPorao | undefined, precisando: string[] = []) {
+    const key = pedido?.id ?? (precisando.length ? `quadro:${precisando.join(',')}` : '');
+    if (key === this.pedidoKey && (!key || this.avisoPedido?.active)) return;
     this.pedidoKey = key;
     this.avisoPedido?.destroy();
     this.avisoPedido = undefined;
+    if (!pedido && precisando.length) {
+      const x = MAESTRO_X + 20;
+      const y = MAESTRO_Y - 30;
+      this.avisoPedido = this.add.image(x, y, 'alert').setDepth(100000);
+      this.tweens.add({ targets: this.avisoPedido, y: y - 2, yoyo: true, repeat: -1, duration: 400 });
+      makeInteractive(
+        this.avisoPedido,
+        () => {
+          const tarefas = precisando.filter((x) => x !== REPROVADA);
+          const parte = tarefas.length ? `${tarefas.join(', ')} ${tarefas.length === 1 ? 'parou e precisa' : 'pararam e precisam'} de você` : '';
+          const gate = precisando.includes(REPROVADA) ? 'reprovada no gate: um comando de teste quebrou' : '';
+          return `Quadro da rodada — ${[gate, parte].filter(Boolean).join(' · ')} — clique para ver`;
+        },
+        () => ui.openQuadroRodada(this.project(getWorld())!),
+      );
+      return;
+    }
     if (!pedido) return;
     const x = MAESTRO_X + 20;
     const y = MAESTRO_Y - 30;
@@ -162,8 +191,9 @@ export class PoraoScene extends Phaser.Scene {
     this.maestroBubble?.set(ativo ? (ativo.id in world.maestroChamando ? 'permission' : activityOf(ativo)) : 'offline');
     this.reger(!!ativo && rodadaConduzindo(world, project.id));
     const pedido = this.pedidoDaqui(world);
-    this.mostrarPedido(pedido);
-    this.notaRelatorio?.setVisible(!pedido && (project.relatorios ?? []).some((r) => !r.lido));
+    const precisando = this.precisando(world);
+    this.mostrarPedido(pedido, precisando);
+    this.notaRelatorio?.setVisible(!pedido && !precisando.length && (project.relatorios ?? []).some((r) => !r.lido));
     for (const [id, monitor] of this.monitors) {
       const s = sessions.find((x) => x.id === id);
       const a = s ? activityOf(s) : 'offline';
@@ -188,7 +218,7 @@ export class PoraoScene extends Phaser.Scene {
     this.add.tileSprite(0, 0, W, WALL_H, 'poraoWall').setOrigin(0).setDepth(-19);
     const frame = this.add.graphics().setDepth(100000 - 1);
     frame.fillStyle(0x2a2520).fillRect(-6, 0, 6, H).fillRect(W, 0, 6, H).fillRect(-6, H, W + 12, 6);
-    ui.setLocation(`${project.name} · porão`, 'Maestro ✦: rodada nova ou conversa (regendo, ele fica com o mirim) · mirim ✦: dúvidas da rodada · estante: cartão e relatórios · morador: abrir a sessão · escada ou Esc: voltar');
+    ui.setLocation(`${project.name} · porão`, 'Maestro ✦: rodada nova ou conversa (regendo, ele fica com o mirim) · mirim ✦: dúvidas da rodada · estante: cartão, quadro da rodada e relatórios · morador: abrir a sessão · escada ou Esc: voltar');
 
     const escada = this.prop('ladder', 22, WALL_H + 12);
     makeInteractive(escada, () => 'Escada — voltar para a casa (Esc)', () => this.leave());
@@ -244,8 +274,14 @@ export class PoraoScene extends Phaser.Scene {
     makeInteractive(
       partitura,
       () => {
-        const p = this.pedidoDaqui(getWorld());
+        const w = getWorld();
+        const p = this.pedidoDaqui(w);
         if (p) return `Estante de partitura — o maestro pediu ${p.tarefas.length} sessão(ões) para a rodada ${p.rodada} — clique para decidir`;
+        const r = rodadaDoPorao(w, this.projectId);
+        if (r) {
+          const prontas = r.tarefas.filter((t) => colunaDa(t, w) === 'pronta').length;
+          return `Estante de partitura — rodada ${r.rodada}: ${prontas} de ${r.tarefas.length} pronta(s) — clique para ver o quadro`;
+        }
         const list = this.project(getWorld())?.relatorios ?? [];
         const novos = list.filter((r) => !r.lido).length;
         if (!list.length) return 'Estante de partitura — nenhum pedido esperando e nenhuma rodada fechada ainda';
@@ -253,11 +289,12 @@ export class PoraoScene extends Phaser.Scene {
           ? `Estante de partitura — ${novos} relatório(s) de rodada que você ainda não abriu — clique para ler`
           : `Estante de partitura — ${list.length} relatório(s) de rodada — clique para ver`;
       },
-      // Com pedido esperando, o cartão; senão, os relatórios das rodadas (a partitura tocada, 04/11/2026).
+      // Com pedido esperando, o cartão; com rodada em andamento, o quadro (maestro v2, D4); senão, os relatórios.
       () => {
         const cur = this.project(getWorld()) ?? project;
         const p = this.pedidoDaqui(getWorld());
         if (p) ui.openPedidoPorao(p, cur);
+        else if (rodadaDoPorao(getWorld(), cur.id)) ui.openQuadroRodada(cur);
         else ui.openRelatorios(cur);
       },
     );
