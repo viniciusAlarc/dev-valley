@@ -211,6 +211,43 @@ export function aceiteDe(d: Devolutiva | null): { ok: boolean; como: string } | 
 /** "sim" (ou "true") em `mexeu_em_tela`: a rodada pede o roteiro de testes. */
 export const mexeuEmTela = (d: Devolutiva | null) => /^(sim|s|true|yes)$/i.test(d?.campos.mexeu_em_tela ?? '');
 
+/** Valor que diz "nada": vazio, "nada", "nenhum", "-". */
+const ehNada = (v: string) => !v.trim() || /^(nada|nenhum|nenhuma|-)\.?$/i.test(v.trim());
+
+/**
+ * Lastro na spec (21/11/2026): `lastro` (regras da spec que a entrega cumpre e as que ficaram para fase futura, com a
+ * spec de origem), `fora_da_spec` (o que fez sem estar na spec, ou "nada") e `revisao` (o resultado do `/revisar`, ou
+ * "não se aplica: <por quê>"). Devolutiva sem nenhum dos três (antiga) = null.
+ */
+export function lastroDe(d: Devolutiva | null): { lastro: string; fora: string; revisao: string } | null {
+  const c = d?.campos;
+  if (!c || (c.lastro === undefined && c.fora_da_spec === undefined && c.revisao === undefined)) return null;
+  return { lastro: c.lastro ?? '', fora: c.fora_da_spec ?? '', revisao: c.revisao ?? '' };
+}
+
+/**
+ * Seção "Lastro na spec" do relatório: uma linha por tarefa e um aviso para cada uma que fez algo fora da spec ou não
+ * disse o lastro. Rodada sem nenhuma devolutiva com os campos (anterior a 21/11/2026) = sem a seção.
+ */
+function secaoDoLastro(ids: string[], devolutivas: Record<string, Devolutiva | null>): string[] {
+  const porTarefa = ids.map((t) => [t, lastroDe(devolutivas[t] ?? null)] as const);
+  if (porTarefa.every(([, l]) => !l)) return [];
+  const nInf = 'não informado';
+  const fora = porTarefa.filter(([, l]) => l && !ehNada(l.fora)).map(([t]) => t);
+  const semLastro = porTarefa.filter(([, l]) => !l || !l.lastro.trim()).map(([t]) => t);
+  return [
+    '## Lastro na spec',
+    '',
+    '| Tarefa | Lastro | Fora da spec | Revisão |',
+    '|---|---|---|---|',
+    ...porTarefa.map(([t, l]) => `| ${celula(t)} | ${celula(l?.lastro || nInf)} | ${celula(l ? l.fora || nInf : nInf)} | ${celula(l?.revisao || nInf)} |`),
+    '',
+    ...(fora.length ? [`**Fora da spec em ${fora.join(', ')}:** confira antes do commit; o que não estiver na spec volta ou vira decisão registrada (G1, G2).`] : []),
+    ...(semLastro.length ? [`**Sem lastro informado em ${semLastro.join(', ')}:** a devolutiva não diz de qual regra da spec a entrega saiu.`] : []),
+    ...(fora.length || semLastro.length ? [''] : []),
+  ];
+}
+
 const doisDigitos = (n: number) => String(n).padStart(2, '0');
 const hora = (ms: number) => {
   const d = new Date(ms);
@@ -353,7 +390,7 @@ export function montarRelatorio(r: Rodada, devolutivas: Record<string, Devolutiv
   });
   const fora = ids
     .map((t) => [t, devolutivas[t]?.campos.ficou_de_fora ?? ''] as const)
-    .filter(([, f]) => f && !/^(nada|nenhum|nenhuma|-)\.?$/i.test(f));
+    .filter(([, f]) => !ehNada(f));
   const tela = ids.some((t) => mexeuEmTela(devolutivas[t] ?? null));
   return [
     `# Rodada: ${assuntoDe(r.rodada).replace(/-/g, ' ')}`,
@@ -372,6 +409,7 @@ export function montarRelatorio(r: Rodada, devolutivas: Record<string, Devolutiv
     `**Roteiro de testes:** ${tela ? 'a fazer (o cartão está na estante de partitura do porão)' : 'não se aplica: nenhuma tarefa mexeu em tela'}`,
     '**Commits:** pelo pombal, a fazer.',
     '',
+    ...secaoDoLastro(ids, devolutivas),
     ...secaoDoGate(r, pastaDaRodada),
     ...secaoDeCusto(r),
     `Montado pela vila com as devolutivas das sessões (\`${pastaDaRodada}/devolutivas/\`).`,

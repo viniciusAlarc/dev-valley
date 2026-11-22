@@ -92,6 +92,28 @@ describe('montarRelatorio', () => {
     assert.match(md, /\| t2 \| Caio \| 5 min 50 s \| Fez a segunda\. \| `b\.ts` \| - \|/);
     assert.match(md, /\*\*Ficou de fora \/ pendências:\*\* t2: falta o ícone/);
     assert.match(md, /\*\*Roteiro de testes:\*\* a fazer/);
+    assert.doesNotMatch(md, /Lastro na spec/, 'devolutivas sem os campos (antigas): sem a seção');
+  });
+
+  test('lastro na spec: tabela por tarefa, aviso de fora da spec e de lastro não informado (21/11/2026)', () => {
+    const r: Rodada = {
+      versao: 2, rodada: '20261121-1000-lastro', projectId: 'p', pasta: '/x', aprovadaEm: 0,
+      tarefas: {
+        t1: { arquivos: ['a.ts'], testes: [], dependeDe: [], estado: 'pronta' },
+        t2: { arquivos: ['b.ts'], testes: [], dependeDe: [], estado: 'pronta' },
+        t3: { arquivos: ['c.ts'], testes: [], dependeDe: [], estado: 'pronta' },
+      },
+    };
+    const md = montarRelatorio(r, {
+      t1: { campos: { lastro: 'RN-01, MSG-14 (Consultar v1.3)', fora_da_spec: 'nada', revisao: 'spec sem achado' }, corpo: 'a' },
+      t2: { campos: { lastro: 'RN-02', fora_da_spec: 'ordenação por nome', revisao: '1 confirmado, corrigido' }, corpo: 'b' },
+      t3: { campos: {}, corpo: 'c' },
+    }, () => '-');
+    assert.match(md, /^## Lastro na spec$/m);
+    assert.match(md, /\| t1 \| RN-01, MSG-14 \(Consultar v1\.3\) \| nada \| spec sem achado \|/);
+    assert.match(md, /\| t3 \| não informado \| não informado \| não informado \|/);
+    assert.match(md, /\*\*Fora da spec em t2:\*\*/);
+    assert.match(md, /\*\*Sem lastro informado em t3:\*\*/);
   });
 });
 
@@ -307,7 +329,12 @@ describe('scripts/porao-hook.sh', () => {
     assert.equal(sem.status, 2);
     assert.match(sem.stderr, /devolutivas\/t1\.md/);
     assert.equal(rodar('parar', dir, 't1', { stop_hook_active: true }).status, 0);
-    fs.writeFileSync(path.join(dir, 'devolutivas', 't1.md'), 'feito');
+    fs.writeFileSync(path.join(dir, 'devolutivas', 't1.md'), '---\ntarefa: t1\nlastro: RN-01\n---\nfeito');
+    const semCampos = rodar('parar', dir, 't1', {});
+    assert.equal(semCampos.status, 2, 'devolutiva sem os campos de lastro é lembrada');
+    assert.match(semCampos.stderr, /sem: fora_da_spec revisao\./);
+    assert.equal(rodar('parar', dir, 't1', { stop_hook_active: true }).status, 0, 'lembra uma vez só');
+    fs.writeFileSync(path.join(dir, 'devolutivas', 't1.md'), '---\ntarefa: t1\nlastro: RN-01\nfora_da_spec: nada\nrevisao: não se aplica: sem rubrica\n---\nfeito');
     assert.equal(rodar('parar', dir, 't1', {}).status, 0);
   });
 

@@ -3,7 +3,8 @@
 # pelo `--settings` que a vila passa no spawn (server/src/rodada.ts, settingsDaTarefa): nada no mod nem no global.
 #
 #   porao-hook.sh parar <pasta da rodada> <tarefa>   (Stop)
-#     Sem a devolutiva, sai com 2: o Claude Code devolve o aviso à sessão, que grava antes de terminar. É lembrete,
+#     Sem a devolutiva, ou com ela sem os campos de lastro (lastro, fora_da_spec, revisao, 21/11/2026), sai com 2: o
+#     Claude Code devolve o aviso à sessão, que grava antes de terminar. É lembrete,
 #     não prisão: na segunda volta do mesmo fim de turno (stop_hook_active) passa direto, para a sessão poder parar e
 #     perguntar algo ao usuário.
 #
@@ -35,7 +36,21 @@ aberta() { # a tarefa $1 ainda trabalha?
 case "$modo" in
   parar)
     [ "$(jq -r '.stop_hook_active // false' <<<"$entrada")" = true ] && exit 0
-    [ -s "$dir/devolutivas/$tarefa.md" ] && exit 0
+    dev="$dir/devolutivas/$tarefa.md"
+    if [ -s "$dev" ]; then
+      # Lastro na spec (21/11/2026): a devolutiva diz de onde a entrega saiu, o que ficou fora da spec e a revisão.
+      falta=''
+      for campo in lastro fora_da_spec revisao; do
+        grep -Eqi "^${campo}[[:space:]]*:" "$dev" || falta="$falta $campo"
+      done
+      [ -z "$falta" ] && exit 0
+      {
+        echo "Porão (Dev Valley): a devolutiva da $tarefa está sem:$falta."
+        echo "Acrescente no cabeçalho de $dev (formato no contrato \"Sob o maestro\"; sem spec no projeto, \"não se aplica: <por quê>\")."
+        echo "Se parou para perguntar algo ao usuário, só termine a resposta de novo."
+      } >&2
+      exit 2
+    fi
     {
       echo "Porão (Dev Valley): a tarefa $tarefa ainda não tem a devolutiva."
       echo "Se terminou, grave $dir/devolutivas/$tarefa.md no formato do briefing (é ela que avisa a vila que você acabou)."

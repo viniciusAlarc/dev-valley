@@ -3,6 +3,20 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-21 — Lastro na spec nas rodadas do maestro
+
+**O que mudou:** pedido do usuário (todo código do erp_b2b tem lastro na spec). A devolutiva das sessões do porão
+ganha três campos obrigatórios: `lastro` (regras da spec cumpridas e as de fase futura, com a spec de origem),
+`fora_da_spec` (o que fez sem estar na spec, ou "nada") e `revisao` (resultado do `/revisar`). O relatório da rodada
+ganha a seção "Lastro na spec", com aviso em destaque para "fora da spec" e para lastro não informado; o hook de parar
+lembra uma vez a sessão cuja devolutiva vier sem os campos.
+**Como:** `lastroDe` e `secaoDoLastro` em `server/src/rodada.ts` (rodada antiga, sem os campos, sai sem a seção);
+modo `parar` de `scripts/porao-hook.sh`; testes em `server/tests/rodada.test.ts`. Fora deste repositório
+(`~/Documents/IA`, branch `vinicius`): formato da devolutiva em `~/Documents/IA/guardrails-ia/convivencia.md`; briefing do maestro com
+as linhas "Spec" e "Revisão" (quando o projeto tem rubrica); `/revisar` com o "Pedido" copiado do briefing sob o
+maestro, e a lente spec abrindo a seção citada para achar regra esquecida no Pedido. A conferência dos briefings antes
+do clique segue com o plano da crítica do cartão (CC-1).
+
 ## 2026-11-11 — Maestro v3: gate com linha de base, aceite e medição
 
 **O que mudou:** o plano `docs-dev/context/maestro-v3.md` (decisões V1 a V5 do usuário), Etapas 0 e 1. (1) Agente:
