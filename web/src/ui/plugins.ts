@@ -1,7 +1,5 @@
-import { plugins, type McpInfo, type PluginInfo } from '../api';
+import { contaDoItem, plugins, type McpInfo, type PluginInfo } from '../api';
 import { escapeHtml, openPanel } from './panel';
-
-const PERFIL = { profissional: 'Perfil do trabalho (Claude)', pessoal: 'Perfil pessoal (DeepSeek)' } as const;
 
 function plural(n: number, um: string, varios: string) {
   return `${n} ${n === 1 ? um : varios}`;
@@ -32,12 +30,12 @@ function pluginRow(p: PluginInfo) {
 }
 
 function mcpRow(m: McpInfo) {
-  return `<li><b class="pend-id">${escapeHtml(m.name)}</b><span class="pend-item">${escapeHtml(m.onde === 'global' ? 'em todos os projetos' : `no projeto ${m.onde}`)} <span class="muted">· ${escapeHtml(m.type)}</span></span></li>`;
+  return `<li><b class="pend-id">${escapeHtml(m.name)}</b><span class="pend-item">${escapeHtml(m.onde === 'global' ? 'em todos os projetos' : `no projeto ${m.onde}`)} <span class="muted">· ${escapeHtml(contaDoItem(m).nome)} · ${escapeHtml(m.type)}</span></span></li>`;
 }
 
 /**
- * Quadro de força da Fábrica (02/11/2026): plugins e servidores MCP dos dois perfis, só leitura. Para ligar ou
- * desligar um plugin, `/plugin` numa sessão do Claude Code.
+ * Quadro de força da Fábrica (02/11/2026; uma seção por conta desde 19/11/2026): plugins e servidores MCP, só leitura.
+ * Para ligar ou desligar um plugin, `/plugin` numa sessão do Claude Code.
  */
 export async function openPlugins() {
   const panel = openPanel({ title: 'Quadro de força', subtitle: 'Plugins e servidores MCP do Claude Code · só leitura', size: 'lg', scroll: true });
@@ -49,14 +47,16 @@ export async function openPlugins() {
     panel.body.innerHTML = `<p class="empty error">Não deu para ler os plugins: ${escapeHtml(String(err))}</p>`;
     return;
   }
-  const perfis = (['profissional', 'pessoal'] as const).filter((p) => view.plugins.some((x) => x.perfil === p));
-  const secoes = perfis.map(
-    (perfil) => `
-      <h3>${PERFIL[perfil]}</h3>
-      <ul class="session-list pend-list">${view.plugins.filter((p) => p.perfil === perfil).map(pluginRow).join('')}</ul>`,
-  );
+  const itens = view.plugins.map((p) => ({ p, conta: contaDoItem(p) }));
+  const contas = [...new Set(itens.map((x) => x.conta.nome))];
+  const secoes = contas.map((nome) => {
+    const lista = itens.filter((x) => x.conta.nome === nome);
+    return `
+      <h3><span class="conta-dot ${lista[0]!.conta.provedor}"></span> ${escapeHtml(nome)}</h3>
+      <ul class="session-list pend-list">${lista.map(({ p }) => pluginRow(p)).join('')}</ul>`;
+  });
   panel.body.innerHTML = `
-    <p class="muted">Plugin muda o que o Claude Code faz em toda sessão do perfil. Para ligar ou desligar, use <code>/plugin</code>
+    <p class="muted">Plugin muda o que o Claude Code faz em toda sessão da conta. Para ligar ou desligar, use <code>/plugin</code>
     numa sessão; aqui é só para ver.</p>
     ${secoes.join('') || '<p class="empty">Nenhum plugin instalado.</p>'}
     <h3>Servidores MCP</h3>

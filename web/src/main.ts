@@ -7,6 +7,7 @@ import { InteriorScene } from './game/InteriorScene';
 import { LibraryScene } from './game/LibraryScene';
 import { ClinicaScene } from './game/ClinicaScene';
 import { PoraoScene } from './game/PoraoScene';
+import { QuartoScene } from './game/QuartoScene';
 import { TownScene } from './game/TownScene';
 import './style.css';
 import { mountHud } from './ui/hud';
@@ -21,7 +22,7 @@ new Phaser.Game({
   pixelArt: true,
   backgroundColor: '#2f5a26',
   scale: { mode: Phaser.Scale.RESIZE, width: window.innerWidth, height: window.innerHeight },
-  scene: [scene, InteriorScene, LibraryScene, FactoryScene, PoraoScene, ClinicaScene],
+  scene: [scene, InteriorScene, LibraryScene, FactoryScene, PoraoScene, QuartoScene, ClinicaScene],
 });
 
 mountHud();

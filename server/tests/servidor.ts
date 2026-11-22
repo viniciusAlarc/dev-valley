@@ -2,7 +2,8 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { after } from 'node:test';
 import { criarApp, type Contexto } from '../src/app.js';
-import type { Project, World, WorldSession } from '../src/world.js';
+import { CONTA_CLAUDE } from '../src/config.js';
+import { resumoDe, type Project, type World, type WorldSession } from '../src/world.js';
 
 /** Imitação que não foi preparada para o teste: falha alto em vez de agir na vila de verdade. */
 const proibido = (nome: string) => () => {
@@ -16,7 +17,8 @@ export function casa(id: string, dir: string, extra: Partial<Project> = {}): Pro
     name: id,
     path: dir,
     isGit: false,
-    perfil: 'profissional',
+    contaPadrao: resumoDe(CONTA_CLAUDE),
+    contas: [resumoDe(CONTA_CLAUDE)],
     branch: null,
     remote: null,
     changes: [],
@@ -37,7 +39,7 @@ export function casa(id: string, dir: string, extra: Partial<Project> = {}): Pro
 }
 
 export function sessao(id: string, extra: Partial<WorldSession> = {}): WorldSession {
-  return { id, name: 'Teste', genero: null, cwd: '/tmp', projectId: null, inTown: true, live: false, status: null, context: null, ...extra } as WorldSession;
+  return { id, name: 'Teste', genero: null, conta: resumoDe(CONTA_CLAUDE), cwd: '/tmp', projectId: null, inTown: true, live: false, status: null, context: null, ...extra } as WorldSession;
 }
 
 export interface Servidor {
@@ -49,8 +51,11 @@ export interface Servidor {
 }
 
 /** Sobe o `app` numa porta livre de 127.0.0.1 com um mundo de mentira; fecha sozinho no fim do arquivo de teste. */
-export async function subir(mundo: { projects?: Project[]; sessions?: WorldSession[]; conversas?: World['conversas'] }, extra: Partial<Contexto> = {}): Promise<Servidor> {
-  const world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [], ...mundo };
+export async function subir(
+  mundo: { projects?: Project[]; sessions?: WorldSession[]; conversas?: World['conversas']; contas?: World['contas'] },
+  extra: Partial<Contexto> = {},
+): Promise<Servidor> {
+  const world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [], contas: [], ...mundo };
   const ctx: Contexto = {
     world: () => world,
     refreshWorld: async () => {},
@@ -68,7 +73,8 @@ export async function subir(mundo: { projects?: Project[]; sessions?: WorldSessi
       search: proibido('library.search'),
     },
     statusLine: { handle: proibido('statusLine.handle'), ritmo: () => [] },
-    moradores: { claim: proibido('moradores.claim') },
+    moradores: { claim: proibido('moradores.claim'), renomear: proibido('moradores.renomear') },
+    quarto: { dormir: proibido('quarto.dormir') },
     agents: { read: proibido('agents.read'), create: proibido('agents.create'), save: proibido('agents.save'), remove: proibido('agents.remove') },
     skills: { read: proibido('skills.read'), create: proibido('skills.create'), save: proibido('skills.save'), remove: proibido('skills.remove') },
     plugins: { list: proibido('plugins.list') },
@@ -97,12 +103,17 @@ export async function subir(mundo: { projects?: Project[]; sessions?: WorldSessi
       atender: proibido('porao.atender'),
     },
     relatoriosLidos: { marcar: proibido('relatoriosLidos.marcar') },
+    contas: [CONTA_CLAUDE],
+    escolhasDeConta: new Map(),
+    contaDaSessao: () => CONTA_CLAUDE,
     tetoSessoes: 5,
     abrirTarefa: proibido('abrirTarefa'),
     leituraPorao: [],
     askLibrarian: proibido('askLibrarian'),
     askAdministrador: proibido('askAdministrador'),
     askMirim: proibido('askMirim'),
+    // Roda em segundo plano depois de todo pedido: a imitação padrão não faz nada (teste próprio em critico.test.ts).
+    criticaDoCartao: { iniciar: () => {}, anotarDecisao: async () => {} },
     clinica: { triagem: proibido('clinica.triagem'), ficha: proibido('clinica.ficha'), armario: proibido('clinica.armario'), vitais: proibido('clinica.vitais') },
     askMedica: proibido('askMedica'),
     sugerirMensagem: proibido('sugerirMensagem'),

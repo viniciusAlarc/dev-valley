@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { comandosDoGate, executarComando, GATE_LIMITE_MS, resultadoDoGate, saidaDoGate, type ExecutarComando, type MomentoDoGate, type ResultadoDoComando } from './gate.js';
+import type { CriticaDoCartao } from './critico.js';
 import { tokensDaConversa } from './gasto.js';
 import { MORADORES_DIR } from './moradores.js';
 import {
@@ -16,6 +17,7 @@ import {
   caminhoDoRelatorio,
   mexeuEmTela,
   settingsDaTarefa,
+  MODELO_DAS_SESSOES,
   validarDependencias,
   type Devolutiva,
   type Rodada,
@@ -73,6 +75,8 @@ export interface PedidoPorao {
   estado: 'aguardando' | 'aprovado' | 'recusado';
   /** Depois de aprovado: tarefa → sessão aberta, ou o motivo de não ter aberto. */
   sessoes: Record<string, { sessionId: string } | { erro: string }>;
+  /** Segunda opinião do crítico do cartão (21/11/2026, `critico.ts`): só avisa, nunca bloqueia o clique. */
+  critica?: CriticaDoCartao;
 }
 
 export interface PermissoesDaTarefa {
@@ -411,7 +415,8 @@ export class Porao {
   private async aprovarComTrava(pedido: PedidoPorao, abrir: AbrirSessao, leitura: string[]): Promise<PedidoPorao> {
     if (pedido.roteiro) {
       const sessionId = randomUUID();
-      const erro = await abrir(sessionId, promptDoRoteiro(pedido.roteiro), []);
+      // Só o modelo: a sessão do roteiro nasce na casa, sem hooks nem regra da rodada.
+      const erro = await abrir(sessionId, promptDoRoteiro(pedido.roteiro), [], JSON.stringify({ model: MODELO_DAS_SESSOES }));
       pedido.sessoes[TAREFA_ROTEIRO] = erro ? { erro } : { sessionId };
       return pedido;
     }

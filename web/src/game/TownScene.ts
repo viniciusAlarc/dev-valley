@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { bellCount, daCasa, estadoLareira, poraoPrecisaDeVoce, gasto, jornal, type GastoView, type JornalView, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
+import { bellCount, contaPadraoDaCasa, contasDoGasto, daCasa, naSala, estadoLareira, poraoPrecisaDeVoce, gasto, jornal, type GastoView, type JornalView, tomarEnvio, urgentPendencias, yardResidents, type EstadoLareira, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, CONVERSA_DX, label, makeInteractive, TALK_Y, TEXT_STYLE, VillagerView } from './common';
 import { computeLayout, inRects, isPath, TILE, type Layout, type Plot, type Rect } from './layout';
@@ -111,7 +111,7 @@ export class TownScene extends Phaser.Scene {
   private visitas = new Map<string, { para: string; balao?: Phaser.GameObjects.Image }>();
   private agentNpcs = new Map<string, { npc: AgentNpc; timer?: Phaser.Time.TimerEvent }>();
   private agentArea!: Rect;
-  private world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [] };
+  private world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [], contas: [] };
   private ready = false;
   /** Outdoor dos guardrails: some sem configuração; o estado muda a cada atualização do mundo. */
   private billboard?: { board: Phaser.GameObjects.Image; title: Phaser.GameObjects.Text; status: Phaser.GameObjects.Text };
@@ -269,8 +269,9 @@ export class TownScene extends Phaser.Scene {
     this.mill = { blades, volta: 0, view: null };
     const texto = () => {
       const v = this.mill?.view;
-      const p = v?.perfis.find((x) => x.perfil === 'profissional') ?? v?.perfis[0];
-      if (!v || !p) return 'Moinho — com o que o Claude gastou nesta semana — clique para ver';
+      const listadas = v ? contasDoGasto(v) : [];
+      const p = listadas.find((x) => x.conta.provedor === 'claude') ?? listadas[0];
+      if (!v || !p) return 'Moinho — com o que a vila gastou nesta semana — clique para ver';
       const top = p.projetos[0];
       const lider = top ? `${top.nome} ficou com ${fatia(top.peso, p.total)} do gasto. ` : '';
       return `Moinho — gasto da semana\n${lider}${comparacao(p.total, p.anterior, decorrido(v))} — clique para ver`;
@@ -284,8 +285,9 @@ export class TownScene extends Phaser.Scene {
         .then((v) => {
           if (!this.mill) return;
           this.mill.view = v;
-          const total = v.perfis.reduce((a, p) => a + p.total, 0);
-          const anterior = v.perfis.reduce((a, p) => a + p.anterior, 0);
+          const contas = contasDoGasto(v);
+          const total = contas.reduce((a, p) => a + p.total, 0);
+          const anterior = contas.reduce((a, p) => a + p.anterior, 0);
           this.girar(voltaDasPas(total, anterior, decorrido(v)));
         })
         .catch(() => {});
@@ -530,7 +532,7 @@ export class TownScene extends Phaser.Scene {
     this.tweens.add({ targets: star, y: star.y - 3, alpha: 0.6, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.inOut' });
     // Um banco só, à esquerda, e os arbustos juntos à direita: a praça não fica espelhada.
     const bench = this.addSprite('bench', fountain.x - 64, fountain.y + 16);
-    makeInteractive(bench, () => 'Banco da praça — sentar um morador novo (sessão avulsa, na home)', () => void ui.newAvulsa());
+    makeInteractive(bench, () => 'Banco da praça — criar um morador novo (sessão avulsa, na home) e escolher o modelo', () => void ui.newAvulsa());
     this.addSprite('bush', fountain.x + 72, fountain.y + 12);
     this.addSprite('bush', fountain.x + 58, fountain.y + 17);
     for (const side of [-1, 1]) {
@@ -567,7 +569,7 @@ export class TownScene extends Phaser.Scene {
       house,
       () => {
         const cur = this.currentProject(p.id);
-        const n = this.world.sessions.filter((s) => s.projectId === p.id && daCasa(s)).length;
+        const n = this.world.sessions.filter((s) => s.projectId === p.id && naSala(s)).length;
         const urgent = urgentPendencias(cur).length;
         const porao = poraoPrecisaDeVoce(this.world, p.id) ? ' · ❗ o porão precisa de você' : '';
         return `${cur.name}${cur.branch ? ` — ${cur.branch}` : ''}${cur.isGit ? '' : ' (sem git)'} · ${n} morador(es)${urgent ? ` · ❗ ${urgent} pendência(s) crítica(s)` : ''}${porao} — clique para entrar`;
@@ -585,7 +587,7 @@ export class TownScene extends Phaser.Scene {
 
     this.addSprite('bush', plot.house.x - 40, plot.house.y + 2);
     if (rnd() < 0.6) this.addSprite('bush', plot.house.x + 40, plot.house.y + 2);
-    label(this, plot.house.x, plot.house.y + 26, p.perfil === 'pessoal' ? `${p.name} · pessoal` : p.name, plot.house.y + 26);
+    label(this, plot.house.x, plot.house.y + 26, contaPadraoDaCasa(p).finalidade === 'pessoal' ? `${p.name} · pessoal` : p.name, plot.house.y + 26);
 
     const alertBg = this.add.graphics();
     alertBg.fillStyle(0x2b1a0e).fillRoundedRect(-5, -8, 10, 15, 3);

@@ -1,21 +1,21 @@
 import Phaser from 'phaser';
-import { agentLookFor, drawSheet, FACING_ROW, FACINGS, lookFor, lookKey, VILLAGER_H, VILLAGER_W, type Genero, type Perfil } from './villagerArt';
+import { agentLookFor, drawSheet, FACING_ROW, FACINGS, lookFor, lookKey, VILLAGER_H, VILLAGER_W, type Genero, type Provedor } from './villagerArt';
 
 export { FACING_ROW, VILLAGER_H, VILLAGER_W, type Facing } from './villagerArt';
 
 /** Gera (uma vez por combinação) a folha de sprites de um morador e suas animações. */
 /**
  * `agent`: traje de agente secreto, o padrão de todo NPC ✦ (agente), da Fábrica ou da vila. `genero`: marca do nome do
- * morador, para a aparência combinar com ele. `perfil`: roupa em tons quentes (Claude) ou frios (pessoal, DeepSeek).
+ * morador, para a aparência combinar com ele. `provedor`: roupa em tons quentes (Claude) ou frios (DeepSeek).
  */
 export function villagerTexture(
   scene: Phaser.Scene,
   id: string,
   agent = false,
   genero: Genero = null,
-  perfil: Perfil = 'profissional',
+  provedor: Provedor = 'claude',
 ): string {
-  const L = agent ? agentLookFor(id) : lookFor(id, genero, perfil);
+  const L = agent ? agentLookFor(id) : lookFor(id, genero, provedor);
   const key = lookKey(L);
   if (scene.textures.exists(key)) return key;
 

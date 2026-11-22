@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { Conta } from './config.js';
 import { askAgent, type AgentEvent, type Exchange } from './consulta.js';
 import { RODADAS_DIR } from './porao.js';
 import type { Project, WorldSession } from './world.js';
@@ -142,10 +143,11 @@ export async function askMirim(
   sessions: WorldSession[],
   onEvent: (e: AgentEvent) => void,
   hooksToIgnore: Set<string>,
+  conta?: Conta,
 ): Promise<() => void> {
   const preamble = await preambuloDaRodada(project, sessions);
   return askAgent(
-    { name: 'maestro-mirim', who: 'O maestro mirim', preamble, allow: regrasDoMirim(project.path), estrito: true, stepFor, replacements: { '{{PROJETO}}': project.path } },
+    { name: 'maestro-mirim', who: 'O maestro mirim', preamble, allow: regrasDoMirim(project.path), estrito: true, stepFor, replacements: { '{{PROJETO}}': project.path }, conta },
     question,
     history,
     onEvent,

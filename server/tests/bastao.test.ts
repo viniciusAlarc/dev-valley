@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, test } from 'node:test';
 import { Bastao, pedidoDoBastao, promptDoSucessor } from '../src/bastao.js';
+import type { Conta } from '../src/perfil.js';
 import { sessao, subir } from './servidor.js';
 
 // Passagem de bastão (BT-1, decisão do usuário de 08/11/2026): pasta temporária, nunca a home de verdade.
@@ -23,12 +24,13 @@ describe('Bastao: pedido e sucessor', () => {
     assert.ok(promptDoSucessor('Vera', '/tmp/b/x.md').includes('/tmp/b/x.md'));
   });
 
-  test('só abre o sucessor quando o resumo aparece, uma vez, na mesma pasta e com leitura só do bastão', async () => {
+  test('só abre o sucessor quando o resumo aparece, uma vez, na mesma pasta, com a mesma conta e leitura só do bastão', async () => {
     const dir = await pasta();
     const b = new Bastao(dir);
-    await b.pedir(ID, 'Vera', '/projetos/x');
+    const conta: Conta = { nome: 'DeepSeek', provedor: 'deepseek', configDir: '/x/extra', roots: [], finalidade: 'trabalho' };
+    await b.pedir(ID, 'Vera', '/projetos/x', conta);
     assert.equal(b.pendente(ID), true);
-    const abertos: { sessionId: string; cwd: string; prompt: string; permitir: string[] }[] = [];
+    const abertos: { sessionId: string; cwd: string; prompt: string; permitir: string[]; conta?: Conta | null }[] = [];
     const abrir = async (o: (typeof abertos)[number]) => (abertos.push(o), null);
     assert.deepEqual(await b.conferir(abrir), []);
     await fs.writeFile(b.arquivoDe(ID), '# Objetivo\n...');
@@ -36,6 +38,8 @@ describe('Bastao: pedido e sucessor', () => {
     assert.equal(r.length, 1);
     assert.equal(abertos[0]!.cwd, '/projetos/x');
     assert.deepEqual(abertos[0]!.permitir, [`Read(/${b.arquivoDe(ID)})`]);
+    // O sucessor não pode trocar de API no meio do trabalho (19/11/2026).
+    assert.deepEqual(abertos[0]!.conta, conta);
     assert.ok(abertos[0]!.prompt.includes('Vera'));
     assert.equal(b.pendente(ID), false);
     assert.deepEqual(await b.conferir(abrir), []);

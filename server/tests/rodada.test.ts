@@ -127,6 +127,10 @@ describe('settingsDaTarefa', () => {
     assert.match(s.hooks.PreToolUse[0].hooks[0].command, / posse '\/home\/u\/\.claude\/maestro\/rodadas\/r1' t2$/);
     assert.throws(() => settingsDaTarefa("/tmp/a'b", 't1'));
   });
+
+  test('a sessão de trabalho vai no Sonnet, sem depender do modelo do maestro (20/11/2026)', () => {
+    assert.equal(JSON.parse(settingsDaTarefa('/tmp/r1', 't1')).model, 'sonnet');
+  });
 });
 
 describe('Porao v2: o clique aprova a rodada inteira, a vila conduz', () => {

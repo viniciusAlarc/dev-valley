@@ -2,8 +2,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { writeCatalog } from './catalog.js';
-import type { Config } from './config.js';
-import { projectsDirs } from './perfil.js';
+import { CONTA_CLAUDE, type Config } from './config.js';
+import { projectsDirsPorConta } from './perfil.js';
 import type { Project } from './world.js';
 
 /**
@@ -101,10 +101,10 @@ async function scan(config: Config, projects: Project[]): Promise<Section[]> {
     files: globalMd ? [{ ...globalMd, rel: 'CLAUDE.md' }] : [],
   });
 
-  // Memórias de cada perfil do Claude Code (PP-2): o de trabalho mantém os ids e títulos de sempre; o pessoal ganha
-  // prefixo no id (a mesma pasta de projeto pode existir nos dois perfis) e no título.
-  for (const [i, projectsDir] of projectsDirs(config).entries()) {
-    const pessoal = i > 0;
+  // Memórias de cada conta do Claude Code (PP-2, ampliado em 19/11/2026): o Claude mantém os ids e títulos de sempre;
+  // as outras contas ganham o nome no id (a mesma pasta de projeto pode existir em várias) e no título.
+  for (const { dir: projectsDir, conta } of projectsDirsPorConta(config)) {
+    const claude = conta.configDir === CONTA_CLAUDE.configDir;
     let memoryDirs: string[] = [];
     try {
       memoryDirs = await fs.readdir(projectsDir);
@@ -121,8 +121,8 @@ async function scan(config: Config, projects: Project[]): Promise<Section[]> {
         : dir === encodeProjectDir(home)
           ? 'pasta pessoal (~)'
           : dir.replace(encodeProjectDir(home), '~').replace(/-/g, '/');
-      const id = pessoal ? `memory:pessoal:${dir}` : `memory:${dir}`;
-      const title = pessoal ? `Memórias do perfil pessoal — ${onde}` : `Memórias — ${onde}`;
+      const id = claude ? `memory:${dir}` : `memory:${conta.nome}:${dir}`;
+      const title = claude ? `Memórias — ${onde}` : `Memórias — ${conta.nome} — ${onde}`;
       sections.push({ id, title, kind: 'memory', base, projectId: project?.id, files });
     }
   }

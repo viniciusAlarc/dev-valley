@@ -8,11 +8,17 @@ import type { Project, WorldSession } from './world.js';
  * O cadastro fica fora do repositório, em ~/.claude/dev-valley/:
  * - `nomes.json`: sessão → nome (persistente, para o nome não mudar ao reiniciar a vila);
  * - `moradores.json`: nome → sessão, projeto, título e conversa. É o mapa que o mod (`mod/hooks/register.ts`) lê
- *   quando o usuário cita `@Nome` numa sessão, sem precisar perguntar nada à vila.
+ *   quando o usuário cita `@Nome` numa sessão, sem precisar perguntar nada à vila;
+ * - `titulos.json`: sessão → título dado pelo usuário na vila, no lugar do título automático (16/11/2026). Fica só na
+ *   vila: o arquivo da conversa do Claude Code nunca é tocado (decisão do usuário).
  */
 export const MORADORES_DIR = path.join(os.homedir(), '.claude', 'dev-valley');
 const NAMES_FILE = path.join(MORADORES_DIR, 'nomes.json');
 export const MAP_FILE = path.join(MORADORES_DIR, 'moradores.json');
+const TITLES_FILE = path.join(MORADORES_DIR, 'titulos.json');
+
+/** Tamanho do título dado pelo usuário: o mesmo corte do título automático (sessions.ts). */
+export const TITULO_MAX = 80;
 
 // Os 24 primeiros são os nomes de antes, na mesma ordem: quem já tinha nome sem conflito continua com ele.
 const LEGACY = [
@@ -66,9 +72,11 @@ const STATE_TEXT = { working: 'trabalhando', permission: 'pedindo permissão', i
 
 export class Moradores {
   private names = new Map<string, string>();
+  private titles = new Map<string, string>();
   private claimedAt = new Map<string, number>();
   private loaded = false;
   private lastNames = '';
+  private lastTitles = '';
   private lastMap = '';
 
   private async load() {
@@ -80,6 +88,20 @@ export class Moradores {
     } catch {
       // primeira vez: sem cadastro
     }
+    try {
+      const data = JSON.parse(await fs.readFile(TITLES_FILE, 'utf8'));
+      for (const [id, title] of Object.entries(data)) if (typeof title === 'string') this.titles.set(id, title);
+    } catch {
+      // ninguém renomeado ainda
+    }
+  }
+
+  /** Título dado pelo usuário; vazio volta ao título automático. */
+  async renomear(id: string, titulo: string) {
+    await this.load();
+    if (titulo) this.titles.set(id, titulo);
+    else this.titles.delete(id);
+    await this.saveTitles();
   }
 
   private pick(id: string): string {
@@ -129,11 +151,15 @@ export class Moradores {
       this.names.delete(id);
       this.claimedAt.delete(id);
     }
+    for (const id of [...this.titles.keys()]) if (!present.has(id)) this.titles.delete(id);
     for (const s of [...sessions].sort((a, b) => a.lastActivity - b.lastActivity)) {
       s.name = this.nameOf(s.id);
       s.genero = generoDoNome(s.name);
+      const title = this.titles.get(s.id);
+      if (title) s.title = title;
     }
     await this.saveNames();
+    await this.saveTitles();
 
     const byId = new Map(projects.map((p) => [p.id, p]));
     const moradores = Object.fromEntries(
@@ -154,6 +180,14 @@ export class Moradores {
     this.lastMap = map;
     await fs.mkdir(MORADORES_DIR, { recursive: true });
     await fs.writeFile(MAP_FILE, JSON.stringify({ atualizadoEm: new Date().toISOString(), moradores }, null, 2));
+  }
+
+  private async saveTitles() {
+    const json = JSON.stringify(Object.fromEntries(this.titles), null, 2);
+    if (json === this.lastTitles) return;
+    this.lastTitles = json;
+    await fs.mkdir(MORADORES_DIR, { recursive: true });
+    await fs.writeFile(TITLES_FILE, json);
   }
 
   private async saveNames() {

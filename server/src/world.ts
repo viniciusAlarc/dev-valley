@@ -20,18 +20,33 @@ import type { Skills, SkillSummary } from './skills.js';
 import { restartPending, type RestartPending } from './reinicio.js';
 import type { AgentSummary, Agents } from './agents.js';
 import type { Moradores } from './moradores.js';
-import { perfilDe, projectsDirs, type Perfil } from './perfil.js';
+import type { Quarto } from './quarto.js';
+import { contaDaSessao as contaExataDaSessao, contaPadraoDe, contasDaCasa, contasDe, projectsDirs, type Conta, type Finalidade, type Provedor } from './perfil.js';
 import { listSessions, type SessionInfo } from './sessions.js';
 import type { PapelNoPorao, PedidoPorao, Porao } from './porao.js';
 import type { RodadaNoMundo } from './rodada.js';
+
+/**
+ * O que o front precisa saber de uma conta, sem o caminho de configuração: nome, provedor (decide a roupa) e finalidade
+ * (decide em que casas ela aparece). Espelha `Conta` em `config.ts`.
+ */
+export interface ContaResumo {
+  nome: string;
+  provedor: Provedor;
+  finalidade: Finalidade;
+}
+
+export const resumoDe = (c: Conta): ContaResumo => ({ nome: c.nome, provedor: c.provedor, finalidade: c.finalidade });
 
 export interface Project {
   id: string;
   name: string;
   path: string;
   isGit: boolean;
-  /** Pessoal abre o terminal no perfil pessoal (outra API); ver perfil.ts. */
-  perfil: Perfil;
+  /** Conta que abre a casa por padrão (pela raiz; sem raiz, o Claude). */
+  contaPadrao: ContaResumo;
+  /** Contas que a casa oferece na sessão nova: as da mesma finalidade da padrão. */
+  contas: ContaResumo[];
   branch: string | null;
   remote: string | null;
   changes: gitOps.FileChange[];
@@ -66,8 +81,8 @@ export interface WorldSession extends SessionInfo {
   name: string;
   /** Marca do nome (`f`, `m` ou neutro): a aparência combina com ela (ver `generoDoNome`). */
   genero: 'f' | 'm' | null;
-  /** Perfil pela pasta da conversa, como o terminal abre (perfil.ts): pessoal = DeepSeek, o morador veste tons frios. */
-  perfil: Perfil;
+  /** Conta exata da sessão, como o terminal abre (perfil.ts); `provedor` decide a roupa (fria no DeepSeek). */
+  conta: ContaResumo;
   /** Id do projeto onde o NPC mora; null = mora na praça. */
   projectId: string | null;
   /** Terminal aberto pela própria vila. */
@@ -82,6 +97,8 @@ export interface WorldSession extends SessionInfo {
   context: { percent: number; tokens: number; window: number; estimated: boolean } | null;
   /** Mora no porão da casa (maestro ou tarefa de uma rodada, ver porao.ts): não aparece no mapa nem na casa. */
   porao: PapelNoPorao | null;
+  /** Dorme no quarto da casa (quarto.ts): fora da sala e do mapa. Sessão com processo rodando nunca aparece dormindo. */
+  dormindo: boolean;
 }
 
 export interface World {
@@ -104,6 +121,8 @@ export interface World {
   maestroChamando: Record<string, string>;
   /** Rodadas do maestro em andamento, conduzidas pela vila (maestro v2): o quadro da estante de partitura. */
   rodadasPorao: RodadaNoMundo[];
+  /** Contas configuradas, Claude primeiro: o seletor de conta da sessão avulsa (banco da praça). */
+  contas: ContaResumo[];
 }
 
 /** Janelas possíveis quando ainda não sabemos o tamanho real para o modelo. */
@@ -137,7 +156,7 @@ function contextOf(s: SessionInfo, statusLine: StatusLineStore, guessed: Map<str
 
 async function discoverProjectDirs(config: Config): Promise<string[]> {
   const dirs = new Set<string>(config.extraProjects);
-  for (const root of [...config.projectRoots, ...(config.perfilPessoal?.roots ?? [])]) {
+  for (const root of [...config.projectRoots, ...contasDe(config).flatMap((c) => c.roots)]) {
     let entries;
     try {
       entries = await fs.readdir(root, { withFileTypes: true });
@@ -171,7 +190,8 @@ async function loadProject(dir: string, config: Config, portas: Map<number, numb
     name: path.basename(dir),
     path: dir,
     isGit,
-    perfil: perfilDe(dir, config),
+    contaPadrao: resumoDe(contaPadraoDe(dir, config)),
+    contas: contasDaCasa(dir, config).map(resumoDe),
     branch: null,
     remote: null,
     changes: [],
@@ -224,14 +244,20 @@ export async function buildWorld(
   skills: Skills,
   porao: Pick<Porao, 'papeis' | 'pedidosAbertos' | 'chamadosAbertos' | 'rodadasNoMundo'>,
   relatoriosLidos: Pick<RelatoriosLidos, 'lidos'>,
+  /** Conta escolhida ao abrir a sessão (`contas`), para a roupa sair certa antes de a conversa ser gravada. */
+  contaEscolhida: (id: string) => Conta | null = () => null,
+  /** Quarto (quem dorme entra qualquer que seja a idade); sem ele, ninguém dorme. */
+  quarto: Pick<Quarto, 'ids' | 'manter'> | null = null,
 ): Promise<World> {
   const dirs = await discoverProjectDirs(config);
   // Uma checagem de portas por atualização, para todas as casas.
   const portas = await portasOcupadas();
   const lidos = await relatoriosLidos.lidos();
   const projects = await Promise.all(dirs.map((d) => loadProject(d, config, portas, lidos)));
-  const all = await listSessions(config.sessionMaxAgeDays, projectsDirs(config));
+  const dormindo = (await quarto?.ids()) ?? new Set<string>();
+  const all = await listSessions(config.sessionMaxAgeDays, projectsDirs(config), dormindo);
   const known = new Set(all.map((s) => s.id));
+  await quarto?.manter(known);
   const inTown = new Set(terminals.map((t) => t.id));
   const hookById = new Map(hooks.map((h) => [h.id, h]));
 
@@ -250,7 +276,7 @@ export async function buildWorld(
       ...s,
       name: '',
       genero: null,
-      perfil: perfilDe(s.cwd, config),
+      conta: resumoDe(contaExataDaSessao(s, config, contaEscolhida(s.id))),
       lastActivity: Math.max(s.lastActivity, hook?.updatedAt ?? 0),
       projectId: ownerOf(s, projects)?.id ?? null,
       inTown: inTown.has(s.id),
@@ -259,6 +285,7 @@ export async function buildWorld(
       atividade: hook?.atividade ?? null,
       context: contextOf(s, statusLine, guessed),
       porao: papeis.get(s.id) ?? (s.briefing ? { papel: 'tarefa', ...s.briefing } : null),
+      dormindo: dormindo.has(s.id) && !inTown.has(s.id) && !hook,
     };
   });
   await moradores.sync(sessions, projects);
@@ -276,5 +303,6 @@ export async function buildWorld(
     pedidosPorao: porao.pedidosAbertos(),
     maestroChamando: porao.chamadosAbertos(),
     rodadasPorao: porao.rodadasNoMundo(),
+    contas: contasDe(config).map(resumoDe),
   };
 }

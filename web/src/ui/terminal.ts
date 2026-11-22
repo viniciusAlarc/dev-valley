@@ -2,8 +2,9 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { api, getWorld, horaDoBastao, onWorld, wsUrl, type Session } from '../api';
+import { api, contaDaSessao, getWorld, horaDoBastao, onWorld, wsUrl, type Session } from '../api';
 import { villagerName } from '../game/names';
+import { abrirLinkDoChat } from './leitorArquivo';
 import { openMedica } from './librarian';
 import { button, openPanel } from './panel';
 
@@ -21,6 +22,8 @@ export function openTerminal(opts: {
   somenteLeitura?: boolean;
   /** Sessão comum: mostra "Passar o bastão" (BT-1, 08/11/2026). */
   bastao?: boolean;
+  /** Conta da sessão (Claude, DeepSeek...), mostrada ao lado do id; a nova sessão já sabe, a retomada vem do mundo. */
+  conta?: { nome: string };
 }) {
   let paraDeOuvir: (() => void) | null = null;
   let ws: WebSocket | null = null;
@@ -30,6 +33,8 @@ export function openTerminal(opts: {
     cursorBlink: !opts.somenteLeitura,
     disableStdin: !!opts.somenteLeitura,
     allowProposedApi: true,
+    // Link OSC 8 (o Claude Code escreve `[texto](url)` assim): .md/.html da vila abrem no leitor, não no navegador.
+    linkHandler: { activate: (_e, uri) => abrirLinkDoChat(uri), allowNonHttpProtocols: false },
     theme: {
       background: '#1f1a14',
       foreground: '#f1e4c8',
@@ -39,7 +44,7 @@ export function openTerminal(opts: {
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
-  term.loadAddon(new WebLinksAddon());
+  term.loadAddon(new WebLinksAddon((_e, uri) => abrirLinkDoChat(uri)));
   const resizeObserver = new ResizeObserver(() => {
     try {
       fit.fit();
@@ -50,7 +55,7 @@ export function openTerminal(opts: {
 
   const panel = openPanel({
     title: opts.agent ? opts.title : `${villagerName(opts.sessionId)} — ${opts.title}`,
-    subtitle: opts.agent ? opts.agent.subtitle : `sessão ${opts.sessionId.slice(0, 8)}`,
+    subtitle: opts.agent ? opts.agent.subtitle : `sessão ${opts.sessionId.slice(0, 8)}${opts.conta ? ` · ${opts.conta.nome}` : ''}`,
     size: 'lg',
     onClose: () => {
       paraDeOuvir?.();
@@ -77,8 +82,47 @@ export function openTerminal(opts: {
       // Atalho da clínica (09/11/2026): a médica examina se ele está trabalhando ou travado.
       ...(opts.bastao && s ? [button('🩺 Chamar a médica', () => openMedica(s))] : []),
       ...(opts.bastao ? [button('Passar o bastão', confirmBastao, hora ? 'primary' : 'normal')] : []),
+      ...(opts.agent ? [] : [button('✎ Renomear', showRename)]),
       button('Encerrar sessão', confirmEnd, 'danger'),
     );
+  };
+  // Renomear (16/11/2026): troca só o título, guardado na vila; o nome do morador fica. Vazio volta ao automático.
+  const titulo = panel.root.querySelector('h2')!;
+  const showRename = () => {
+    emRepouso = false;
+    const atual = getWorld().sessions.find((x) => x.id === opts.sessionId)?.title ?? opts.title;
+    const input = document.createElement('input');
+    input.className = 'rename-input';
+    input.maxLength = 80;
+    input.value = atual;
+    input.placeholder = 'Vazio volta ao título automático';
+    const salvar = async () => {
+      try {
+        await api.renomearSessao(opts.sessionId, input.value);
+        const novo = input.value.replace(/\s+/g, ' ').trim();
+        if (novo) titulo.textContent = `${villagerName(opts.sessionId)} — ${novo}`;
+        else {
+          // O automático vem no próximo mundo.
+          const pare = onWorld((w) => {
+            const s = w.sessions.find((x) => x.id === opts.sessionId);
+            if (s) titulo.textContent = `${villagerName(opts.sessionId)} — ${s.title}`;
+            pare();
+          });
+        }
+        showEnd();
+      } catch (err) {
+        term.write(`\r\n\x1b[31m[${(err as Error).message ?? err}]\x1b[0m\r\n`);
+        showEnd();
+      }
+    };
+    input.addEventListener('keydown', (ev) => {
+      ev.stopPropagation();
+      if (ev.key === 'Enter') void salvar();
+      if (ev.key === 'Escape') showEnd();
+    });
+    panel.actions.replaceChildren(input, button('Salvar', salvar, 'primary'), button('Cancelar', showEnd));
+    input.focus();
+    input.select();
   };
   // Passagem de bastão (BT-1): a própria sessão escreve o resumo; quando termina, nasce o sucessor na mesma casa.
   const confirmBastao = () => {
@@ -153,5 +197,5 @@ export function openTerminal(opts: {
 }
 
 export function openSessionTerminal(session: Session) {
-  openTerminal({ sessionId: session.id, projectId: session.projectId, title: session.title, bastao: !session.porao });
+  openTerminal({ sessionId: session.id, projectId: session.projectId, title: session.title, bastao: !session.porao, conta: contaDaSessao(session) ?? undefined });
 }

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { CATALOG_PATH } from './catalog.js';
+import type { Conta } from './config.js';
 import { askAgent, type AgentEvent, type Exchange } from './consulta.js';
 
 /**
@@ -23,9 +24,10 @@ export function askLibrarian(
   history: Exchange[],
   onEvent: (e: LibrarianEvent) => void,
   hooksToIgnore: Set<string>,
+  conta?: Conta,
 ): () => void {
   return askAgent(
-    { name: 'bibliotecaria', who: 'A bibliotecária', replacements: { '{{CATALOGO}}': CATALOG_PATH }, stepFor },
+    { name: 'bibliotecaria', who: 'A bibliotecária', replacements: { '{{CATALOGO}}': CATALOG_PATH }, stepFor, conta },
     question,
     history,
     onEvent,

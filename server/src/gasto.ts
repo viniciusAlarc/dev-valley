@@ -2,18 +2,19 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { Config } from './config.js';
-import { projectsDirs, type Perfil } from './perfil.js';
+import { projectsDirsPorConta } from './perfil.js';
 import type { Usage } from './statusline.js';
-import type { Project } from './world.js';
+import { resumoDe, type ContaResumo, type Project } from './world.js';
 
 /**
  * Moinho: quanto cada projeto gastou (decisões do usuário, 02/11/2026, "segue as recomendações"):
  *  - peso de cada resposta = entrada + saída + criação de cache + leitura de cache ÷ 10 (a proporção de preço da API).
  *    Não é custo em reais (o plano é assinatura): é o peso de um projeto em relação aos outros;
  *  - janela = a semana do plano (a mesma dos limites da clínica); sem esse dado, os últimos 7 dias;
- *  - perfil pessoal (DeepSeek) em lista separada.
+ *  - cada conta (Claude, DeepSeek pessoal, DeepSeek trabalho) em lista separada (decisão do usuário, 19/11/2026), para
+ *    ver o peso de cada assinatura sem somar uma na outra.
  *
- * Lê os `.jsonl` das conversas dos dois perfis (inclusive subagentes) de forma incremental: guarda por arquivo até onde
+ * Lê os `.jsonl` das conversas de todas as contas (inclusive subagentes) de forma incremental: guarda por arquivo até onde
  * já leu e os totais por hora, em `~/.cache/dev-valley/gasto.json`. O Claude Code grava a mesma resposta em várias
  * linhas (uma por bloco), todas com o mesmo `usage`: conta cada `message.id` uma vez só.
  */
@@ -28,7 +29,8 @@ interface Arquivo {
   offset: number;
   sessionId: string;
   cwd: string | null;
-  perfil: Perfil;
+  /** Nome da conta dona do arquivo (o único dado do config que o cache guarda). */
+  conta: string;
   /** Peso por hora: `2026-11-02T14` (UTC) → peso. */
   horas: Record<string, number>;
   /** Últimos ids de mensagem vistos (as repetições vêm em linhas seguidas). */
@@ -36,7 +38,7 @@ interface Arquivo {
 }
 
 interface Cache {
-  versao: 1;
+  versao: 2;
   arquivos: Record<string, Arquivo>;
 }
 
@@ -54,8 +56,8 @@ export interface GastoProjeto {
   sessoes: GastoSessao[];
 }
 
-export interface GastoPerfil {
-  perfil: Perfil;
+export interface GastoConta {
+  conta: ContaResumo;
   total: number;
   /** Total da janela anterior, do mesmo tamanho, para comparar ("o dobro da semana passada"). */
   anterior: number;
@@ -64,7 +66,7 @@ export interface GastoPerfil {
 
 export interface GastoView {
   janela: { inicio: number; fim: number; fonte: 'plano' | '7dias' };
-  perfis: GastoPerfil[];
+  contas: GastoConta[];
 }
 
 /** Peso de uma resposta: leitura de cache vale 1/10 (decisão do usuário, 02/11/2026). */
@@ -169,22 +171,22 @@ export class Gasto {
   private calculado: { em: number; chave: string; view: GastoView } | null = null;
 
   constructor(
-    private config: Pick<Config, 'perfilPessoal'>,
+    private config: Pick<Config, 'contas'>,
     private projects: () => Project[],
     private cacheFile = path.join(os.homedir(), '.cache', 'dev-valley', 'gasto.json'),
-    private dirs: () => { dir: string; perfil: Perfil }[] = () =>
-      projectsDirs(this.config).map((dir, i) => ({ dir, perfil: i === 0 ? 'profissional' : 'pessoal' })),
+    private dirs: () => { dir: string; conta: ContaResumo }[] = () =>
+      projectsDirsPorConta(this.config).map(({ dir, conta }) => ({ dir, conta: resumoDe(conta) })),
   ) {}
 
   private async carregar(): Promise<Cache> {
     if (this.cache) return this.cache;
     try {
       const c = JSON.parse(await fs.readFile(this.cacheFile, 'utf8'));
-      if (c?.versao === 1 && c.arquivos) return (this.cache = c);
+      if (c?.versao === 2 && c.arquivos) return (this.cache = c);
     } catch {
       // sem cache: lê tudo do começo
     }
-    return (this.cache = { versao: 1, arquivos: {} });
+    return (this.cache = { versao: 2, arquivos: {} });
   }
 
   /** Lê o que cresceu em cada `.jsonl` desde a última passada. Devolve se algo mudou. */
@@ -192,14 +194,16 @@ export class Gasto {
     const cache = await this.carregar();
     let mudou = false;
     const vivos = new Set<string>();
-    for (const { dir, perfil } of this.dirs()) {
+    for (const { dir, conta } of this.dirs()) {
       for (const file of await jsonlDe(dir)) {
         vivos.add(file);
         const st = await fs.stat(file).catch(() => null);
         if (!st) continue;
         let a = cache.arquivos[file];
         // Arquivo novo, ou menor do que já lemos (foi reescrito): começa do zero.
-        if (!a || st.size < a.offset) a = cache.arquivos[file] = { offset: 0, sessionId: sessaoDoArquivo(file), cwd: null, perfil, horas: {}, ultimos: [] };
+        if (!a || st.size < a.offset) a = cache.arquivos[file] = { offset: 0, sessionId: sessaoDoArquivo(file), cwd: null, conta: conta.nome, horas: {}, ultimos: [] };
+        // Conta renomeada no config: o cache acompanha na próxima leitura do arquivo.
+        if (a.conta !== conta.nome) { a.conta = conta.nome; mudou = true; }
         if (st.size === a.offset) continue;
         const fh = await fs.open(file, 'r');
         try {
@@ -248,13 +252,14 @@ export class Gasto {
 
   async resumo(usage: Usage | null, agora = Date.now()): Promise<GastoView> {
     const janela = janelaDe(usage, agora);
-    const chave = `${janela.inicio}`;
+    const chave = `${janela.inicio}:${this.config.contas.map((c) => c.nome).join(',')}`;
     if (this.calculado && this.calculado.chave === chave && agora - this.calculado.em < VALIDADE) return this.calculado.view;
     await this.atualizar();
     const cache = await this.carregar();
     const projects = this.projects();
     const anteriorInicio = janela.inicio - SEMANA;
-    const perfis = new Map<Perfil, { total: number; anterior: number; projetos: Map<string, GastoProjeto & { porSessao: Map<string, number> }> }>();
+    const resumos = new Map(this.config.contas.map((c) => [c.nome, resumoDe(c)]));
+    const contas = new Map<string, { conta: ContaResumo; total: number; anterior: number; projetos: Map<string, GastoProjeto & { porSessao: Map<string, number> }> }>();
     for (const a of Object.values(cache.arquivos)) {
       let dentro = 0;
       let antes = 0;
@@ -264,8 +269,9 @@ export class Gasto {
         else if (t >= anteriorInicio && t < janela.inicio) antes += peso;
       }
       if (!dentro && !antes) continue;
-      const p = perfis.get(a.perfil) ?? { total: 0, anterior: 0, projetos: new Map() };
-      perfis.set(a.perfil, p);
+      // Conta que saiu do config não tem mais pasta e não chega aqui; o fallback é só para cache antigo na memória.
+      const p = contas.get(a.conta) ?? { conta: resumos.get(a.conta) ?? { nome: a.conta, provedor: 'claude', finalidade: 'trabalho' }, total: 0, anterior: 0, projetos: new Map() };
+      contas.set(a.conta, p);
       p.total += dentro;
       p.anterior += antes;
       if (!dentro) continue;
@@ -276,13 +282,13 @@ export class Gasto {
       proj.peso += dentro;
       proj.porSessao.set(a.sessionId, (proj.porSessao.get(a.sessionId) ?? 0) + dentro);
     }
-    const ordem: Perfil[] = ['profissional', 'pessoal'];
+    const ordem = this.config.contas.map((c) => c.nome);
     const view: GastoView = {
       janela,
-      perfis: [...perfis]
+      contas: [...contas]
         .sort(([a], [b]) => ordem.indexOf(a) - ordem.indexOf(b))
-        .map(([perfil, p]) => ({
-          perfil,
+        .map(([nome, p]) => ({
+          conta: p.conta,
           total: Math.round(p.total),
           anterior: Math.round(p.anterior),
           projetos: [...p.projetos.values()]

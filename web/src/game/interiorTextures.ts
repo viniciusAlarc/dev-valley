@@ -982,3 +982,101 @@ export function generateClinicTextures(scene: Phaser.Scene) {
   maca(scene);
   mesaMedica(scene);
 }
+
+// ---------------- quarto (21/11/2026) ----------------
+// Mesma madeira da sala; colcha azul-noite e a janela com lua: quem está aqui dorme (processo encerrado).
+
+/** Cama vista de cima, cabeceira no alto: o morador deita a cabeça no travesseiro e a colcha (`bedBlanket`) vem por cima. */
+function bed(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(26, 38);
+  rect(ctx, 0, 0, 26, 8, '#6b4220');
+  rect(ctx, 1, 1, 24, 2, '#8f5f30');
+  rect(ctx, 0, 7, 26, 31, '#5e3a1c');
+  rect(ctx, 2, 7, 22, 29, '#efe6d2');
+  rect(ctx, 2, 7, 22, 1, '#fbf6ea');
+  // travesseiro
+  rect(ctx, 4, 8, 18, 8, '#fbf6ea');
+  rect(ctx, 4, 15, 18, 1, '#d9cfb8');
+  rect(ctx, 0, 36, 3, 2, '#3a2412');
+  rect(ctx, 23, 36, 3, 2, '#3a2412');
+  outline(ctx, 26, 38);
+  add(scene, 'bed', c);
+}
+
+/** Colcha, desenhada por cima de quem dorme: a barra dobrada fica logo abaixo do queixo. */
+function bedBlanket(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(26, 21);
+  rect(ctx, 1, 0, 24, 19, '#34507a');
+  rect(ctx, 1, 0, 24, 3, '#efe6d2');
+  rect(ctx, 1, 3, 24, 1, '#d9cfb8');
+  for (let x = 4; x < 24; x += 6) for (let y = 7; y < 18; y += 5) rect(ctx, x + ((y / 5) % 2) * 3, y, 1, 1, '#5a78a8');
+  rect(ctx, 1, 17, 24, 2, '#26405f');
+  rect(ctx, 0, 19, 26, 2, '#5e3a1c');
+  outline(ctx, 26, 21);
+  add(scene, 'bedBlanket', c);
+}
+
+/** Cama feita, sem ninguém: a colcha cobre também o travesseiro de baixo. */
+function bedMade(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(26, 38);
+  ctx.drawImage(scene.textures.get('bed').getSourceImage() as HTMLCanvasElement, 0, 0);
+  ctx.drawImage(scene.textures.get('bedBlanket').getSourceImage() as HTMLCanvasElement, 0, 17);
+  add(scene, 'bedMade', c);
+}
+
+/** Criado-mudo com abajur aceso, entre as camas. */
+function nightstand(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(14, 22);
+  rect(ctx, 4, 0, 6, 5, '#f5d142');
+  rect(ctx, 5, 0, 4, 1, '#fbe8b8');
+  rect(ctx, 6, 5, 2, 4, '#3f464c');
+  rect(ctx, 0, 9, 14, 13, '#8f5f30');
+  rect(ctx, 0, 9, 14, 2, '#b9854a');
+  rect(ctx, 2, 13, 10, 6, '#9d6b3a');
+  rect(ctx, 6, 15, 2, 1, '#e8c252');
+  outline(ctx, 14, 22);
+  add(scene, 'nightstand', c);
+}
+
+/** Janela do quarto: céu de noite com lua e estrelas. */
+function nightWindow(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(30, 24);
+  rect(ctx, 3, 2, 24, 18, '#6b4220');
+  rect(ctx, 5, 4, 20, 14, '#1d2b4a');
+  disc(ctx, 20, 8, 2, '#f2e6c4');
+  rect(ctx, 21, 7, 1, 1, '#1d2b4a');
+  for (const [x, y] of [[7, 6], [10, 13], [17, 15], [8, 10]]) rect(ctx, x, y, 1, 1, '#e9c88f');
+  rect(ctx, 14, 4, 2, 14, '#6b4220');
+  rect(ctx, 5, 10, 20, 2, '#6b4220');
+  rect(ctx, 0, 0, 30, 3, '#26405f');
+  rect(ctx, 0, 3, 5, 19, '#34507a');
+  rect(ctx, 25, 3, 5, 19, '#34507a');
+  outline(ctx, 30, 24);
+  add(scene, 'nightWindow', c);
+}
+
+/** Porta do quarto na parede direita da sala, vista de lado: estreita, com maçaneta e a plaquinha de lua. */
+function bedroomDoor(scene: Phaser.Scene) {
+  const { c, ctx } = makeCanvas(10, 32);
+  rect(ctx, 0, 0, 10, 32, '#3a2412');
+  rect(ctx, 2, 2, 7, 30, '#8f5f30');
+  rect(ctx, 2, 2, 1, 30, '#b9854a');
+  rect(ctx, 4, 5, 4, 9, '#9d6b3a');
+  rect(ctx, 4, 17, 4, 11, '#9d6b3a');
+  rect(ctx, 3, 18, 1, 2, '#e8c252');
+  // plaquinha com a lua
+  rect(ctx, 4, 7, 4, 4, '#1d2b4a');
+  rect(ctx, 5, 8, 2, 2, '#f2e6c4');
+  rect(ctx, 6, 8, 1, 1, '#1d2b4a');
+  add(scene, 'bedroomDoor', c);
+}
+
+export function generateQuartoTextures(scene: Phaser.Scene) {
+  if (scene.textures.exists('bedMade')) return;
+  bed(scene);
+  bedBlanket(scene);
+  bedMade(scene);
+  nightstand(scene);
+  nightWindow(scene);
+  bedroomDoor(scene);
+}

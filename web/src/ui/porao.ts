@@ -1,4 +1,4 @@
-import { api, colunaDa, comandosDoPedido, getWorld, onWorld, rodadaDoPorao, type ColunaDoQuadro, type PedidoPorao, type Project, type RodadaPorao, type World } from '../api';
+import { api, colunaDa, comandosDoPedido, getWorld, onWorld, rodadaDoPorao, type ColunaDoQuadro, type CriticaDoCartao, type PedidoPorao, type Project, type RodadaPorao, type World } from '../api';
 import { villagerName } from '../game/names';
 import { ui } from './actions';
 import { button, closePanel, escapeHtml, openPanel } from './panel';
@@ -78,11 +78,13 @@ export function openPedidoPorao(pedido: PedidoPorao, project: Project) {
         ? `<p>A vila roda ${lista(comandos)} antes de abrir as sessões (linha de base) e de novo quando todas ficarem prontas: o relatório separa o que já estava vermelho do que a rodada quebrou.</p>`
         : '<p class="muted">Nenhuma tarefa trouxe comando de teste: a rodada sai sem verificação automática.</p>'
     }
+    <div class="porao-critica"></div>
     <p class="porao-acoes">
       <button class="btn btn-primary" data-acao="aprovar">${depois || comandos.length ? 'Aprovar a rodada' : `Abrir ${n} ${n === 1 ? 'sessão' : 'sessões'}`}</button>
       <button class="btn btn-danger" data-acao="recusar">Recusar</button>
     </p>
     <div class="porao-resultado"></div>`;
+  acompanharCritica(panel.body.querySelector<HTMLElement>('.porao-critica')!, pedido);
   const botoes = [...panel.body.querySelectorAll<HTMLButtonElement>('[data-acao]')];
   const resultado = panel.body.querySelector<HTMLElement>('.porao-resultado')!;
   for (const b of botoes) {
@@ -108,6 +110,36 @@ export function openPedidoPorao(pedido: PedidoPorao, project: Project) {
       }
     });
   }
+}
+
+/** A segunda opinião no cartão (21/11/2026): só os apontamentos confirmados, como aviso; o clique nunca espera por ela. */
+function htmlDaCritica(c: CriticaDoCartao | null | undefined): string {
+  if (!c) return '';
+  if (c.estado === 'conferindo') return '<p class="muted">Segunda opinião (DeepSeek, conferida pelo Haiku): conferindo o cartão… Você não precisa esperar.</p>';
+  if (c.estado === 'falhou') return `<p class="muted">Segunda opinião não rodou: ${escapeHtml(c.erro ?? 'sem resposta')}.</p>`;
+  const descartados = c.refutados + c.incertos;
+  const resto = [descartados ? `${descartados} descartado(s) pelo verificador` : '', c.foraDoTeto ? `${c.foraDoTeto} além do teto` : ''].filter(Boolean).join(' · ');
+  if (!c.apontamentos.length) return `<p class="muted">Segunda opinião (DeepSeek, conferida pelo Haiku): nada a apontar no checklist.${resto ? ` (${resto})` : ''}</p>`;
+  return `<p><b>Segunda opinião</b> <span class="muted">(DeepSeek, cada item conferido pelo Haiku; só avisa, a decisão é sua)</span></p>
+    <ul class="pombal-avisos">${c.apontamentos
+      .map((a) => `<li>⚠️ <b>${escapeHtml(a.item)}${a.tarefa ? ` · ${escapeHtml(a.tarefa)}` : ''}</b>: ${escapeHtml(a.problema)}<br><span class="muted">${escapeHtml(a.evidencia)}</span></li>`)
+      .join('')}</ul>${resto ? `<p class="muted">${resto}</p>` : ''}`;
+}
+
+/** Mostra a crítica e, enquanto ela confere, lê de novo a cada 3 s até terminar ou o cartão fechar. */
+function acompanharCritica(el: HTMLElement, pedido: PedidoPorao) {
+  el.innerHTML = htmlDaCritica(pedido.critica);
+  if (pedido.critica?.estado !== 'conferindo') return;
+  const timer = window.setInterval(async () => {
+    if (!el.isConnected) return window.clearInterval(timer);
+    try {
+      const { critica } = await api.pedidoPorao(pedido.id);
+      el.innerHTML = htmlDaCritica(critica);
+      if (critica?.estado !== 'conferindo') window.clearInterval(timer);
+    } catch {
+      window.clearInterval(timer);
+    }
+  }, 3000);
 }
 
 /**

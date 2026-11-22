@@ -24,6 +24,7 @@ import { openGasto } from './gasto';
 import { openJornal } from './jornal';
 import { openArmario, openTriagem } from './clinica';
 import { openSessionTerminal, openTerminal } from './terminal';
+import { openNovaSessao } from './novaSessao';
 
 const tooltip = () => document.getElementById('tooltip')!;
 
@@ -233,11 +234,10 @@ export const ui = {
     this.hideTooltip();
     openPedidoPorao(pedido, project);
   },
-  /** Banco da praça: sessão nova avulsa, na home (decisão do usuário, 27/10/2026). */
-  async newAvulsa() {
+  /** Banco da praça: sessão nova avulsa, na home (decisão do usuário, 27/10/2026); a tela escolhe a conta. */
+  newAvulsa() {
     this.hideTooltip();
-    const { sessionId } = await api.newSession();
-    openTerminal({ sessionId, projectId: null, title: 'Nova sessão avulsa', bastao: true });
+    openNovaSessao({});
   },
   /** `path`: abre já na edição desse agente. */
   openSkills(path?: string) {

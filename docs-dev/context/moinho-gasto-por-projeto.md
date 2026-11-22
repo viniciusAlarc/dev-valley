@@ -12,7 +12,7 @@ quanto do plano foi usado; o moinho diz **com o quê**.
 | Na vila | Por baixo |
 |---|---|
 | Moinho girando; velocidade das pás | Total de tokens da semana em todos os projetos (gira devagar em semana calma) |
-| Clique | Painel: a janela no topo; por perfil, a comparação com a semana passada e uma linha por projeto (nome, barra, %), do maior para o menor |
+| Clique | Painel: a janela no topo; por conta, a comparação com a semana passada e uma linha por projeto (nome, barra, %), do maior para o menor |
 | Clique na linha do projeto | As 3 sessões que mais gastaram naquele projeto (nome do morador, não o id) |
 | Sessões fora de projeto | Linha "Praça (sessões avulsas)" |
 
@@ -21,12 +21,12 @@ fica em letra pequena para quem quiser.
 
 ## Dados (conferido em 02/11/2026)
 
-Cada linha `type: "assistant"` dos `.jsonl` em `~/.claude/projects/**` tem `message.usage` com `input_tokens`,
+Cada linha `type: "assistant"` dos `.jsonl` em `<conta>/projects/**` tem `message.usage` com `input_tokens`,
 `output_tokens`, `cache_creation_input_tokens` e `cache_read_input_tokens`, mais `message.model` e o `timestamp`.
 O `sessions.ts` já lê esse campo para o contexto (`contextTokens`). Pular `isSidechain` não: subagente também gasta.
 Pular `model: "<synthetic>"`.
 
-Projeto = `cwd` da sessão, casado com as casas como o `world.ts` já faz. Os dois perfis (`projectsDirs`).
+Projeto = `cwd` da sessão, casado com as casas como o `world.ts` já faz. Todas as contas (`projectsDirsPorConta`).
 
 ## Desempenho
 
@@ -36,7 +36,7 @@ cada evento.
 
 ## Passos
 
-1. `server/src/gasto.ts`: leitura incremental, soma por projeto × dia × perfil, cache em disco.
+1. `server/src/gasto.ts`: leitura incremental, soma por projeto × dia × conta, cache em disco.
 2. Rota `GET /api/gasto?dias=7` em `app.ts` (via `Contexto`, como as demais), teste em `server/tests/` com `.jsonl` de
    mentira (`projeto()`), incluindo arquivo que cresce entre duas leituras.
 3. Textura do moinho (pás num sprite separado para girar), prévia em `web/sprites.html`; lote em `layout.ts`.
@@ -47,11 +47,11 @@ cada evento.
 
 1. Peso = entrada + saída + criação de cache + leitura de cache ÷ 10. Não é custo em reais: é o peso relativo.
 2. Janela = a semana do plano (pelo `resetsAt` do limite semanal, a mesma da torre); sem ele, os últimos 7 dias.
-3. Perfil pessoal (DeepSeek) em lista separada no painel.
+3. Cada conta (Claude, DeepSeek pessoal e DeepSeek trabalho) em lista separada no painel.
 
 ## Como ficou
 
-- `server/src/gasto.ts` (`Gasto`): leitura incremental dos `.jsonl` dos dois perfis (inclusive `<sessão>/subagents/`),
+- `server/src/gasto.ts` (`Gasto`): leitura incremental dos `.jsonl` de todas as contas (inclusive `<sessão>/subagents/`),
   totais por hora em `~/.cache/dev-valley/gasto.json`, cálculo guardado por 2 minutos. **O Claude Code grava a mesma
   resposta em várias linhas** (uma por bloco, com o mesmo `usage`): cada `message.id` conta uma vez só (numa conversa
   real, 174 linhas eram 81 respostas). Rota `GET /api/gasto`; testes em `server/tests/gasto.test.ts`.
@@ -60,6 +60,7 @@ cada evento.
   de 1,5 s a 16 s.
 - Arte em `textures.ts` (`windmill`, `WINDMILL`), pás numa peça separada; `TownScene.buildWindmill` lê a rota ao montar e a
   cada 5 minutos. Painel em `web/src/ui/gasto.ts`.
+- **Uma seção por conta desde 19/11/2026** (o cache guarda o nome da conta dona de cada `.jsonl`; a soma e o painel não misturam as duas assinaturas DeepSeek).
 - **Painel refeito em 02/11/2026** (o primeiro estava confuso): no topo só a janela e quanto falta; comparação em título
   curto (`comparacao`, também no balão) + projeção concreta (`projecao`: "fecha em 1,4× a anterior"); barra e % sempre à
   vista; peso, cache, pás e totais em tokens recolhidos em "Como é calculado".

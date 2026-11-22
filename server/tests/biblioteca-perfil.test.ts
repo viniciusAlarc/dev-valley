@@ -11,7 +11,7 @@ process.env.HOME = HOME;
 after(() => fs.rmSync(HOME, { recursive: true, force: true }));
 
 const { Library } = await import('../src/library.js');
-const { CLAUDE_PROJECTS_DIR } = await import('../src/config.js');
+const { CLAUDE_PROJECTS_DIR, CONTA_CLAUDE } = await import('../src/config.js');
 const { CATALOG_PATH } = await import('../src/catalog.js');
 const { casa } = await import('./servidor.js');
 type Config = import('../src/config.js').Config;
@@ -39,14 +39,17 @@ const TRABALHO_MD = memoria(CLAUDE_PROJECTS_DIR, DIR, '# Memória do trabalho\nf
 memoria(CLAUDE_PROJECTS_DIR, codificar(HOME), '# Pasta pessoal\n');
 const PESSOAL_MD = memoria(path.join(PESSOAL, 'projects'), DIR, '# Memória pessoal\nfarol verde\n');
 
-const SEM_PERFIL = { libraryRoots: [], perfilPessoal: null } as unknown as Config;
-const COM_PERFIL = { libraryRoots: [], perfilPessoal: { roots: [], configDir: PESSOAL } } as unknown as Config;
+const SEM_PERFIL = { libraryRoots: [], contas: [CONTA_CLAUDE] } as unknown as Config;
+const COM_PERFIL = {
+  libraryRoots: [],
+  contas: [CONTA_CLAUDE, { nome: 'DeepSeek pessoal', provedor: 'deepseek', configDir: PESSOAL, roots: [], finalidade: 'pessoal' }],
+} as unknown as Config;
 
 const memorias = async (config: Config) =>
   (await new Library(config, () => [CASA]).sections(true)).filter((s) => s.kind === 'memory').map(({ id, title, base, projectId }) => ({ id, title, base, projectId }));
 
-describe('Biblioteca: memórias por perfil (PP-2)', () => {
-  test('sem perfil pessoal: só as memórias de ~/.claude/projects, com os ids e títulos de sempre', async () => {
+describe('Biblioteca: memórias por conta (PP-2)', () => {
+  test('só o Claude: as memórias de ~/.claude/projects, com os ids e títulos de sempre', async () => {
     const porId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : 1);
     assert.deepEqual((await memorias(SEM_PERFIL)).sort(porId), [
       { id: `memory:${DIR}`, title: 'Memórias — vila', base: path.join(CLAUDE_PROJECTS_DIR, DIR, 'memory'), projectId: 'vila' },
@@ -54,19 +57,19 @@ describe('Biblioteca: memórias por perfil (PP-2)', () => {
     ].sort(porId));
   });
 
-  test('com perfil pessoal: as memórias dele entram com id próprio e título do perfil pessoal', async () => {
+  test('com a conta DeepSeek pessoal: as memórias dela entram com id próprio e o nome da conta', async () => {
     const secoes = await memorias(COM_PERFIL);
     assert.equal(secoes.length, 3);
     assert.equal(new Set(secoes.map((s) => s.id)).size, 3, 'ids não colidem');
     assert.deepEqual(secoes.at(-1), {
-      id: `memory:pessoal:${DIR}`,
-      title: 'Memórias do perfil pessoal — vila',
+      id: `memory:DeepSeek pessoal:${DIR}`,
+      title: 'Memórias — DeepSeek pessoal — vila',
       base: path.join(PESSOAL, 'projects', DIR, 'memory'),
       projectId: 'vila',
     });
   });
 
-  test('ler, salvar e buscar um livro do perfil pessoal funciona como os outros', async () => {
+  test('ler, salvar e buscar um livro da conta DeepSeek funciona como os outros', async () => {
     const lib = new Library(COM_PERFIL, () => [CASA]);
     const lido = await lib.read(PESSOAL_MD);
     assert.equal(lido?.content, '# Memória pessoal\nfarol verde\n');
@@ -74,10 +77,10 @@ describe('Biblioteca: memórias por perfil (PP-2)', () => {
     assert.equal(fs.readFileSync(PESSOAL_MD, 'utf8'), '# Memória pessoal\nfarol roxo\n');
     const achados = await lib.search('farol');
     assert.deepEqual(achados.map((r) => [r.path, r.section]).sort(), [
-      [PESSOAL_MD, 'Memórias do perfil pessoal — vila'],
+      [PESSOAL_MD, 'Memórias — DeepSeek pessoal — vila'],
       [TRABALHO_MD, 'Memórias — vila'],
     ].sort());
-    // Sem o perfil, o livro dele não é da biblioteca: não lê.
+    // Sem a conta, o livro dela não é da biblioteca: não lê.
     assert.equal(await new Library(SEM_PERFIL, () => [CASA]).read(PESSOAL_MD), null);
   });
 });

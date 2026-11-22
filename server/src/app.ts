@@ -6,13 +6,14 @@ import type { askAdministrador } from './administrador.js';
 import type { askMirim } from './mirim.js';
 import type { askMedica, Clinica } from './clinica.js';
 import { agentInput, Agents } from './agents.js';
+import { CONTA_CLAUDE } from './config.js';
 import type { sugerirMensagem } from './escrevente.js';
 import * as gitOps from './git.js';
 import type { HookStore } from './hooks.js';
 import type { Lareiras } from './lareira.js';
 import type { askLibrarian } from './librarian.js';
 import type { Library } from './library.js';
-import type { Moradores } from './moradores.js';
+import { TITULO_MAX, type Moradores } from './moradores.js';
 import { buscar, cartas, PombalError, voar } from './pombal.js';
 import { markChecked, readProgress } from './progress.js';
 import { arquivoPermitido, isLocalOrigin } from './seguranca.js';
@@ -20,12 +21,14 @@ import type { Bastao } from './bastao.js';
 import type { Gasto } from './gasto.js';
 import type { askJornaleiro, Jornal } from './jornal.js';
 import type { Plugins } from './plugins.js';
-import { MAESTRO, type Porao } from './porao.js';
+import { MAESTRO, type PedidoPorao, type Porao } from './porao.js';
 import type { RelatoriosLidos } from './relatorios.js';
 import { skillInput, type Skills } from './skills.js';
 import type { StatusLineStore } from './statusline.js';
 import type { TerminalManager } from './terminals.js';
-import type { Project, World } from './world.js';
+import type { Project, World, WorldSession } from './world.js';
+import type { Conta } from './perfil.js';
+import type { Quarto } from './quarto.js';
 
 /**
  * O que as rotas usam da vila (PD-8, passo 2). O `index.ts` passa os de verdade; os testes passam imitações. Tudo que
@@ -44,10 +47,12 @@ export interface Contexto {
   hooks: Pick<HookStore, 'handle' | 'forget'>;
   library: Pick<Library, 'sections' | 'read' | 'htmlPath' | 'write' | 'createClaudeMd' | 'search'>;
   statusLine: Pick<StatusLineStore, 'handle' | 'ritmo'>;
-  moradores: Pick<Moradores, 'claim'>;
+  moradores: Pick<Moradores, 'claim' | 'renomear'>;
+  /** Quarto da casa (21/11/2026): quem a escrivaninha mandou dormir. */
+  quarto: Pick<Quarto, 'dormir'>;
   agents: Pick<Agents, 'read' | 'create' | 'save' | 'remove'>;
   skills: Pick<Skills, 'read' | 'create' | 'save' | 'remove'>;
-  /** Plugins e MCP dos dois perfis, só leitura (Fábrica, 02/11/2026). */
+  /** Plugins e MCP de cada conta, só leitura (Fábrica, 02/11/2026; por conta em 19/11/2026). */
   plugins: Pick<Plugins, 'list'>;
   /** Gasto por projeto na semana do plano (moinho, 02/11/2026). */
   gasto: Pick<Gasto, 'resumo'>;
@@ -64,6 +69,12 @@ export interface Contexto {
   porao: Pick<Porao, 'registrarMaestro' | 'maestroInstalado' | 'pedir' | 'pedirRoteiro' | 'pedido' | 'aprovar' | 'recusar' | 'esquecer' | 'chamar' | 'atender'>;
   /** Relatórios do maestro já abertos (estante de partitura do porão, 04/11/2026). */
   relatoriosLidos: Pick<RelatoriosLidos, 'marcar'>;
+  /** Contas do config local (Claude primeiro): a rota de sessão nova valida a escolha da casa. */
+  contas: Conta[];
+  /** Sessões novas que pediram uma conta: id → nome (vale até a conversa ser gravada). */
+  escolhasDeConta: Map<string, string>;
+  /** Conta exata de uma sessão (pelo arquivo da conversa ou pela escolha da abertura), como o terminal abre. */
+  contaDaSessao: (s: WorldSession) => Conta;
   /** Sessões de trabalho por rodada (`porao.tetoSessoes` do config, até 5). */
   tetoSessoes: number;
   /**
@@ -76,6 +87,8 @@ export interface Contexto {
   askLibrarian: typeof askLibrarian;
   askAdministrador: typeof askAdministrador;
   askMirim: typeof askMirim;
+  /** Crítica do cartão (21/11/2026, `critico.ts`): roda em segundo plano depois do pedido; só avisa no cartão. */
+  criticaDoCartao: { iniciar: (pedido: PedidoPorao) => void; anotarDecisao: (pedido: PedidoPorao) => Promise<void> };
   /** Clínica (09/11/2026): triagem dos moradores vivos, sinais vitais e a ficha que a médica recebe. */
   clinica: Pick<Clinica, 'triagem' | 'ficha' | 'armario' | 'vitais'>;
   askMedica: typeof askMedica;
@@ -104,7 +117,7 @@ function sendIsolatedHtml(res: express.Response, doc: { path: string; kind: stri
 }
 
 export function criarApp(ctx: Contexto): express.Express {
-  const { terminals, lareiras, hooks, library, statusLine, moradores, agents, skills, plugins, gasto, jornal, internalSessions, agentSessions, avulsaSessions, porao } = ctx;
+  const { terminals, lareiras, hooks, library, statusLine, moradores, agents, skills, plugins, gasto, jornal, internalSessions, agentSessions, avulsaSessions, porao, contas, escolhasDeConta } = ctx;
   const refreshWorld = ctx.refreshWorld;
   const findProject = (id: unknown): Project | undefined => ctx.world().projects.find((p) => p.id === id);
   let lastStatusLine: unknown = null;
@@ -192,6 +205,9 @@ export function criarApp(ctx: Contexto): express.Express {
     const sessionId = randomUUID();
     await porao.registrarMaestro(sessionId, project.id);
     agentSessions.set(sessionId, { cwd: project.path, agent: MAESTRO });
+    // O maestro fala sempre no Claude, mesmo na casa pessoal (decisão do usuário, 20/11/2026): quem coordena a rodada
+    // precisa do modelo mais forte. Vale a escolha da abertura; ao retomar, a conversa salva em ~/.claude manda.
+    escolhasDeConta.set(sessionId, CONTA_CLAUDE.nome);
     res.json({ sessionId, projectId: project.id });
   });
 
@@ -207,6 +223,7 @@ export function criarApp(ctx: Contexto): express.Express {
     if (!casaDoMaestro) return res.status(404).json({ error: 'Projeto do maestro não encontrado.' });
     const r = await porao.pedir({ maestro: maestro.id, rodada: req.body?.rodada, tarefas: req.body?.tarefas, estimativaSessaoUnicaMin: req.body?.estimativaSessaoUnicaMin }, ctx.tetoSessoes, casaDoMaestro.path);
     if ('erro' in r) return res.status(r.status).json({ error: r.erro });
+    ctx.criticaDoCartao.iniciar(r);
     await refreshWorld();
     res.status(201).json({ pedidoId: r.id, estado: r.estado, aviso: 'Peça ao usuário para aprovar no cartão da estante de partitura, no porão.' });
   });
@@ -228,7 +245,7 @@ export function criarApp(ctx: Contexto): express.Express {
   app.get('/api/porao/pedidos/:id', (req, res) => {
     const p = porao.pedido(req.params.id);
     if (!p) return res.status(404).json({ error: 'Pedido não encontrado.' });
-    res.json({ estado: p.estado, rodada: p.rodada, tarefas: p.tarefas, sessoes: p.sessoes });
+    res.json({ estado: p.estado, rodada: p.rodada, tarefas: p.tarefas, sessoes: p.sessoes, critica: p.critica ?? null });
   });
 
   app.post('/api/porao/pedidos/:id/aprovar', async (req, res) => {
@@ -238,6 +255,7 @@ export function criarApp(ctx: Contexto): express.Express {
     if (!pedido || !project) return res.status(404).json({ error: 'Pedido não encontrado.' });
     const r = await porao.aprovar(pedido.id, (sessionId, prompt, permitir, settings) => ctx.abrirTarefa({ sessionId, cwd: project.path, prompt, permitir, settings }), ctx.leituraPorao);
     if (!r) return res.status(409).json({ error: 'Este pedido já foi decidido.' });
+    await ctx.criticaDoCartao.anotarDecisao(pedido);
     await refreshWorld();
     res.json({ estado: r.estado, sessoes: r.sessoes });
   });
@@ -252,7 +270,8 @@ export function criarApp(ctx: Contexto): express.Express {
     if (!s || !terminal || s.porao) return res.status(404).json({ error: 'Sessão não encontrada entre as abertas pela vila.' });
     if (s.status === 'working' || s.status === 'permission') return res.status(409).json({ error: 'Espere ele terminar a resposta para passar o bastão.' });
     if (ctx.bastao.pendente(s.id)) return res.status(409).json({ error: 'O bastão desta sessão já foi pedido: espere o resumo.' });
-    const texto = await ctx.bastao.pedir(s.id, s.name, terminal.cwd);
+    // O sucessor herda a conta exata da sessão que passa o bastão (um DeepSeek num repositório de trabalho continua DeepSeek).
+    const texto = await ctx.bastao.pedir(s.id, s.name, terminal.cwd, ctx.contaDaSessao(s));
     ctx.terminaisDoBastao.escrever(s.id, texto);
     res.status(202).json({ arquivo: ctx.bastao.arquivoDe(s.id) });
   });
@@ -307,8 +326,10 @@ export function criarApp(ctx: Contexto): express.Express {
 
   app.post('/api/porao/pedidos/:id/recusar', async (req, res) => {
     if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila recusa.' });
-    if (!porao.pedido(req.params.id)) return res.status(404).json({ error: 'Pedido não encontrado.' });
+    const pedido = porao.pedido(req.params.id);
+    if (!pedido) return res.status(404).json({ error: 'Pedido não encontrado.' });
     if (!porao.recusar(req.params.id)) return res.status(409).json({ error: 'Este pedido já foi decidido.' });
+    await ctx.criticaDoCartao.anotarDecisao(pedido);
     await refreshWorld();
     res.json({ estado: 'recusado' });
   });
@@ -736,15 +757,84 @@ export function criarApp(ctx: Contexto): express.Express {
   });
 
   app.post('/api/sessions', (req, res) => {
-    // Sem projeto: sessão avulsa do banco da praça, sempre na home (decisão do usuário, 27/10/2026).
+    // A conta escolhida na tela (nome); sem escolha, a casa abre na conta padrão dela (Claude, ou a pessoal pela raiz).
+    const pedido = req.body?.conta;
+    const conta = pedido == null ? null : contas.find((c) => c.nome === pedido);
+    if (pedido != null && !conta) return res.status(400).json({ error: 'conta inválida' });
+    // Sem projeto: sessão avulsa do banco da praça, na home (decisão do usuário, 27/10/2026); aceita qualquer conta.
     if (req.body.project == null) {
       const sessionId = randomUUID();
       avulsaSessions.add(sessionId);
+      if (conta) escolhasDeConta.set(sessionId, conta.nome);
       return res.json({ sessionId, cwd: os.homedir() });
     }
     const project = findProject(req.body.project);
     if (!project) return res.status(400).json({ error: 'projeto inválido' });
+    // A casa oferece só as contas da mesma finalidade (pessoal ou trabalho); o resto responde 400.
+    if (conta) {
+      if (!project.contas.some((c) => c.nome === conta.nome)) {
+        return res.status(400).json({ error: `Esta casa abre em: ${project.contas.map((c) => c.nome).join(', ')}.` });
+      }
+      const sessionId = randomUUID();
+      escolhasDeConta.set(sessionId, conta.nome);
+      return res.json({ sessionId, cwd: project.path });
+    }
     res.json({ sessionId: randomUUID(), cwd: project.path });
+  });
+
+  // Renomear a sessão na vila (16/11/2026): só o título, guardado no cadastro da vila; o nome do morador e o arquivo da
+  // conversa não mudam (decisão do usuário). Vazio volta ao título automático. Só pela página da vila.
+  app.put('/api/sessions/:id/titulo', async (req, res) => {
+    if (!isLocalOrigin(req.headers.origin)) return res.status(403).json({ error: 'origem recusada' });
+    const id = req.params.id;
+    if (!ctx.world().sessions.some((s) => s.id === id)) return res.status(404).json({ error: 'Sessão não encontrada.' });
+    const titulo = req.body?.titulo;
+    if (typeof titulo !== 'string') return res.status(400).json({ error: 'Título inválido.' });
+    const limpo = titulo.replace(/\s+/g, ' ').trim();
+    if (limpo.length > TITULO_MAX) return res.status(400).json({ error: `Título com mais de ${TITULO_MAX} caracteres.` });
+    await moradores.renomear(id, limpo);
+    await refreshWorld();
+    res.json({ ok: true });
+  });
+
+  // Mandar dormir (quarto, 21/11/2026), várias de uma vez pela escrivaninha: encerra o processo (a hibernação) e anota no
+  // quarto; a conversa fica. Só sessão de casa, fora do porão e não aberta em outro terminal; o resto volta em
+  // `recusadas` com o motivo, sem parar as outras. Trabalhando também dorme: a escrivaninha avisa antes (decisão do
+  // usuário). O processo sai antes da anotação: com ele vivo, a sessão ainda apareceria acordada. Encerra processos, então
+  // só a página da vila (Origin local presente, como no cartão do porão): o `curl` de uma sessão não põe outra para dormir.
+  app.post('/api/sessions/dormir', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila manda dormir.' });
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || !ids.length || ids.length > 200 || ids.some((id) => typeof id !== 'string')) {
+      return res.status(400).json({ error: 'Lista de sessões inválida.' });
+    }
+    const recusadas: { id: string; motivo: string }[] = [];
+    const aceitas: string[] = [];
+    for (const id of new Set<string>(ids)) {
+      const s = ctx.world().sessions.find((x) => x.id === id);
+      const motivo = !s
+        ? 'Sessão não encontrada.'
+        : !s.projectId
+          ? 'Só sessão de uma casa dorme no quarto.'
+          : s.porao
+            ? 'Sessão do porão: encerre pela rodada.'
+            : s.live && !s.inTown
+              ? 'Aberta em outro terminal: feche por lá primeiro.'
+              : null;
+      if (motivo) recusadas.push({ id, motivo });
+      else aceitas.push(id);
+    }
+    try {
+      for (const id of aceitas) {
+        await terminals.kill(id);
+        hooks.forget(id);
+      }
+      if (aceitas.length) await ctx.quarto.dormir(aceitas);
+    } catch (err) {
+      return res.status(500).json({ error: String((err as Error).message ?? err) });
+    }
+    await refreshWorld();
+    res.json({ dormindo: aceitas.length, recusadas });
   });
 
   // Encerrar na vila apaga a conversa de vez (decisão do usuário, 26/10/2026): processo, arquivos e estado ao vivo.

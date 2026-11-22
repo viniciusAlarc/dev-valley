@@ -47,8 +47,9 @@ A posição exata sai da prévia (`web/sprites.html`), dividindo os vãos com o 
 
 1. O painel fixo do canto saiu; a torre substitui, e o clique dela abre os limites (`web/src/ui/usage.ts`, `openUsage`).
 2. A torre mostra só os limites do Claude. Ela só muda quando o status line traz `rate_limits` (`StatusLineStore`
-   ignora reporte sem esse campo), e esse campo vem dos limites do plano da Anthropic. Não conferido numa sessão do perfil
-   pessoal (DeepSeek): se um dia vier `rate_limits` de lá, a torre misturaria os dois.
+   ignora reporte sem esse campo), e esse campo vem dos limites do plano da Anthropic. Não conferido numa sessão
+   DeepSeek: se um dia vier `rate_limits` de lá, a torre misturaria os dois. Com duas assinaturas DeepSeek (19/11/2026),
+   a chance aumenta; a separação por conta está na pendência PP-6 do `PENDENCIAS.md`.
 
 ## Como ficou
 

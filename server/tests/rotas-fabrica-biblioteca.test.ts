@@ -19,6 +19,7 @@ const { CATALOG_PATH } = await import('../src/catalog.js');
 const { casa, subir } = await import('./servidor.js');
 type Project = import('../src/world.js').Project;
 type Config = import('../src/config.js').Config;
+type Conta = import('../src/config.js').Conta;
 
 // Nenhuma escrita acontece se a troca não pegou: tudo que a vila grava em ~ tem que cair na pasta temporária.
 for (const p of [os.homedir(), GLOBAL_AGENTS_DIR, GLOBAL_SKILLS_DIR, CATALOG_PATH]) {
@@ -91,6 +92,19 @@ describe('Agentes: /api/agents', () => {
     assert.ok(nomes.includes('p:maestro'));
     fs.rmSync(path.join(GLOBAL_AGENTS_DIR, 'maestro.md'));
     fs.rmSync(path.join(GLOBAL_AGENTS_DIR, 'ajudante.md'));
+  });
+
+  test('a Fábrica mostra a conta fixa dos agentes da vila: os que só leem no DeepSeek do config, o administrador no Claude (19/11/2026)', async () => {
+    const deepseek: Conta = { nome: 'DeepSeek trabalho', provedor: 'deepseek', configDir: '/tmp/deepseek-teste', roots: [], finalidade: 'trabalho' };
+    const agents = new Agents(() => [], () => deepseek);
+    const lista = await agents.list([]);
+    const daVila = new Map(lista.filter((a) => a.village).map((a) => [a.name, a.conta]));
+    assert.deepEqual(daVila.get('bibliotecaria'), { nome: 'DeepSeek trabalho', provedor: 'deepseek' });
+    assert.deepEqual(daVila.get('jornaleiro'), { nome: 'DeepSeek trabalho', provedor: 'deepseek' });
+    assert.deepEqual(daVila.get('escrevente'), { nome: 'DeepSeek trabalho', provedor: 'deepseek' });
+    assert.deepEqual(daVila.get('administrador'), { nome: 'Claude', provedor: 'claude' });
+    const biblio = lista.find((a) => a.name === 'bibliotecaria')!;
+    assert.deepEqual((await agents.read(biblio.path))?.conta, { nome: 'DeepSeek trabalho', provedor: 'deepseek' });
   });
 
   test('conversa com agente: de projeto roda no projeto; da vila, 403; desconhecido, 404', async () => {

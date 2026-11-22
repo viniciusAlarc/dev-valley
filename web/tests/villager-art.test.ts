@@ -43,39 +43,39 @@ describe('lookFor: aparência combina com a marca do nome (decisão do usuário,
 
 describe('lookFor: roupa quente no Claude, fria no DeepSeek (decisão do usuário, 02/11/2026)', () => {
   const generos: Genero[] = ['f', 'm', null];
-  test('cada peça de roupa sai da paleta do perfil', () => {
-    for (const perfil of ['profissional', 'pessoal'] as const) {
-      const P = paletaDo(perfil);
+  test('cada peça de roupa sai da paleta do provedor', () => {
+    for (const provedor of ['claude', 'deepseek'] as const) {
+      const P = paletaDo(provedor);
       for (const g of generos)
         for (const id of ids) {
-          const L = lookFor(id, g, perfil);
-          assert.ok(P.shirts.includes(L.shirt.base), `${perfil} camisa ${L.shirt.base}`);
-          assert.ok(P.jackets.includes(L.jacket.base), `${perfil} jaqueta ${L.jacket.base}`);
-          assert.ok(P.accents.includes(L.accent.base), `${perfil} acessório ${L.accent.base}`);
-          if (L.scarf) assert.ok(P.accents.includes(L.scarf.base), `${perfil} lenço ${L.scarf.base}`);
-          if (L.outfit !== 'dress') assert.ok(P.pants.includes(L.pants.base), `${perfil} calça ${L.pants.base}`);
+          const L = lookFor(id, g, provedor);
+          assert.ok(P.shirts.includes(L.shirt.base), `${provedor} camisa ${L.shirt.base}`);
+          assert.ok(P.jackets.includes(L.jacket.base), `${provedor} jaqueta ${L.jacket.base}`);
+          assert.ok(P.accents.includes(L.accent.base), `${provedor} acessório ${L.accent.base}`);
+          if (L.scarf) assert.ok(P.accents.includes(L.scarf.base), `${provedor} lenço ${L.scarf.base}`);
+          if (L.outfit !== 'dress') assert.ok(P.pants.includes(L.pants.base), `${provedor} calça ${L.pants.base}`);
         }
     }
   });
 
   test('as duas paletas não têm cor em comum', () => {
-    const q = paletaDo('profissional');
-    const f = paletaDo('pessoal');
+    const q = paletaDo('claude');
+    const f = paletaDo('deepseek');
     const quentes = new Set([...q.shirts, ...q.pants, ...q.accents, ...q.jackets]);
     for (const c of [...f.shirts, ...f.pants, ...f.accents, ...f.jackets]) assert.ok(!quentes.has(c), c);
   });
 
-  test('o perfil não mexe em pele, cabelo, olhos, penteado nem no corte da roupa', () => {
+  test('o provedor não mexe em pele, cabelo, olhos, penteado nem no corte da roupa', () => {
     for (const g of generos)
       for (const id of ids) {
-        const a = lookFor(id, g, 'profissional');
-        const b = lookFor(id, g, 'pessoal');
+        const a = lookFor(id, g, 'claude');
+        const b = lookFor(id, g, 'deepseek');
         assert.deepEqual([a.skin, a.hair, a.eye, a.style, a.outfit, a.headwear, a.glasses, a.beard, !!a.scarf], [b.skin, b.hair, b.eye, b.style, b.outfit, b.headwear, b.glasses, b.beard, !!b.scarf]);
       }
   });
 
-  test('sem perfil = profissional (Claude)', () => {
-    assert.deepEqual(lookFor(ids[2], 'm'), lookFor(ids[2], 'm', 'profissional'));
+  test('sem provedor = Claude', () => {
+    assert.deepEqual(lookFor(ids[2], 'm'), lookFor(ids[2], 'm', 'claude'));
   });
 });
 

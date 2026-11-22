@@ -1,8 +1,6 @@
-import { getWorld, type GastoView } from '../api';
+import { contasDoGasto, getWorld, type GastoConta, type GastoView } from '../api';
 import { comparacao, faltam, fatia, numeroCurto, projecao, textoLimite } from './gasto-texto';
 import { escapeHtml, openPanel } from './panel';
-
-const PERFIL = { profissional: 'Trabalho (Claude)', pessoal: 'Pessoal (DeepSeek)' } as const;
 
 const dia = (t: number) => new Date(t).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
 
@@ -14,7 +12,7 @@ function nomeDaSessao(id: string) {
   return s ? s.name : 'uma conversa que já saiu da vila';
 }
 
-function secao(p: GastoView['perfis'][number], quanto: number) {
+function secao(p: GastoConta, quanto: number) {
   const linhas = p.projetos
     .map((proj) => {
       const pct = p.total ? Math.round((proj.peso / p.total) * 100) : 0;
@@ -35,18 +33,18 @@ function secao(p: GastoView['perfis'][number], quanto: number) {
     .join('');
   const detalhe = projecao(p.total, p.anterior, quanto);
   return `
-    <h3>${PERFIL[p.perfil]}</h3>
+    <h3><span class="conta-dot ${p.conta.provedor}"></span> ${escapeHtml(p.conta.nome)}</h3>
     <p class="gasto-ritmo"><strong>${escapeHtml(comparacao(p.total, p.anterior, quanto))}</strong>${detalhe ? ` ${escapeHtml(detalhe)}` : ''}</p>
     ${linhas ? `<div class="gasto-lista">${linhas}</div>` : '<p class="empty">Nada gasto ainda nesta semana.</p>'}`;
 }
 
 /**
- * Painel do moinho (02/11/2026, refeito no mesmo dia para ficar mais claro): no topo só a janela; por perfil, a
+ * Painel do moinho (02/11/2026, refeito no mesmo dia para ficar mais claro): no topo só a janela; por conta, a
  * comparação com a semana passada e uma linha por projeto com barra e porcentagem sempre à vista (o clique abre as
  * conversas); o como é calculado fica recolhido no fim, com o total em tokens.
  */
 export function openGasto(v: GastoView | null) {
-  const panel = openPanel({ title: 'Moinho', subtitle: 'Com o que o Claude gastou nesta semana', size: 'lg', scroll: true });
+  const panel = openPanel({ title: 'Moinho', subtitle: 'Com o que a vila gastou nesta semana', size: 'lg', scroll: true });
   if (!v) {
     panel.body.innerHTML = '<p class="empty">Ainda lendo as conversas. Tente de novo em alguns segundos.</p>';
     return;
@@ -56,7 +54,8 @@ export function openGasto(v: GastoView | null) {
       ? `Semana do plano: ${dia(v.janela.inicio)} → ${dia(v.janela.fim)} · ${faltam(v.janela.fim)}`
       : 'Últimos 7 dias';
   const quanto = decorrido(v);
-  const totais = v.perfis.map((p) => `${PERFIL[p.perfil]}: ${numeroCurto(p.total)} nesta semana, ${numeroCurto(p.anterior)} na anterior.`);
+  const contas = contasDoGasto(v);
+  const totais = contas.map((p) => `${p.conta.nome}: ${numeroCurto(p.total)} nesta semana, ${numeroCurto(p.anterior)} na anterior.`);
   // Previsão dos limites do plano (08/11/2026): o mesmo número da clínica, com quando estoura no ritmo de agora.
   const limites = (v.limites ?? [])
     .map((l) => `<p class="gasto-ritmo"><strong>${escapeHtml(l.label)}: ${Math.round(l.percent)}%.</strong> ${escapeHtml(textoLimite(l))}</p>`)
@@ -64,11 +63,11 @@ export function openGasto(v: GastoView | null) {
   panel.body.innerHTML = `
     <p class="gasto-janela">${escapeHtml(janela)}</p>
     ${limites ? `<h3>Limites do plano: até quando dá</h3>${limites}` : ''}
-    ${v.perfis.map((p) => secao(p, quanto)).join('') || '<p class="empty">Nenhuma conversa nesta semana.</p>'}
+    ${contas.map((p) => secao(p, quanto)).join('') || '<p class="empty">Nenhuma conversa nesta semana.</p>'}
     <details class="gasto-como">
       <summary>Como é calculado</summary>
       <ul class="usage-reset">
-        <li>A porcentagem é a fatia de cada projeto no gasto do perfil. Não é custo em reais (o plano é assinatura).</li>
+        <li>A porcentagem é a fatia de cada projeto no gasto da conta. Não é custo em reais (o plano é assinatura).</li>
         <li>O gasto soma os tokens de entrada, de saída e de criação de cache; a leitura de cache conta 1/10, porque custa bem menos.</li>
         <li>A comparação projeta o gasto de agora para a semana inteira e compara com a semana passada.</li>
         <li>${v.janela.fonte === 'plano' ? 'A semana é a mesma dos limites da clínica.' : 'A semana do plano aparece depois da primeira resposta do Claude numa sessão; até lá, valem os últimos 7 dias.'}</li>

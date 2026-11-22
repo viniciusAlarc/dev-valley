@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { Conta } from './config.js';
 import { askAgent } from './consulta.js';
 import { git } from './git.js';
 import { readProgress } from './progress.js';
@@ -53,11 +54,11 @@ async function contexto(dir: string, arquivos: string[]): Promise<string> {
 }
 
 /** Pede a mensagem ao escrevente; resolve com uma linha só. */
-export async function sugerirMensagem(dir: string, arquivos: string[], hooksToIgnore: Set<string>): Promise<string> {
+export async function sugerirMensagem(dir: string, arquivos: string[], hooksToIgnore: Set<string>, conta?: Conta): Promise<string> {
   const preamble = await contexto(dir, arquivos);
   return new Promise((resolve, reject) => {
     askAgent(
-      { name: 'escrevente', who: 'O escrevente', preamble, stepFor },
+      { name: 'escrevente', who: 'O escrevente', preamble, stepFor, conta },
       'Escreva a mensagem de commit destas alterações.',
       [],
       (e) => {

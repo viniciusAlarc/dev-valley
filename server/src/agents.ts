@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { ROOT_DIR } from './config.js';
+import { CONTA_CLAUDE, ROOT_DIR, type Conta, type Provedor } from './config.js';
+import { AGENTES_NA_CONTA } from './consulta.js';
 import { MAESTRO } from './porao.js';
 import type { Project } from './world.js';
 
@@ -26,6 +27,8 @@ export interface AgentSummary {
   managed: boolean;
   /** Agente da vila, lido de `server/agents/` no repo: só leitura, sem NPC e sem conversa por `--agent`. */
   village: boolean;
+  /** Conta que responde por ele, nos agentes da vila; null nos demais (seguem a conta da sessão). */
+  conta: { nome: string; provedor: Provedor } | null;
 }
 
 export interface AgentFile extends AgentSummary {
@@ -103,7 +106,18 @@ function render(name: string, input: AgentInput, extra: string[]) {
 }
 
 export class Agents {
-  constructor(private projects: () => Project[]) {}
+  constructor(
+    private projects: () => Project[],
+    /** Conta das consultas dos agentes que só leem (`agentes.conta`); o administrador fica no Claude. */
+    private contaDaVila: () => Conta = () => CONTA_CLAUDE,
+  ) {}
+
+  /** A conta fixa de um agente da vila; os outros agentes seguem a conta da sessão (null). */
+  private contaDe(village: boolean, nome: string): AgentSummary['conta'] {
+    if (!village) return null;
+    const conta = AGENTES_NA_CONTA.has(nome) ? this.contaDaVila() : CONTA_CLAUDE;
+    return { nome: conta.nome, provedor: conta.provedor };
+  }
 
   /** As pastas onde a Fábrica pode mexer: a global e a de cada projeto da vila. */
   private dirs(projects = this.projects()): { dir: string; projectId: string | null }[] {
@@ -149,6 +163,7 @@ export class Agents {
             projectId,
             managed: managed || village,
             village,
+            conta: this.contaDe(village, path.basename(file, '.md')),
           });
         } catch {
           // arquivo sumiu entre o readdir e a leitura
@@ -177,6 +192,7 @@ export class Agents {
       projectId: loc.projectId,
       managed: raw.includes(MANAGED_MARKER) || loc.village,
       village: loc.village,
+      conta: this.contaDe(loc.village, path.basename(loc.file, '.md')),
       tools: tools ? tools.split(',').map((t) => t.trim()).filter(Boolean) : null,
       model: model && model !== 'inherit' ? model : null,
       instructions: body.trim(),

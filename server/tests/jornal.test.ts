@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { describe, test } from 'node:test';
+import { CONTA_CLAUDE } from '../src/config.js';
 import { commitsDesde, dataLocal, desdeQuando, Jornal, lerResposta, pauta } from '../src/jornal.js';
 import type { Project, World } from '../src/world.js';
 import { subir } from './servidor.js';
@@ -51,7 +52,7 @@ async function vila() {
   const world = (): Pick<World, 'projects' | 'sessions'> => ({ projects, sessions: [] });
   const pautas: string[] = [];
   let resposta = '{"manchete": "No ativo, pedidos com desconto", "noticias": [{"projeto": "ativo", "voce": "Você deixou o pedido aceitar desconto.", "time": "O time destravou o login."}]}';
-  const jornal = new Jornal(world, new Set(), await projeto(), async (p) => {
+  const jornal = new Jornal(world, new Set(), CONTA_CLAUDE, await projeto(), async (p) => {
     pautas.push(p);
     return resposta;
   });

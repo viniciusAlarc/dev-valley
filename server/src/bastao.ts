@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import type { Conta } from './perfil.js';
 
 /**
  * Passagem de bastão (BT-1, decisão do usuário de 08/11/2026): com o contexto enchendo, o clique em "Passar o bastão"
@@ -32,9 +33,11 @@ interface Pedido {
   cwd: string;
   arquivo: string;
   em: number;
+  /** Conta com que a sessão original fala; o sucessor nasce nela, para não trocar de API no meio do trabalho. */
+  conta: Conta | null;
 }
 
-export type AbrirSessao = (o: { sessionId: string; cwd: string; prompt: string; permitir: string[] }) => Promise<string | null>;
+export type AbrirSessao = (o: { sessionId: string; cwd: string; prompt: string; permitir: string[]; conta?: Conta | null }) => Promise<string | null>;
 
 export class Bastao {
   private pedidos = new Map<string, Pedido>();
@@ -54,10 +57,10 @@ export class Bastao {
   }
 
   /** Anota o pedido e devolve o texto a escrever no terminal. A pasta é criada aqui, para a sessão só escrever o arquivo. */
-  async pedir(de: string, nome: string, cwd: string): Promise<string> {
+  async pedir(de: string, nome: string, cwd: string, conta: Conta | null = null): Promise<string> {
     await fs.mkdir(this.dir, { recursive: true });
     const arquivo = this.arquivoDe(de);
-    this.pedidos.set(de, { de, nome, cwd, arquivo, em: this.agora() });
+    this.pedidos.set(de, { de, nome, cwd, arquivo, em: this.agora(), conta });
     return pedidoDoBastao(arquivo);
   }
 
@@ -77,7 +80,7 @@ export class Bastao {
       if (!st || st.size === 0 || st.mtimeMs < p.em - 1000) continue;
       this.pedidos.delete(p.de);
       const sucessor = randomUUID();
-      const erro = await abrir({ sessionId: sucessor, cwd: p.cwd, prompt: promptDoSucessor(p.nome, p.arquivo), permitir: [`Read(/${p.arquivo})`] });
+      const erro = await abrir({ sessionId: sucessor, cwd: p.cwd, prompt: promptDoSucessor(p.nome, p.arquivo), permitir: [`Read(/${p.arquivo})`], conta: p.conta });
       if (!erro) abertos.push({ de: p.de, sucessor });
     }
     return abertos;

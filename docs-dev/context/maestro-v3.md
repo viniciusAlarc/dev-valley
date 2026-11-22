@@ -17,7 +17,7 @@
 | V2 | **Agora:** itens 1 a 5 abaixo. **Depois de 3 rodadas reais medidas:** revisor de contexto limpo por risco (R8 da pesquisa) e orçamento com critério de morte (R11). Uma variável por vez. |
 | V3 | **Linha de base do gate:** a vila roda os comandos de teste **antes** de abrir as sessões, para o relatório separar o que já estava vermelho do que a rodada quebrou. Custo aceito: a rodada começa com o atraso de uma execução. |
 | V4 | **Gate vermelho só avisa.** Relatório "reprovada" + ❗ na estante; a vila não reabre sessão sozinha (regra 10: sessão só nasce do clique). O usuário decide. |
-| V5 | **Fora do plano:** worktree por sessão (segue como ideia na MA-4), roteamento de modelo, agent teams. |
+| V5 | **Fora do plano:** worktree por sessão (segue como ideia na MA-4), roteamento de modelo, agent teams. Atualização (20/11/2026): sem roteamento por tarefa, mas toda sessão gerada pelo maestro (tarefas e roteiro) abre no Sonnet (`MODELO_DAS_SESSOES` em `rodada.ts`); o maestro fica no modelo que o usuário escolher. |
 
 ## Etapa 0: fechar o v2 (antes de qualquer código novo)
 

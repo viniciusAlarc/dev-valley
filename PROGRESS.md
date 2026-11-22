@@ -3,9 +3,71 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-21 — Sino com "Marcar todas" e frase padrão de validação em todos os projetos
+
+**O que mudou:** pedido do usuário. O sino ganha o "Marcar todas" da escrivaninha (mesma barra `.lote-barra`, com a
+contagem de marcadas), em `web/src/ui/conferir.ts`. O sino já lia o `PROGRESS.md` de todas as casas, mas só a frase
+"Falta conferir na vila", que os outros repositórios não usavam (cada um escrevia "a validar", "falta testar"…).
+Decisão do usuário (21/11/2026): a frase vira regra universal, sem o sino aceitar variações; o G5 do `~/Documents/IA`
+(branch `vinicius`) e o template do `PROGRESS.md` passam a exigi-la em toda entrega que espera validação. Vale daqui
+para frente: entregas antigas dos outros projetos não aparecem. As contas DeepSeek também ganharam
+`cleanupPeriodDays: 90` (fecha a parte da QT-1).
+**Testes:** build do front ok (só front). Falta conferir na vila (reinício do usuário).
+
+## 2026-11-21 — Quarto da casa: sessões dormindo, e dormir ou encerrar várias pela escrivaninha
+
+**O que mudou:** pedido do usuário. Cada casa ganha um **quarto** (porta na parede direita da sala): quem dorme lá teve
+o processo `claude` encerrado (memória e CPU voltam a zero) e a conversa guardada; some da sala, da escrivaninha e do
+mapa. Clicar na cama abre o chat, a sessão acorda (`claude --resume`) e volta à sala. Na **escrivaninha**, cada morador
+tem uma caixa de marcar (com "Marcar todas"): as marcadas vão juntas para o quarto (**💤 Dormir**) ou são apagadas de
+vez (**Encerrar**, o mesmo apagar do chat), sem abrir uma por uma. Decisões do usuário (21/11/2026): Encerrar = apagar
+de vez; abrir quem dorme acorda e volta à sala; o quarto não tem prazo (`sessionMaxAgeDays` não vale para quem dorme) e
+`cleanupPeriodDays: 90` no `~/.claude/settings.json` (o Claude Code apagava conversas com mais de 30 dias); sessão
+trabalhando ou pedindo permissão também pode dormir ou ser encerrada, mas a confirmação avisa.
+**Como:** `server/src/quarto.ts` (`Quarto`: `dormindo.json` em `~/.claude/dev-valley/`, esquece quem não existe mais);
+`listSessions` aceita `sempre` (quem dorme entra fora do prazo); `buildWorld` marca `dormindo` (nunca com processo
+rodando); rota `POST /api/sessions/dormir` (várias de uma vez; encerra o processo antes de anotar; recusa porão, praça
+e sessão aberta em outro terminal com o motivo; só com `Origin` local presente, como o cartão do porão); o terminal da
+vila acorda a sessão ao abrir (`index.ts`). Front: `naSala`/`noQuarto` em `api.ts`, escrivaninha em
+`web/src/ui/project.ts`, `web/src/game/QuartoScene.ts` (camas, cabeça no travesseiro de olhos fechados, colcha, "z"),
+peças em `interiorTextures.ts` (`generateQuartoTextures`) e a porta em `InteriorScene.ts`. CSS sem faixa na borda (G19).
+**Testes:** 329/329 (+5: `server/tests/quarto.test.ts` e a rota em `rotas.test.ts`); typecheck do servidor e build ok;
+auditor só com as 5 referências antigas do PROGRESS (`torre.ts`, `estante.ts`), de antes. Falta o reinício da vila
+(regra 6) e conferir na vila.
+
+## 2026-11-21 — Segunda opinião no cartão do porão (crítico DeepSeek, verificador Haiku)
+
+**O que mudou:** decisão do usuário (CC-1): antes do clique no cartão, um crítico de outra família confere as tarefas
+por um checklist fechado (C1 a C7 por tarefa, R1 da rodada) e cada apontamento é conferido por um verificador. No cartão
+só aparece o confirmado, como aviso; o clique nunca espera por ele. Regras contra bajulação e contra crítica inventada
+aprovadas pelo usuário: checklist fechado, sem saber quem escreveu, sem elogio nem nota, só reprova com trecho citado,
+na dúvida passa, teto de 5. Verificador no Haiku (conta Claude) e só aviso, sem NPC.
+**Como:** `server/src/critico.ts` (`criticaDoPorao`, `criticar`, `perguntarDeVerdade`), agentes
+`server/agents/critico-do-cartao.md` (conta de `agentes.conta`, entra em `AGENTES_NA_CONTA`) e
+`server/agents/verificador-do-cartao.md` (Haiku), os dois só leitura em modo estrito. A rota `POST /api/porao/pedidos`
+inicia a crítica em segundo plano (`ctx.criticaDoCartao`); `GET /api/porao/pedidos/:id` devolve `critica`; aprovar e
+recusar anotam a decisão em `critica-<pedido>.json` na pasta da rodada (medição para decidir se fica). Cartão em
+`web/src/ui/porao.ts`, com a caixa de aviso que já existia (`.pombal-avisos`), sem CSS novo. Plano movido para
+`docs-dev/context/critica-do-cartao.md`; regra 5 do CLAUDE.md e README atualizados.
+**Ensaio real** (cartão de mentira em pasta temporária, dois erros plantados): o crítico na conta DeepSeek trabalho
+achou os dois (duas tarefas no mesmo arquivo sem `dependeDe`; arquivo dito existente que não existe) e mais dois reais
+(a spec citada não existia na pasta); nenhum inventado; o Haiku confirmou os quatro; 84 s.
+**Testes:** 324/324 (+12 em `server/tests/critico.test.ts`); typecheck do servidor e build ok. Falta o reinício da vila
+(regra 6) e conferir numa rodada de verdade.
+
+## 2026-11-21 — Arquivo .md/.html citado no chat abre no leitor da vila
+
+**O que mudou:** pedido do usuário. Clicar num link `/api/arquivo?path=...` que termina em `.md` ou `.html` no terminal
+da sessão abre um painel de leitura da vila (`web/src/ui/leitorArquivo.ts`) em vez de uma aba do navegador: markdown
+renderizado com o mesmo `renderMarkdown` da biblioteca (agora exportado de `library.ts`, sanitizado), HTML num iframe
+`sandbox` como o quadro negro, e o botão "Abrir em aba nova" para o jeito antigo. Vale para link puro (WebLinksAddon) e
+para link OSC 8 (`linkHandler` do xterm). Qualquer outro link segue para o navegador. Nenhuma rota nova: a trava continua
+sendo a `/api/arquivo` (só arquivo de dentro de um projeto da vila). Gate: `npm test` 312/312, `npm run build` ok;
+falta conferir na vila depois do reinício.
+
 ## 2026-11-21 — Lastro na spec nas rodadas do maestro
 
-**O que mudou:** pedido do usuário (todo código do erp_b2b tem lastro na spec). A devolutiva das sessões do porão
+**O que mudou:** pedido do usuário (todo código do ERP tem lastro na spec). A devolutiva das sessões do porão
 ganha três campos obrigatórios: `lastro` (regras da spec cumpridas e as de fase futura, com a spec de origem),
 `fora_da_spec` (o que fez sem estar na spec, ou "nada") e `revisao` (resultado do `/revisar`). O relatório da rodada
 ganha a seção "Lastro na spec", com aviso em destaque para "fora da spec" e para lastro não informado; o hook de parar
@@ -16,6 +78,141 @@ modo `parar` de `scripts/porao-hook.sh`; testes em `server/tests/rodada.test.ts`
 as linhas "Spec" e "Revisão" (quando o projeto tem rubrica); `/revisar` com o "Pedido" copiado do briefing sob o
 maestro, e a lente spec abrindo a seção citada para achar regra esquecida no Pedido. A conferência dos briefings antes
 do clique segue com o plano da crítica do cartão (CC-1).
+
+## 2026-11-21 — Claude + DeepSeek no fluxo: revisor de outra família e dois planos
+
+**O que mudou:** pesquisa sobre combinar as famílias Claude e DeepSeek (revisão cruzada arXiv 2610.01471, Anthropic
+multi-agent, Cognition, MAST, skill `council` do T3 Code; DeepSeek Pro × Flash: o Pro fica sem papel, mas segue
+disponível pelo apelido `opus` das contas DeepSeek). Decisões do usuário: (b) a `/revisar` ganha as lentes spec e
+conjunto também no DeepSeek Flash, somando às do Claude, feito fora deste repositório (`~/Documents/IA`, branch
+`vinicius`, commit `ff10607`, script `~/Documents/IA/claude/skills/revisar/revisor-deepseek.sh`); (c) crítica do cartão pelo Flash
+só com regras anti-bajulação aprovadas antes; (d) conta por tarefa no porão depois das métricas de (b).
+**Como:** nenhum código da vila mudou. Planos em `docs-dev/context/critica-do-cartao.md` (codado depois, no mesmo dia) e
+`docs-dev/a-codar/conta-por-tarefa-no-porao.md`; pendências CC-1 e CC-2.
+**Ensaio de (b):** lente spec numa cópia de uma revisão antiga: o Flash levantou um achado importante que a lente do
+Claude não tinha, ainda não verificado; 11 min com esforço `max`.
+
+## 2026-11-20 — Maestro sempre no Claude, mesmo na casa pessoal
+
+**O que mudou:** pedido do usuário: o maestro abre na conta **Claude** em qualquer casa, inclusive nas pessoais (que
+abrem no DeepSeek pessoal). As sessões de tarefa e do roteiro continuam na conta padrão da casa (no Sonnet; no DeepSeek,
+o Flash).
+**Como:** a rota `POST /api/porao/maestro` (`server/src/app.ts`) grava `CONTA_CLAUDE` em `escolhasDeConta`, a mesma
+tabela da tela de sessão nova; o terminal abre sem `CLAUDE_CONFIG_DIR` e a conversa fica em `~/.claude`, que manda ao
+retomar. O maestro passa por cima da regra "a casa oferece só as contas da mesma finalidade", de propósito.
+**Testes:** 311/311 (o teste da rota do maestro em `porao.test.ts` confere a conta); typecheck do servidor ok.
+
+## 2026-11-20 — Sessões geradas pelo maestro vão no Sonnet
+
+**O que mudou:** pedido do usuário, para gastar menos token sem perder muito no resultado: as sessões que nascem de um
+pedido do maestro (as tarefas da rodada e a sessão do roteiro de testes) abrem no **Sonnet**. O maestro continua abrindo
+no modelo padrão do usuário (hoje `opus` no `settings.json` global) e pode ser trocado na hora com `/model`.
+**Como:** `MODELO_DAS_SESSOES = 'sonnet'` em `server/src/rodada.ts`, posto no JSON de `settingsDaTarefa` (o `--settings`
+da tarefa, que já vale também ao retomar, MA-3) e no `--settings` da sessão do roteiro (`porao.ts`, só o modelo, sem os
+hooks da rodada). O `--settings` vence o `model` do `settings.json` global. Nas contas DeepSeek o apelido `sonnet` vira o
+`ANTHROPIC_DEFAULT_SONNET_MODEL` delas (DeepSeek Flash, que já era o padrão lá): nada quebra.
+**Limite:** a sessão do roteiro, retomada depois, volta ao modelo padrão (ela nasce na casa como sessão comum, sem as
+regras guardadas no porão).
+**Testes:** 311/311 (+1 em `rodada.test.ts`; o teste do roteiro em `porao.test.ts` confere o `--settings` só com o modelo);
+typecheck do servidor ok.
+
+## 2026-11-19 — Agentes de leitura respondem na conta DeepSeek trabalho
+
+**O que mudou:** pedido do usuário: quando o Claude chega ao limite, ele continua o trabalho no DeepSeek, mas perdia
+todos os agentes da vila porque as consultas usavam a licença do Claude. Agora as consultas dos agentes que **só leem**
+(bibliotecária, jornaleiro, jornaleiro da conversa, escrevente, médica e maestro mirim) rodam com o
+`CLAUDE_CONFIG_DIR` da conta escolhida em `agentes.conta` do config local, com a mesma trava de chave do terminal: sem
+base URL/chave, o painel mostra o erro e a consulta **não** cai na licença do trabalho. O **administrador**, único que
+edita arquivos, continua no Claude; o **maestro** (sessão do porão) fica como está. A **Fábrica de agentes** passou a
+mostrar a conta fixa de cada agente da vila: pílula com o ponto do provedor na lista (`DeepSeek` ou `Claude`) e o nome
+da conta no cabeçalho do detalhe.
+**Decisões (usuário, 19/11/2026):** a conta dos agentes é a **DeepSeek trabalho** (`~/.claude-deepseek`), a mesma que
+assume quando o Claude está no limite; a DeepSeek pessoal continua só dos projetos pessoais. O critério é "agente que
+não escreve" (o administrador fica de fora). A troca é fixa, não um fallback: enquanto a conta estiver configurada, os
+agentes não dependem do limite do Claude.
+**Como:** `AgentQuery.conta` em `server/src/consulta.ts`; `ambienteDaConsulta` põe o `CLAUDE_CONFIG_DIR` (e tira o
+herdado na conta do Claude); a trava síncrona `problemaDaContaSync` em `perfil.ts` é a mesma regra da conta do
+terminal. `index.ts` resolve a conta do config e a repassa aos seis serviços; `config.ts` ganhou `agentes.conta`. A
+lista de quem usa a conta é `AGENTES_NA_CONTA`; `agents.ts` carimba `conta` nos agentes da vila (o administrador no
+Claude) e a Fábrica desenha a pílula (`.conta-pill`, a mesma da sessão).
+**Arquivos:** `server/src/{consulta,agents,config,perfil,index,librarian,mirim,clinica,escrevente,jornal}.ts`;
+`web/src/api.ts`, `web/src/ui/factory.ts`; `server/tests/{consulta,jornal,rotas-fabrica-biblioteca}.test.ts`;
+`dev-valley.config.local.json`; `CLAUDE.md`, `README.md`, `docs-dev/context/perfil-pessoal.md` e `PENDENCIAS.md`.
+**Testes:** antes 305/305; depois 310/310 (5 novos: ambiente da conta, remoção do `CLAUDE_CONFIG_DIR` herdado, trava
+sem base URL/chave, erro sem chamar o `claude` e a conta fixa dos agentes da vila na Fábrica), `npm run typecheck -w server`
+e `npm run build` sem erro. O config real resolve `DeepSeek trabalho` e a trava aprova o `~/.claude-deepseek`; o auditor
+`--sem-home` (o do CI) sem achado (o `--tudo` segue com 5 referências históricas no `PROGRESS.md`, já existentes). Falta
+reiniciar a vila, pedir uma pergunta a cada agente e abrir a Fábrica para ver as etiquetas (regra 6).
+
+## 2026-11-19 — Contas com nome: um botão de nova sessão e a tela «Com qual modelo?»
+
+**O que mudou:** pedido do usuário: a vila tratava «pessoal» como sinônimo de DeepSeek e os botões «Nova sessão» /
+«Nova sessão com DeepSeek» não acomodavam a segunda assinatura. O modelo virou **conta**: nome + provedor
+(Claude/DeepSeek) + pasta de configuração + finalidade (pessoal/trabalho) + raízes opcionais. O config local ganhou
+`contas` (o Claude de `~/.claude` é sempre a primeira); o formato antigo (`perfilPessoal`/`perfisExtras`) ainda é aceito
+e convertido. A casa tem uma **conta padrão** (pela raiz) e oferece só as contas da **mesma finalidade**: casa pessoal
+= DeepSeek pessoal; casa de trabalho = Claude + DeepSeek trabalho. O painel da casa ganhou **um** botão «Nova sessão»,
+que abre a tela «Com qual modelo?» (Claude, DeepSeek pessoal, DeepSeek trabalho); a escolha vale só para a sessão. O
+morador mostra a conta quando ela difere da padrão da casa; o topo do terminal mostra a conta sempre; a casa mostra
+«Abre em». O **moinho** e o **Quadro de força da Fábrica** passaram a separar por conta; a **biblioteca** rotula as
+memórias com o nome da conta. A chave da assinatura nova (`~/.claude-deepseek`) foi conferida preenchida: a trava do
+conta aprova o terminal (PP-3 resolvida).
+**Decisões (usuário, 19/11/2026):** D10 nomes das contas: «DeepSeek pessoal» e «DeepSeek trabalho»; D11 a tela escolhe
+**só a conta** (o modelo fino, Sonnet/Opus e Flash/Pro, continua no `/model`); D12 casas separadas por finalidade (a conta
+pessoal não aparece no trabalho; Claude não aparece na casa pessoal); D13 entram criação + rótulos + moinho/Fábrica (a
+biblioteca só recebeu os rótulos por conta).
+**Rotas:** `POST /api/sessions` passa a aceitar `{ conta }` (nome) no lugar de `{ perfil }` (configDir); valida a conta
+contra as contas da casa e responde 400 com a lista quando não é oferecida; sessão avulsa aceita qualquer conta.
+**Arquivos:** `server/src/{config,perfil,world,index,app,bastao,install-hooks,gasto,plugins,library}.ts`;
+`web/src/api.ts`, `web/src/game/{villagerArt,villager,common,TownScene}.ts`,
+`web/src/ui/{novaSessao,project,actions,terminal,gasto,plugins}.ts`, `web/src/style.css`;
+testes `server/tests/{perfil,bastao,rotas,servidor,clinica,gasto,plugins,biblioteca-perfil}.test.ts` e
+`web/tests/villager-art.test.ts`; `scripts/previa-moradores.ts`; docs (`CLAUDE.md`, `README.md`, `PENDENCIAS.md`,
+`RETRABALHO.md`, `docs-dev/context/perfil-pessoal.md`, `fabrica-plugins-e-mcp.md`, `moinho-gasto-por-projeto.md`,
+`torre-do-relogio.md`).
+**Testes:** antes 305/305; depois 305/305, `npm run typecheck -w server` e `npm run build` sem erro; o config real foi
+conferido por script (casa de trabalho oferece Claude + DeepSeek trabalho; casa pessoal só DeepSeek pessoal; os dois
+terminais DeepSeek abrem com `CLAUDE_CONFIG_DIR` e o Claude abre sem). Falta reiniciar a vila e conferir na tela
+(regra 6).
+
+## 2026-11-19 — Sessão nova com a segunda assinatura do DeepSeek em qualquer casa
+
+> **Superado no mesmo dia pela entrega acima:** os dois botões e o «perfil extra» viraram contas com nome e a tela de
+> escolha. O registro fica como histórico da decisão que foi substituída.
+
+
+**O que mudou:** pedido do usuário: abrir o DeepSeek em qualquer repositório da vila (a segunda assinatura, além da que
+já usa nos repositórios pessoais). O painel da casa ganhou **"Nova sessão com DeepSeek"** nas casas que abrem no Claude;
+a casa pessoal continua abrindo no perfil pessoal, como estava (decisões do usuário: escolha **por sessão**, nada
+guardado por casa). Ao retomar, o perfil vem da **pasta da conversa** (`.jsonl`), não da pasta do projeto: um `--resume`
+no perfil errado não acharia a conversa e abriria no Claude. O sucessor do bastão herda o perfil exato; a trava de chave
+vale igual (mensagem com o nome do perfil, nunca o valor, G13). No mundo, o extra é da família pessoal: o morador veste
+tons frios. Fora do repositório: perfil novo `~/.claude-deepseek` criado com o settings do DeepSeek e a chave em branco;
+regras da CNR (`instalar.sh` com `CLAUDE_CONFIG_DIR`) e mod, hooks e agentes da vila (`npm run hooks:install`) instalados
+nele; `dev-valley.config.local.json` ganhou `perfisExtras`.
+**Rotas:** `POST /api/sessions` aceita `{ perfil }` (o `configDir` de um extra): casa pessoal ou perfil não configurado
+responde 400. `PUT`/`DELETE` e as demais rotas não mudaram.
+**Arquivos:** `server/src/{config,perfil,world,index,app,bastao,install-hooks,gasto,plugins}.ts`,
+`web/src/api.ts`, `web/src/ui/project.ts`, testes `server/tests/{perfil,bastao,rotas,servidor,clinica,gasto}.test.ts`,
+`docs-dev/context/perfil-pessoal.md`, `CLAUDE.md`.
+**Testes:** antes 298/298; depois 305/305, typecheck do servidor e build do front sem erro. Falta o usuário colar a chave
+da segunda assinatura no perfil novo e reiniciar a vila para o botão aparecer; Conferido na vila pelo usuário em 20/11/2026.
+
+## 2026-11-16 — Renomear a sessão pela vila
+
+**O que mudou:** botão "✎ Renomear" no rodapé do terminal da sessão (não aparece em conversa com agente nem no maestro
+só para ver). Troca **só o título** (o que aparece na lista da casa, no balão e no topo do terminal); o nome do morador,
+o `@Nome` e a aparência não mudam. O título fica **só na vila**, em `~/.claude/dev-valley/titulos.json`; o arquivo da
+conversa do Claude Code nunca é tocado (decisões do usuário, 16/11/2026). Vazio volta ao título automático; até 80
+caracteres, espaços repetidos e quebras de linha viram um espaço; Enter salva, Esc cancela. O título renomeado também
+vai no `moradores.json` (o `@Nome` traz o título novo). Sessão que sai da vila leva o título junto.
+**Rota:** `PUT /api/sessions/:id/titulo` (`{ titulo }`), recusa outra origem (403), sessão fora do mundo (404) e título
+que não é texto ou passa de 80 (400).
+**Arquivos:** `server/src/moradores.ts` (`renomear`, `titulos.json`, aplicado no `sync`), `server/src/app.ts`,
+`web/src/api.ts`, `web/src/ui/terminal.ts`, `web/src/style.css`, testes `server/tests/{rotas,servidor}.test.ts`,
+`CLAUDE.md` (contagem de rotas e testes).
+**Testes:** antes 296/296; depois 298/298, typecheck do servidor e build do front sem erro, auditor igual (5 achados
+informativos antigos no PROGRESS). Conferido na vila pelo usuário em 20/11/2026 depois do reinício (regra 6).
 
 ## 2026-11-11 — Maestro v3: gate com linha de base, aceite e medição
 
@@ -99,7 +296,7 @@ nos mesmos arquivos). Mirim lê o `rodada.json` e as devolutivas.
 `PENDENCIAS.md` (MA-3 sai, MA-5 vira conferência). Fora do repositório: `~/Documents/IA/claude/agents/maestro.md`,
 `~/Documents/IA/guardrails-ia/convivencia.md`, `~/Documents/IA/guardrails-ia/guardrails-core.md` (G21) e
 `~/Documents/IA/claude/skills/roteiro-testes/SKILL.md`.
-**Testes:** antes 259/259; depois 274/274, typecheck do servidor e do front e build sem erro. Falta conferir na vila
+**Testes:** antes 259/259; depois 274/274, typecheck do servidor e do front e build sem erro. Conferido na vila pelo usuário em 20/11/2026
 depois do reinício (regra 6), numa rodada de verdade.
 
 ## 2026-11-11 — Plano do maestro v2 (sem código)
@@ -121,7 +318,7 @@ o canto da tela. `/api/clinica` segue devolvendo `vitais` para a ficha da médic
 `web/src/ui/{clinica,actions,gasto,limitesHud,limites-texto}.ts`, `web/tests/limites-hud.test.ts`, `server/src/app.ts`
 (comentário); `README.md`, `docs-dev/context/clinica.md`.
 **Testes:** antes 259/259; depois 259/259, typecheck do servidor e do front e build sem erro; auditor só com o histórico.
-Falta conferir na vila depois do reinício (regra 6).
+Conferido na vila pelo usuário em 20/11/2026 depois do reinício (regra 6).
 
 ## 2026-11-09 — Clínica reorganizada e limites de volta ao canto da tela
 
@@ -136,7 +333,7 @@ processador, disco) embaixo. Rota nova `GET /api/clinica/vitais`, leve (sem a am
 `web/src/style.css`, `web/src/ui/{limitesHud,limites-texto}.ts`, `web/src/game/ClinicaScene.ts`,
 `web/tests/limites-hud.test.ts`; `README.md`, `CLAUDE.md`, `docs-dev/context/clinica.md`.
 **Testes:** antes 256/256; depois 259/259, typecheck do servidor e do front e build sem erro; auditor só com o histórico.
-Falta conferir na vila depois do reinício (regra 6): a planta não foi renderizada aqui.
+Conferido na vila pelo usuário em 20/11/2026 depois do reinício (regra 6): a planta não foi renderizada aqui.
 
 ## 2026-11-09 — Clínica, etapa 2 (CL-1): armário dos pacientes esquecidos
 
@@ -177,7 +374,7 @@ passou a usar `eventosDoFim`, que a ficha também usa. Etapa 2 (armário dos "pa
 `README.md`, `CLAUDE.md` (estrutura, regras 5 e 8), `PENDENCIAS.md` (CL-1), `docs-dev/context/clinica.md` (plano), `docs-dev/context/torre-do-relogio.md`.
 **Testes:** antes 240/240; depois 250/250, typecheck do servidor e do front e build sem erro; auditor só com o histórico
 do `PROGRESS.md` (informativo). Leituras do `/proc` conferidas nesta máquina e a médica conferida na prévia em PNG.
-Falta conferir na vila, depois do reinício (regra 6): fachada, interior, triagem, sinais vitais e uma consulta de verdade.
+Conferido na vila pelo usuário em 20/11/2026, depois do reinício (regra 6): fachada, interior, triagem, sinais vitais e uma consulta de verdade.
 
 ## 2026-11-09 — Balão: ícone só enquanto a ferramenta roda; entre ferramentas, os "..." de pensando
 
@@ -188,7 +385,7 @@ cada ferramenta muda o estado duas vezes, os avisos de hook passaram a redesenha
 (`/api/hooks` em `app.ts`); ferramenta instantânea nem pisca o ícone.
 **Arquivos:** `server/src/hooks.ts`, `server/src/app.ts`, `server/tests/hooks.test.ts`; `README.md`.
 **Testes:** antes 240/240; depois 240/240 (teste da atividade reescrito para o fim da ferramenta), typecheck e build sem
-erro. Falta conferir na vila, depois do reinício e do `claude plugin update dev-valley@dev-valley`.
+erro. Conferido na vila pelo usuário em 20/11/2026, depois do reinício e do `claude plugin update dev-valley@dev-valley`.
 
 ## 2026-11-08 — Ícones do balão redesenhados (lupa, lápis, terminal, globo, ✦)
 
@@ -201,7 +398,7 @@ jogo, e a categoria inclui Grep e Glob); lápis na diagonal com borracha e anel,
 **Arquivos:** `web/src/game/iconesBalao.ts` (novo), `web/src/game/textures.ts`, `web/src/game/statusBubble.ts`,
 `web/tests/icones-balao.test.ts` (novo); `README.md`, `CLAUDE.md` (regra 7).
 **Testes:** antes 234/234; depois `npm test` 240/240 (6 novos: cada ícone cabe no miolo e só usa a paleta), typecheck
-e build sem erro. Falta conferir na vila, depois do reinício e do `claude plugin update dev-valley@dev-valley`.
+e build sem erro. Conferido na vila pelo usuário em 20/11/2026, depois do reinício e do `claude plugin update dev-valley@dev-valley`.
 
 ## 2026-11-08 — Passagem de bastão (BT-1)
 
@@ -219,7 +416,7 @@ bastão e diga onde ele parou" e leitura liberada só no arquivo. Pedido sem res
 `web/src/ui/project.ts`, `web/src/ui/actions.ts`, `web/src/game/common.ts`, `web/tests/bastao.test.ts` (novo); `README.md`,
 `CLAUDE.md` (57 rotas), `PENDENCIAS.md` (BT-1 sai).
 **Testes:** antes 227/227; depois `npm test` 234/234 (7 novos: pedido e sucessor, resumo velho e validade, rota com as
-travas, limiar do aviso), typecheck e build sem erro. Falta conferir na vila, depois do reinício (regra 6): o Enter
+travas, limiar do aviso), typecheck e build sem erro. Conferido na vila pelo usuário em 20/11/2026, depois do reinício (regra 6): o Enter
 chegar separado do texto no terminal (400 ms) e o sucessor nascer na casa.
 
 ## 2026-11-08 — Regras duras por harness, balão com o que o morador faz e previsão dos limites no moinho
@@ -249,7 +446,7 @@ chegar separado do texto no terminal (400 ms) e o sucessor nascer na casa.
 commitar esta entrega), BT-1 (passagem de bastão, falta o limiar) e MA-4 (worktree no porão, ideia não decidida).
 Fora deste repositório: enxugamento do núcleo dos guardrails (157 → 124 linhas) na branch `vinicius` do IA, numa cópia
 separada (`~/Documents/IA-vinicius`), sem efeito nas sessões até o usuário juntar.
-Falta conferir na vila: reinício (regra 6) e `claude plugin update dev-valley@dev-valley` para o balão (vale nas sessões novas); o moinho mede o
+Conferido na vila pelo usuário em 20/11/2026: reinício (regra 6) e `claude plugin update dev-valley@dev-valley` para o balão (vale nas sessões novas); o moinho mede o
 ritmo depois de uns 10 minutos de uso.
 
 ## 2026-11-05 — Sessão do roteiro de testes: o maestro pede, o clique abre um morador na casa
@@ -299,7 +496,7 @@ mirim, Bash nunca inteiro, chamado no `Porao`, as 3 rotas novas: origem, maestro
 NDJSON); tipos do servidor e do front sem erro. **Mirim de verdade** (`askMirim`, agente real): pergunta sobre a tarefa
 respondida em 8 s, lendo a conversa e o `git status`; pedido para editar o README e mandar recado ao maestro recusado em
 6 s, README intacto (hash conferido). A animação da batuta e o tamanho do mirim não foram vistos (sem navegador e sem
-reinício, regra 6). Build não rodado (regra 6). Falta conferir na vila (reinício do usuário).
+reinício, regra 6). Build não rodado (regra 6). Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-11-04 — Maestro: sessões liberadas só nos arquivos e testes da tarefa, tempo no relatório, relatórios na estante do porão
 
@@ -328,7 +525,7 @@ negados; o teste liberado passou puro, com `| tail` e com argumento a mais, e fo
 rota real → cartão aprovado pela página (sem ela, 403) → `Porao` real → 3 sessões em paralelo com as regras geradas:
 25 s, 6 de 6 mensagens (`COMECEI`/`PRONTA`) entregues a esta sessão no papel de maestro, os 3 arquivos editados e o
 mesmo `PROGRESS.md` somado pelas três; uma negativa só (uma sessão leu o contrato com `sed` no Bash, e o briefing agora
-manda ler com Read). Rodada de teste apagada. Build não rodado (regra 6). Falta conferir na vila (reinício do usuário).
+manda ler com Read). Rodada de teste apagada. Build não rodado (regra 6). Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-11-03 — Partitura do portão: o relatório do maestro à vista, "novo" até abrir; o quadro saiu do porão
 
@@ -570,8 +767,7 @@ mais gastaram. Peso, cache ÷ 10, pás e totais em tokens foram para "Como é ca
 moinho na vila usa o mesmo título curto.
 **Arquivos:** `web/src/ui/gasto.ts`, `web/src/ui/gasto-texto.ts` (`comparacao`, `projecao`, `faltam`),
 `web/tests/gasto-texto.test.ts`, `web/src/style.css` (seção `.gasto-*`), `docs-dev/context/moinho-gasto-por-projeto.md`.
-**Testes:** 138/138 antes, 140/140 depois; typecheck e build sem erro. Falta conferir na vila (reinício do usuário,
-regra 6), com atenção a nome de projeto comprido na linha e à tela estreita.
+**Testes:** 138/138 antes, 140/140 depois; typecheck e build sem erro. Conferido na vila pelo usuário em 20/11/2026, com atenção a nome de projeto comprido na linha e à tela estreita.
 
 ## 2026-11-02 — Conversa com o jornaleiro e edição extra da Gazeta
 
@@ -615,7 +811,7 @@ notícia; edição antiga sem título usa o nome do projeto.
 (`@fontsource/old-standard-tt` e `@fontsource/unifrakturmaguntia` 5.3.0), `README.md`,
 `docs-dev/context/gazeta-do-vale.md`.
 **Testes:** 138/138 antes e depois (o teste do jornaleiro ganhou o caso do título); typecheck e build sem erro. **Não
-renderizado aqui:** sem navegador sem interface instalado. Falta conferir na vila (reinício do usuário, regra 6), com
+renderizado aqui:** sem navegador sem interface instalado. Conferido na vila pelo usuário em 20/11/2026, com
 atenção a: colunas com 1 e com muitas notícias, cabeçalho em tela estreita, botões no canto da folha.
 
 ## 2026-11-02 — Banca de jornal: o que mudou nos projetos, em linguagem de gente
@@ -632,8 +828,7 @@ caíram no meio ("Connection lost mid-response") foram retomadas em passos peque
 `web/src/game/textures.ts` (`newsstand`), `web/src/game/TownScene.ts` (`buildNewsstand`), `web/src/game/villagerArt.ts`,
 `README.md`, `CLAUDE.md` (regra 5 cita o jornaleiro), `docs-dev/context/banca-de-jornal.md` (saiu de `a-codar/`).
 **Testes:** 130/130 antes, 138/138 depois; typecheck do servidor e build sem erro. Prévia da arte em PNG conferida. O
-jornaleiro de verdade (`claude -p`) não foi chamado nos testes (imitado). Falta conferir na vila (reinício do usuário,
-regra 6).
+jornaleiro de verdade (`claude -p`) não foi chamado nos testes (imitado). Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-11-02 — Moinho: com o que o Claude gastou na semana
 
@@ -648,7 +843,7 @@ gastaram; o número de tokens fica em letra miúda. Peso = entrada + saída + cr
 `web/src/game/textures.ts` (`windmill`), `web/src/game/TownScene.ts` (`buildWindmill`, `girar`), `README.md`, `CLAUDE.md`,
 `docs-dev/context/moinho-gasto-por-projeto.md` (saiu de `a-codar/`).
 **Testes:** 121/121 antes, 130/130 depois; typecheck do servidor e build sem erro. Conferido nos dados reais (1ª leitura
-155 ms, depois 10 ms). Prévia da arte em PNG conferida. Falta conferir na vila (reinício do usuário, regra 6).
+155 ms, depois 10 ms). Prévia da arte em PNG conferida. Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-11-02 — Quadro de força na Fábrica: plugins e MCP (só leitura)
 
@@ -664,7 +859,7 @@ Conectores do claude.ai não ficam em arquivo e o painel avisa que não aparecem
 `web/src/game/FactoryScene.ts`, `README.md`, `CLAUDE.md`, `docs-dev/context/fabrica-plugins-e-mcp.md` (saiu de
 `a-codar/`).
 **Testes:** 117/117 antes, 121/121 depois; typecheck do servidor e build sem erro. Prévia da arte em PNG conferida.
-Falta conferir na vila (reinício do usuário, regra 6).
+Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-11-02 — Torre do relógio no lugar do painel "Uso do Claude"
 
@@ -681,7 +876,7 @@ em 1366×768 vira 3 + 2 em vez de 4 + 1). Lotes da banca e do moinho já reserva
 `web/tests/torre.test.ts` (novo, 5 testes), `web/tests/layout.test.ts` (2 testes novos), `README.md`,
 `docs-dev/context/torre-do-relogio.md` (saiu de `a-codar/`).
 **Testes:** 110/110 antes, 117/117 depois; typecheck do servidor e build sem erro. Prévia da arte em PNG conferida (4
-estados). Falta conferir na vila (reinício do usuário, regra 6).
+estados). Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-11-02 — Planos para preencher a parte de cima da vila
 
@@ -708,7 +903,7 @@ mudam uma vez, porque as listas de cores mudaram.
 `web/src/game/villager.ts`, `web/src/game/common.ts`, `web/src/api.ts`, `server/src/world.ts` (`perfil` na sessão),
 `scripts/previa-moradores.ts` (4º argumento `pessoal`), `web/tests/villager-art.test.ts` (4 testes novos).
 **Testes:** 106/106 antes (último registro do dia, não rodado de novo antes de mexer), 110/110 depois; typecheck do servidor e build sem erro; auditor só com os 2 avisos
-informativos antigos. Prévia em PNG dos dois perfis conferida. Falta conferir na vila (reinício do usuário, regra 6).
+informativos antigos. Prévia em PNG dos dois perfis conferida. Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-11-02 — Vila ocupa a tela toda na visão geral
 
@@ -722,8 +917,7 @@ remonta).
 **Arquivos:** `web/src/game/layout.ts` (`chooseCols`, `fitZoom`, `village`, `zoom`), `web/src/game/TownScene.ts`
 (tamanho da tela no layout, floresta na faixa extra, zoom); `web/tests/layout.test.ts` (novo).
 **Testes:** 101/101 antes, 106/106 depois; typecheck e build sem erro; auditor só com os 2 avisos informativos antigos.
-Mapa conferido em texto para 5 casas (1920×1000) e 7 casas (1200×1000). Falta conferir na vila (reinício do usuário,
-regra 6).
+Mapa conferido em texto para 5 casas (1920×1000) e 7 casas (1200×1000). Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-11-01 — Perfil pessoal: projeto pessoal abre o terminal com outra API (DeepSeek)
 
@@ -745,7 +939,7 @@ que já existiam. Conferido na vila pelo usuário em 01/11/2026: casa "· pessoa
 **O que mudou:** saíram os dois discos de fumaça desenhados na textura da Fábrica, em cima da chaminé: ficavam
 parados e destoavam da fumaça animada que a `TownScene` já solta ali. Pedido do usuário.
 **Arquivos:** `web/src/game/textures.ts` (`factory`).
-**Testes:** typecheck do front sem erro (a textura não tem teste). Falta conferir na vila (reinício do usuário, regra 6).
+**Testes:** typecheck do front sem erro (a textura não tem teste). Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-10-31 — Retrabalho vira lixeira dentro da casa e o pombal encosta na casa
 
@@ -761,7 +955,7 @@ da parede. Pedido do usuário.
 `web/src/game/textures.ts` (sem `weed`), textos em `web/src/ui/retrabalho.ts`, `README.md` e
 `docs-dev/context/ambiente-de-ia-na-vila.md`.
 **Testes:** `npm test` 96/96 antes e depois, typecheck do servidor e do front e `vite build` (diretório temporário) sem
-erro, auditor só com os 2 avisos informativos que já existiam. Falta conferir na vila (reinício do usuário, regra 6).
+erro, auditor só com os 2 avisos informativos que já existiam. Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-10-31 — Casas refinadas sem mudar o desenho
 
@@ -813,7 +1007,7 @@ continuam contando `docs-dev/context/`; a rota `/api/estante` ficou sem uso no f
 **Arquivos:** `web/src/ui/library.ts` (`openLibrary({ project })`), `web/src/ui/actions.ts`, `web/src/game/InteriorScene.ts`
 (dica da estante), `server/src/library.ts` e `server/src/app.ts` (busca por seção), `web/src/api.ts` (`library.search`),
 `server/tests/rotas-fabrica-biblioteca.test.ts`, `README.md`.
-**Testes:** `npm test` 96/96, typecheck do servidor e build sem erro. Falta conferir na vila (reinício é do usuário).
+**Testes:** `npm test` 96/96, typecheck do servidor e build sem erro. Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-10-31 — Pombal: o pombo recolhe as cartas e voa no envio
 
@@ -826,7 +1020,7 @@ atualização do mundo não redesenha as cartas; no fim, cartas e pombal voltam 
 quadros: sem carta, com carta e com carta de asa levantada.
 **Arquivos:** `web/src/game/TownScene.ts` (`voarPombo`, `PombalView`), `web/src/game/textures.ts` (`pigeon`),
 `web/src/api.ts` (`tomarEnvio`).
-**Testes:** `npm test` 96/96, typecheck do servidor e build sem erro. Front sem teste automático: falta conferir na vila.
+**Testes:** `npm test` 96/96, typecheck do servidor e build sem erro. Front sem teste automático: Conferido na vila pelo usuário em 20/11/2026.
 
 ## 2026-10-31 — Moradores variados e com a aparência combinando com o nome
 

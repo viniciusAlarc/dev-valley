@@ -5,9 +5,10 @@ import path from 'node:path';
 import { describe, test } from 'node:test';
 import type { Contexto } from '../src/app.js';
 import type { AgentEvent } from '../src/consulta.js';
+import { CONTA_CLAUDE, type Conta } from '../src/config.js';
 import type { Lareira } from '../src/lareira.js';
 import type { Pombal } from '../src/pombal.js';
-import type { Project } from '../src/world.js';
+import { resumoDe, type Project } from '../src/world.js';
 import { casa, sessao, subir } from './servidor.js';
 import { projeto } from './util.js';
 
@@ -224,6 +225,39 @@ describe('POST /api/sessions', () => {
     assert.ok(s.ctx.avulsaSessions.has(avulsa.sessionId));
     assert.equal((await s.enviar('POST', '/api/sessions', { project: 'x' })).status, 400);
   });
+
+  test('conta (19/11/2026): cada casa só aceita as contas da finalidade dela, e a escolha fica guardada', async () => {
+    const dir = await projeto();
+    const pessoal: Conta = { nome: 'DeepSeek pessoal', provedor: 'deepseek', configDir: '/x/pessoal', roots: [], finalidade: 'pessoal' };
+    const trabalho: Conta = { nome: 'DeepSeek trabalho', provedor: 'deepseek', configDir: '/x/extra', roots: [], finalidade: 'trabalho' };
+    const claude = resumoDe(CONTA_CLAUDE);
+    const escolhas = new Map<string, string>();
+    const s = await subir(
+      {
+        projects: [
+          casa('p', dir, { contaPadrao: claude, contas: [claude, resumoDe(trabalho)] }),
+          casa('pessoal', dir, { contaPadrao: resumoDe(pessoal), contas: [resumoDe(pessoal)] }),
+        ],
+      },
+      { contas: [CONTA_CLAUDE, pessoal, trabalho], escolhasDeConta: escolhas },
+    );
+    const ok = await s.enviar('POST', '/api/sessions', { project: 'p', conta: trabalho.nome });
+    assert.equal(ok.status, 200);
+    const { sessionId } = await ok.json();
+    assert.equal(escolhas.get(sessionId), trabalho.nome);
+    assert.equal((await s.enviar('POST', '/api/sessions', { project: 'p', conta: 'Outra' })).status, 400);
+    assert.equal((await s.enviar('POST', '/api/sessions', { project: 'p', conta: pessoal.nome })).status, 400);
+    assert.equal((await s.enviar('POST', '/api/sessions', { project: 'pessoal', conta: trabalho.nome })).status, 400);
+    const naPessoal = await s.enviar('POST', '/api/sessions', { project: 'pessoal', conta: pessoal.nome });
+    assert.equal(naPessoal.status, 200);
+    assert.equal(escolhas.get((await naPessoal.json()).sessionId), pessoal.nome);
+    const avulsa = await s.enviar('POST', '/api/sessions', { conta: pessoal.nome });
+    assert.equal(avulsa.status, 200);
+    assert.equal(escolhas.get((await avulsa.json()).sessionId), pessoal.nome);
+    const semEscolha = await s.enviar('POST', '/api/sessions', { project: 'p' });
+    assert.equal(semEscolha.status, 200);
+    assert.equal(escolhas.get((await semEscolha.json()).sessionId), undefined);
+  });
 });
 
 describe('DELETE /api/sessions/:id', () => {
@@ -247,6 +281,67 @@ describe('DELETE /api/sessions/:id', () => {
     const s = await subir({ sessions: [sessao(ID, { live: true, inTown: false })] });
     assert.equal((await s.enviar('DELETE', '/api/sessions/00000000-0000-0000-0000-000000000002')).status, 404);
     assert.equal((await s.enviar('DELETE', `/api/sessions/${ID}`)).status, 409);
+  });
+});
+
+describe('POST /api/sessions/dormir', () => {
+  const LOCAL = 'http://localhost:4777';
+  const ID = '00000000-0000-0000-0000-000000000001';
+  const FORA = '00000000-0000-0000-0000-000000000002';
+  const PORAO = '00000000-0000-0000-0000-000000000003';
+  const PRACA = '00000000-0000-0000-0000-000000000004';
+  const mundo = {
+    sessions: [
+      sessao(ID, { projectId: 'p', live: true, status: 'working' }),
+      sessao(FORA, { projectId: 'p', live: true, inTown: false }),
+      sessao(PORAO, { projectId: 'p', porao: { papel: 'maestro' } }),
+      sessao(PRACA),
+    ],
+  };
+
+  test('sucesso: encerra o processo antes de anotar no quarto; as recusadas voltam com o motivo', async () => {
+    const feitos: string[] = [];
+    const s = await subir(mundo, {
+      terminals: { kill: async (id) => void feitos.push(`kill ${id}`) },
+      hooks: { handle: () => false, forget: (id) => void feitos.push(`forget ${id}`) },
+      quarto: { dormir: async (ids) => void feitos.push(`dormir ${ids.join(',')}`) },
+    });
+    const res = await s.enviar('POST', '/api/sessions/dormir', { ids: [ID, ID, FORA, PORAO, PRACA, 'x'] }, LOCAL);
+    assert.equal(res.status, 200);
+    const corpo = await res.json();
+    assert.equal(corpo.dormindo, 1);
+    assert.deepEqual(corpo.recusadas.map((r: { id: string }) => r.id), [FORA, PORAO, PRACA, 'x']);
+    assert.deepEqual(feitos, [`kill ${ID}`, `forget ${ID}`, `dormir ${ID}`]);
+  });
+
+  test('entrada inválida: 400; outra origem ou sem origem: 403 (ninguém dorme)', async () => {
+    const s = await subir(mundo);
+    assert.equal((await s.enviar('POST', '/api/sessions/dormir', { ids: [] }, LOCAL)).status, 400);
+    assert.equal((await s.enviar('POST', '/api/sessions/dormir', { ids: 'x' }, LOCAL)).status, 400);
+    assert.equal((await s.enviar('POST', '/api/sessions/dormir', { ids: [1] }, LOCAL)).status, 400);
+    assert.equal((await s.enviar('POST', '/api/sessions/dormir', { ids: [ID] }, 'http://evil.example')).status, 403);
+    assert.equal((await s.enviar('POST', '/api/sessions/dormir', { ids: [ID] })).status, 403);
+  });
+});
+
+describe('PUT /api/sessions/:id/titulo', () => {
+  const ID = '00000000-0000-0000-0000-000000000001';
+  const LOCAL = 'http://localhost:4777';
+
+  test('sucesso: grava o título limpo; vazio volta ao automático', async () => {
+    const feitos: [string, string][] = [];
+    const s = await subir({ sessions: [sessao(ID)] }, { moradores: { claim: async () => 'x', renomear: async (id, t) => void feitos.push([id, t]) } });
+    assert.equal((await s.enviar('PUT', `/api/sessions/${ID}/titulo`, { titulo: '  Tela de   login \n' }, LOCAL)).status, 200);
+    assert.equal((await s.enviar('PUT', `/api/sessions/${ID}/titulo`, { titulo: '   ' }, LOCAL)).status, 200);
+    assert.deepEqual(feitos, [[ID, 'Tela de login'], [ID, '']]);
+  });
+
+  test('entrada inválida: 400; sessão desconhecida: 404; outra origem: 403 (nada é gravado)', async () => {
+    const s = await subir({ sessions: [sessao(ID)] });
+    assert.equal((await s.enviar('PUT', `/api/sessions/${ID}/titulo`, { titulo: 3 }, LOCAL)).status, 400);
+    assert.equal((await s.enviar('PUT', `/api/sessions/${ID}/titulo`, { titulo: 'x'.repeat(81) }, LOCAL)).status, 400);
+    assert.equal((await s.enviar('PUT', '/api/sessions/00000000-0000-0000-0000-000000000002/titulo', { titulo: 'a' }, LOCAL)).status, 404);
+    assert.equal((await s.enviar('PUT', `/api/sessions/${ID}/titulo`, { titulo: 'a' }, 'https://exemplo.com')).status, 403);
   });
 });
 
@@ -276,7 +371,7 @@ describe('POST /api/moradores/nome', () => {
   const ID = '00000000-0000-0000-0000-00000000000a';
 
   test('sucesso: nome do morador; sessão interna da vila não vira morador', async () => {
-    const s = await subir({}, { moradores: { claim: async (id) => (id === ID ? 'Vera' : 'outro') } });
+    const s = await subir({}, { moradores: { claim: async (id) => (id === ID ? 'Vera' : 'outro'), renomear: async () => {} } });
     assert.deepEqual(await (await s.enviar('POST', '/api/moradores/nome', { session_id: ID })).json(), { name: 'Vera' });
     s.ctx.internalSessions.add(ID);
     assert.deepEqual(await (await s.enviar('POST', '/api/moradores/nome', { session_id: ID })).json(), { name: null });

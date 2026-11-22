@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { activityOf, daCasa, estadoLareira, getWorld, onWorld, poraoPrecisaDeVoce, rodadaEmAndamento, type AgentSummary, type Project, type Session, type World } from '../api';
+import { activityOf, estadoLareira, getWorld, naSala, noQuarto, onWorld, poraoPrecisaDeVoce, rodadaEmAndamento, type AgentSummary, type Project, type Session, type World } from '../api';
 import { ui } from '../ui/actions';
 import { AgentNpc, CONVERSA_DX, makeInteractive, TALK_Y, VillagerView } from './common';
-import { generateInteriorTextures, generatePoraoTextures, SEED_COLORS, SHELF_BOOKS } from './interiorTextures';
+import { generateInteriorTextures, generatePoraoTextures, generateQuartoTextures, SEED_COLORS, SHELF_BOOKS } from './interiorTextures';
 import type { Facing } from './villager';
 
 /** Visita de um morador a outro na sala: de onde saiu (para voltar) e para onde o visitado olhava. */
@@ -118,6 +118,7 @@ export class InteriorScene extends Phaser.Scene {
   create() {
     generateInteriorTextures(this);
     generatePoraoTextures(this);
+    generateQuartoTextures(this);
     this.cameras.main.setBackgroundColor('#1a120b');
     this.unsubscribe = onWorld((w) => this.applyWorld(w));
     const onResize = () => this.frameCamera();
@@ -155,6 +156,16 @@ export class InteriorScene extends Phaser.Scene {
     });
   }
 
+  /** Entra no quarto (21/11/2026): como o porão, a casa dorme e acorda quando o quarto fecha. */
+  private entrarNoQuarto() {
+    ui.hideTooltip();
+    this.cameras.main.fadeOut(200);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      this.scene.sleep();
+      this.scene.launch('quarto', { projectId: this.projectId });
+    });
+  }
+
   /** Desce ao porão: a casa dorme (continua acompanhando o mundo) e acorda quando o porão fecha. */
   private descer() {
     ui.hideTooltip();
@@ -181,7 +192,7 @@ export class InteriorScene extends Phaser.Scene {
   applyWorld(world: World) {
     const project = this.project(world);
     if (!project) return this.leave();
-    const sessions = world.sessions.filter((s) => s.projectId === this.projectId && daCasa(s));
+    const sessions = world.sessions.filter((s) => s.projectId === this.projectId && naSala(s));
     const placement = this.place(sessions);
     placement.agents = world.agents.filter((a) => a.projectId === this.projectId && !a.managed).slice(0, AGENT_TABLE_X.length);
     const signature = JSON.stringify([
@@ -348,6 +359,17 @@ export class InteriorScene extends Phaser.Scene {
         return `Alçapão — porão do maestro, trabalho paralelo de sessões${resumo}${pedido}`;
       },
       () => this.descer(),
+    );
+
+    // Porta do quarto (21/11/2026) na parede direita, entre as mesas e a sala de estar: quem dorme fica lá.
+    const porta = this.add.image(W - 4, loungeTop + 4, 'bedroomDoor').setOrigin(0.5, 1).setDepth(loungeTop + 4);
+    makeInteractive(
+      porta,
+      () => {
+        const n = noQuarto(getWorld(), this.projectId).length;
+        return `Quarto — ${n ? `${n} sessão(ões) dormindo` : 'ninguém dormindo'}; mande dormir pela escrivaninha — clique para entrar`;
+      },
+      () => this.entrarNoQuarto(),
     );
 
     // ---- mesas de trabalho ----

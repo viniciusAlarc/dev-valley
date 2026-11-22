@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { CONTA_CLAUDE, type Conta } from './config.js';
 import { askAgent, type AgentEvent, type Exchange } from './consulta.js';
 import { git } from './git.js';
 import type { World } from './world.js';
@@ -130,10 +131,10 @@ export function lerResposta(texto: string, nomes: string[]): { manchete: string;
   }
 }
 
-function pedirAoJornaleiro(preamble: string, hooksToIgnore: Set<string>): Promise<string> {
+function pedirAoJornaleiro(preamble: string, hooksToIgnore: Set<string>, conta?: Conta): Promise<string> {
   return new Promise((resolve, reject) => {
     askAgent(
-      { name: 'jornaleiro', who: 'O jornaleiro', preamble, stepFor: (tool) => `🔧 ${tool}` },
+      { name: 'jornaleiro', who: 'O jornaleiro', preamble, stepFor: (tool) => `🔧 ${tool}`, conta },
       'Escreva a edição de hoje do jornal da vila.',
       [],
       (e) => {
@@ -152,8 +153,9 @@ export class Jornal {
   constructor(
     private world: () => Pick<World, 'projects' | 'sessions'>,
     private hooksToIgnore: Set<string>,
+    private conta: Conta = CONTA_CLAUDE,
     private dir = path.join(os.homedir(), '.cache', 'dev-valley', 'jornal'),
-    private escrever: (preamble: string) => Promise<string> = (p) => pedirAoJornaleiro(p, this.hooksToIgnore),
+    private escrever: (preamble: string) => Promise<string> = (p) => pedirAoJornaleiro(p, this.hooksToIgnore, this.conta),
   ) {}
 
   private arquivo = (data: string) => path.join(this.dir, `${data}.json`);
@@ -292,6 +294,7 @@ export function askJornaleiro(
   jornal: Pick<Jornal, 'view' | 'pautaDaConversa'>,
   onEvent: (e: AgentEvent) => void,
   hooksToIgnore: Set<string>,
+  conta?: Conta,
 ): () => void {
   let cancelado = false;
   let cancelar = () => {
@@ -305,7 +308,7 @@ export function askJornaleiro(
         `## Edição de hoje da Gazeta do Vale\n\n${edicaoEmTexto(v.edicao)}`,
         `## Pauta dos últimos 30 dias\n\n${pautaTexto}`,
       ].join('\n\n');
-      cancelar = askAgent({ name: 'jornaleiro-conversa', who: 'O jornaleiro', preamble, stepFor: (tool) => `🔧 ${tool}` }, question, history, onEvent, hooksToIgnore);
+      cancelar = askAgent({ name: 'jornaleiro-conversa', who: 'O jornaleiro', preamble, stepFor: (tool) => `🔧 ${tool}`, conta }, question, history, onEvent, hooksToIgnore);
     })
     .catch((err: Error) => onEvent({ type: 'error', text: `O jornaleiro não conseguiu ler a pauta: ${err.message}` }));
   return () => cancelar();

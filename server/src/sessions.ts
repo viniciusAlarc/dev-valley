@@ -63,9 +63,9 @@ function parseSession(id: string, raw: string, mtimeMs: number, file: string): S
 
 /**
  * Lê as sessões salvas pelo Claude Code em <perfil>/projects/<projeto>/<id>.jsonl, em cada pasta de `roots` (o perfil
- * de sempre e o pessoal, ver perfil.ts).
+ * de sempre e o pessoal, ver perfil.ts). `sempre` entra qualquer que seja a idade (quem dorme no quarto, quarto.ts).
  */
-export async function listSessions(maxAgeDays: number, roots: string[] = [CLAUDE_PROJECTS_DIR]): Promise<SessionInfo[]> {
+export async function listSessions(maxAgeDays: number, roots: string[] = [CLAUDE_PROJECTS_DIR], sempre: Set<string> = new Set()): Promise<SessionInfo[]> {
   const minMtime = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
   const result: SessionInfo[] = [];
   const projectDirs: string[] = [];
@@ -91,7 +91,7 @@ export async function listSessions(maxAgeDays: number, roots: string[] = [CLAUDE
       } catch {
         continue; // apagado entre o readdir e o stat (ex.: sessão encerrada na vila)
       }
-      if (stat.mtimeMs < minMtime) continue;
+      if (stat.mtimeMs < minMtime && !sempre.has(file.replace(/\.jsonl$/, ''))) continue;
       const cached = cache.get(filePath);
       if (cached && cached.mtimeMs === stat.mtimeMs) {
         if (cached.info) result.push(cached.info);

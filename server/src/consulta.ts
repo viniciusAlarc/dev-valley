@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ROOT_DIR } from './config.js';
+import { CONTA_CLAUDE, ROOT_DIR, type Conta } from './config.js';
+import { problemaDaContaSync } from './perfil.js';
 
 /**
  * Consulta a um agente permanente da vila (bibliotecária, administrador da praça). Cada pergunta é um `claude -p`
@@ -13,6 +14,12 @@ import { ROOT_DIR } from './config.js';
 
 const TIMEOUT_MS = 3 * 60 * 1000;
 const MAX_HISTORY = 3;
+
+/**
+ * Agentes da vila que respondem na conta de `agentes.conta` (os que só leem). Agente novo fica fora até decisão
+ * explícita: o padrão é o Claude, que é a licença do trabalho. O administrador é o único que edita, e fica no Claude.
+ */
+export const AGENTES_NA_CONTA = new Set(['bibliotecaria', 'jornaleiro', 'jornaleiro-conversa', 'escrevente', 'medica', 'maestro-mirim', 'critico-do-cartao']);
 
 export type AgentEvent =
   | { type: 'step'; text: string }
@@ -39,6 +46,8 @@ export interface AgentQuery {
    * negado). O maestro mirim usa: só lê, mesmo com o modo `auto` no settings do usuário (04/11/2026).
    */
   estrito?: boolean;
+  /** Conta que responde (padrão: Claude). Os agentes que só leem usam a conta DeepSeek do config local. */
+  conta?: Conta;
   stepFor: (tool: string, input: any) => string;
 }
 
@@ -56,6 +65,18 @@ export function agentDefinition(name: string, replacements: Record<string, strin
     tools: field('tools').split(',').map((t) => t.trim()).filter(Boolean),
     model: field('model') || 'sonnet',
   };
+}
+
+/**
+ * Ambiente do `claude -p` de uma consulta. A conta DeepSeek entra como `CLAUDE_CONFIG_DIR`; a do Claude de `~/.claude`
+ * tira a variável herdada, para a consulta não cair numa conta DeepSeek quando o servidor foi iniciado de dentro de
+ * uma sessão dela.
+ */
+export function ambienteDaConsulta(conta: Conta = CONTA_CLAUDE, base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...base };
+  if (conta.provedor === 'claude' && conta.configDir === CONTA_CLAUDE.configDir) delete env.CLAUDE_CONFIG_DIR;
+  else env.CLAUDE_CONFIG_DIR = conta.configDir;
+  return env;
 }
 
 function buildPrompt(question: string, history: Exchange[], preamble?: string) {
@@ -96,13 +117,21 @@ export function askAgent(
   hooksToIgnore: Set<string>,
 ): () => void {
   const sessionId = randomUUID();
+  const agent = agentDefinition(query.name, query.replacements);
+  const conta = query.conta ?? CONTA_CLAUDE;
+  // A trava (perfil.ts) impede o `claude` de cair no login do trabalho quando a conta está sem base URL ou sem chave.
+  const erroDaConta = conta.provedor === 'deepseek' ? problemaDaContaSync(conta.configDir) : null;
+  if (erroDaConta) {
+    // Sem spawn: nada de morador fantasma. O erro leva o nome da conta e o motivo, nunca o valor da chave (G13).
+    setTimeout(() => onEvent({ type: 'error', text: `${conta.nome}: ${erroDaConta} A consulta não usou a licença do trabalho.` }), 0);
+    return () => {};
+  }
   // Os hooks também disparam para esta consulta; a vila ignora este id para não criar morador fantasma.
   hooksToIgnore.add(sessionId);
-  const agent = agentDefinition(query.name, query.replacements);
   const child = spawn(
     'claude',
     argsDaConsulta(query.name, agent, buildPrompt(question, history, query.preamble), sessionId, query.allow, query.estrito),
-    { cwd: os.homedir(), env: process.env, stdio: ['ignore', 'pipe', 'pipe'] },
+    { cwd: os.homedir(), env: ambienteDaConsulta(conta), stdio: ['ignore', 'pipe', 'pipe'] },
   );
 
   let buffer = '';

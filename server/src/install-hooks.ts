@@ -4,8 +4,8 @@
  *   (decisão de 26/10/2026, PD-11);
  * - os hooks de shell que o mod não consegue fazer (SHELL_EVENTS: o pedido de permissão), no ~/.claude/settings.json;
  * - os agentes permanentes em ~/.claude/agents.
- * Tudo isso vale para cada perfil do Claude Code: o de sempre (~/.claude) e, se configurado, o pessoal
- * (`perfilPessoal.configDir`, decisão do usuário de 01/11/2026), para a casa pessoal também acender o status.
+ * Tudo isso vale para cada conta do Claude Code (`config.contas`, 19/11/2026): o de sempre (~/.claude), o pessoal
+ * (decisão do usuário de 01/11/2026) e as assinaturas DeepSeek, para toda sessão acender o status na vila.
  * No settings.json só mexe no que é do Dev Valley (entradas marcadas com MARKER): hooks e status line que você já tem
  * ficam intactos.
  */
@@ -33,7 +33,7 @@ const uninstall = process.argv.includes('--uninstall');
 const notes: string[] = [];
 const config = loadConfig();
 const PADRAO = path.join(os.homedir(), '.claude');
-const perfis = [PADRAO, ...(config.perfilPessoal ? [config.perfilPessoal.configDir] : [])];
+const perfis = [...new Set([PADRAO, ...config.contas.map((c) => c.configDir)])];
 
 for (const perfilDir of perfis) {
   const SETTINGS = path.join(perfilDir, 'settings.json');

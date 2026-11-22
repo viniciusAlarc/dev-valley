@@ -57,6 +57,7 @@ describe('POST /api/porao/maestro', () => {
     const { sessionId, projectId } = await r.json();
     assert.equal(projectId, 'p');
     assert.deepEqual(s.ctx.agentSessions.get(sessionId), { cwd: dir, agent: 'maestro' });
+    assert.equal(s.ctx.escolhasDeConta.get(sessionId), 'Claude', 'o maestro abre no Claude, mesmo na casa pessoal');
     assert.ok((await porao.maestros()).has(sessionId));
   });
   test('projeto desconhecido, 404; agente não instalado, 409 e nada anotado; outra origem, recusado', async () => {
@@ -224,10 +225,11 @@ describe('Porao.pedirRoteiro: a sessão que monta o roteiro de testes', () => {
     const dir = casaComRelatorio('roteiro-abre');
     const r = await p.pedirRoteiro({ maestro: 'm1', rodada: 'r1', relatorio: REL }, dir);
     assert.ok(!('erro' in r));
-    const abertas: { id: string; prompt: string; permitir: string[] }[] = [];
-    const ok = await p.aprovar(r.id, async (id, prompt, permitir) => (abertas.push({ id, prompt, permitir }), null));
+    const abertas: { id: string; prompt: string; permitir: string[]; settings?: string }[] = [];
+    const ok = await p.aprovar(r.id, async (id, prompt, permitir, settings) => (abertas.push({ id, prompt, permitir, settings }), null));
     assert.equal(ok?.estado, 'aprovado');
     assert.deepEqual(abertas.map((a) => [a.prompt, a.permitir]), [[`/roteiro-testes ${REL}`, []]]);
+    assert.deepEqual(JSON.parse(abertas[0]!.settings!), { model: 'sonnet' }, 'só o modelo, sem hooks da rodada');
     assert.deepEqual(ok?.sessoes.roteiro, { sessionId: abertas[0]!.id });
     assert.equal((await p.papeis()).has(abertas[0]!.id), false);
     assert.equal(briefingDe(abertas[0]!.prompt), null, 'o primeiro prompt também não a põe no porão');

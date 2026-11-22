@@ -45,8 +45,13 @@ export function openConferir(world: World) {
       panel.body.innerHTML = '<p class="empty">Nada esperando conferência na vila.</p>';
       return;
     }
+    // "Marcar todas", o mesmo da escrivaninha (21/11/2026): padrão de seleção em lote da vila.
+    const barra = total
+      ? `<div class="lote-barra"><label class="lote-todas"><input type="checkbox" class="conferir-todas"> Marcar todas</label><span class="muted lote-conta"></span></div>`
+      : '';
     panel.body.innerHTML =
       restartHtml +
+      barra +
       groups
         .map(({ project, list }) => {
           const planos = (project.sementes ?? []).filter((s) => s.toCheck);
@@ -64,7 +69,24 @@ export function openConferir(world: World) {
               .join('')}</ul>${aviso}`;
         })
         .join('');
-    panel.body.querySelectorAll<HTMLInputElement>('.conferir-list input').forEach((c) => (c.checked = marked.has(checkKey(c))));
+    const caixas = [...panel.body.querySelectorAll<HTMLInputElement>('.conferir-list input')];
+    caixas.forEach((c) => (c.checked = marked.has(checkKey(c))));
+    const todas = panel.body.querySelector<HTMLInputElement>('.conferir-todas');
+    const conta = panel.body.querySelector('.lote-conta');
+    const atualizar = () => {
+      const n = caixas.filter((c) => c.checked).length;
+      if (conta) conta.textContent = n ? `${n} marcada(s)` : '';
+      if (todas) {
+        todas.checked = n > 0 && n === caixas.length;
+        todas.indeterminate = n > 0 && n < caixas.length;
+      }
+    };
+    caixas.forEach((c) => c.addEventListener('change', atualizar));
+    todas?.addEventListener('change', () => {
+      caixas.forEach((c) => (c.checked = todas.checked));
+      atualizar();
+    });
+    atualizar();
   }
 
   function checkKey(c: HTMLInputElement) {

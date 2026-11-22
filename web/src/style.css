@@ -332,6 +332,182 @@ h3 {
   background: var(--parchment-dark);
 }
 
+/* Escrivaninha: marcar várias sessões para dormir ou encerrar (quarto, 21/11/2026). Marcada = só o fundo, sem faixa (G19). */
+.session-list li.marcada {
+  background: var(--parchment-dark);
+}
+
+.lote-caixa {
+  margin: 0;
+  accent-color: var(--wood);
+  cursor: pointer;
+}
+
+.lote-barra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.lote-barra[hidden],
+.lote-confirma[hidden] {
+  display: none;
+}
+
+.lote-todas {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.lote-botoes {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.lote-confirma {
+  border: 1px solid var(--wood);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.lote-confirma p {
+  margin: 0 0 6px;
+}
+
+.lote-confirma .button-row {
+  margin-top: 8px;
+}
+
+.lote-alerta {
+  color: var(--red);
+}
+
+.lote-aviso {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+
+/* Sessão nova e etiqueta de conta (19/11/2026): a cor vive no ponto; nada de faixa colorida na borda (G19). */
+.conta-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.conta-opcao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  text-align: left;
+  font-family: var(--font);
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--parchment-dark);
+  border: 3px solid var(--wood);
+  border-radius: 4px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.conta-opcao:hover {
+  filter: brightness(1.06);
+}
+
+.conta-opcao:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+.conta-opcao:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.conta-opcao.padrao {
+  border-color: var(--wood-dark);
+}
+
+.conta-opcao .conta-dot {
+  width: 12px;
+  height: 12px;
+}
+
+.conta-texto {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.conta-texto small {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.conta-seta {
+  color: var(--muted);
+}
+
+.conta-pergunta {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.conta-erro {
+  margin: 8px 0 0;
+  color: var(--red);
+  overflow-wrap: anywhere;
+}
+
+.conta-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex: none;
+  vertical-align: -1px;
+  border: 2px solid var(--wood-dark);
+  border-radius: 50%;
+}
+
+.conta-dot.claude {
+  background: #d97757;
+}
+
+.conta-dot.deepseek {
+  background: #4d6bfe;
+}
+
+.conta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 1px 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  background: var(--parchment-dark);
+  border: 2px solid var(--wood);
+  border-radius: 999px;
+}
+
+.conta-pill .conta-dot {
+  width: 7px;
+  height: 7px;
+  border-width: 1px;
+}
+
+h3 .conta-dot {
+  margin-right: 4px;
+}
+
 /* Maca da clínica: a linha do morador em cima, os comandos que ele roda embaixo, ocupando a largura toda. */
 .clinica-triagem li {
   flex-wrap: wrap;
@@ -1015,6 +1191,18 @@ h3 {
   border: 2px solid var(--wood);
   border-radius: 4px;
   background: var(--parchment-dark);
+}
+
+.rename-input {
+  min-width: 0;
+  width: 320px;
+  font-family: system-ui, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  padding: 6px 8px;
+  border: 3px solid var(--wood);
+  border-radius: 4px;
+  background: #fff6dc;
+  color: var(--ink);
 }
 
 .agent-confirm {

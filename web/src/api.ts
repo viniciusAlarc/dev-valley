@@ -5,13 +5,38 @@ export interface FileChange {
   status: string;
 }
 
+/** Provedor da API: decide a roupa do morador (quente no Claude, fria no DeepSeek). */
+export type Provedor = 'claude' | 'deepseek';
+/** Finalidade da conta: casa pessoal só abre contas pessoais; casa de trabalho, contas de trabalho. */
+export type Finalidade = 'pessoal' | 'trabalho';
+
+/** Conta do Claude Code, sem o caminho de configuração (espelha `ContaResumo` em server/src/world.ts). */
+export interface ContaResumo {
+  nome: string;
+  provedor: Provedor;
+  finalidade: Finalidade;
+}
+
+/**
+ * Compatibilidade até o reinício da vila (19/11/2026): o front novo já está em `web/dist` e o servidor antigo continua
+ * servindo o mundo com `perfil`/`perfis` até o usuário reiniciar. Onde o campo novo falta, o legado é traduzido.
+ */
+export const contaDeLegado = (perfil: 'pessoal' | 'profissional' | undefined): ContaResumo =>
+  perfil === 'pessoal'
+    ? { nome: 'DeepSeek', provedor: 'deepseek', finalidade: 'pessoal' }
+    : { nome: 'Claude', provedor: 'claude', finalidade: 'trabalho' };
+
 export interface Project {
   id: string;
   name: string;
   path: string;
   isGit: boolean;
-  /** Pessoal = o terminal abre no perfil pessoal (outra API), ver server/src/perfil.ts. */
-  perfil: 'pessoal' | 'profissional';
+  /** Conta que abre a casa por padrão (pela raiz; sem raiz, o Claude). Opcional só na janela do servidor antigo. */
+  contaPadrao?: ContaResumo;
+  /** Contas que a casa oferece na sessão nova (as da mesma finalidade da padrão). Opcional na janela do servidor antigo. */
+  contas?: ContaResumo[];
+  /** @deprecated Servidor antigo, até o reinício: `contaPadrao`/`contas` passam a valer no lugar. */
+  perfil?: 'pessoal' | 'profissional';
   branch: string | null;
   remote: string | null;
   changes: FileChange[];
@@ -148,6 +173,18 @@ export function urgentPendencias(project: Project): Pendencia[] {
   return (project.pendencias ?? []).filter((p) => p.priority === 1);
 }
 
+/** Conta padrão da casa, com o `perfil` do servidor antigo como fallback. */
+export const contaPadraoDaCasa = (p: Project): ContaResumo => p.contaPadrao ?? contaDeLegado(p.perfil);
+
+/** Contas oferecidas pela casa; no servidor antigo, só a padrão (os extras não são traduzíveis). */
+export const contasDaCasa = (p: Project): ContaResumo[] => (p.contas?.length ? p.contas : [contaPadraoDaCasa(p)]);
+
+/** Conta da sessão, com o `perfil` do servidor antigo como fallback; null = sessão sem conta conhecida. */
+export const contaDaSessao = (s: Session): ContaResumo | null => s.conta ?? (s.perfil ? contaDeLegado(s.perfil) : null);
+
+/** Provedor da sessão, para a paleta; sem conta, Claude (o padrão de sempre). */
+export const provedorDaSessao = (s: Session): Provedor => contaDaSessao(s)?.provedor ?? 'claude';
+
 /** Sino da praça: quantas entregas esperam conferência na vila, mais o reinício pendente do próprio Dev Valley. */
 export function bellCount(world: World): number {
   const entries = world.projects.reduce((n, p) => n + (p.progress?.toCheck.length ?? 0), 0);
@@ -160,8 +197,10 @@ export interface Session {
   name: string;
   /** Marca do nome (`f`, `m` ou neutro): a aparência combina com ela. */
   genero: 'f' | 'm' | null;
-  /** Pessoal = conversa no perfil pessoal (DeepSeek): o morador veste tons frios; profissional, quentes. */
-  perfil: 'pessoal' | 'profissional';
+  /** Conta exata da sessão; `provedor` decide a roupa (fria no DeepSeek). Opcional na janela do servidor antigo. */
+  conta?: ContaResumo;
+  /** @deprecated Servidor antigo, até o reinício: `conta` passa a valer no lugar. */
+  perfil?: 'pessoal' | 'profissional';
   cwd: string;
   title: string;
   gitBranch: string | null;
@@ -180,6 +219,8 @@ export interface Session {
   model: string | null;
   /** Mora no porão da casa (maestro ou tarefa de uma rodada, MA-1); null = sessão comum. */
   porao: { papel: 'maestro' } | { papel: 'tarefa'; rodada: string; tarefa: string } | null;
+  /** Dorme no quarto da casa: processo encerrado, conversa guardada. Opcional na janela do servidor antigo. */
+  dormindo?: boolean;
 }
 
 /**
@@ -187,6 +228,13 @@ export interface Session {
  * pombal continuam contando todas, para o aviso de permissão e o de sessão viva antes do push não sumirem.
  */
 export const daCasa = (s: Session) => !s.porao;
+
+/** Quem aparece na sala, na escrivaninha e no mapa: as da casa que não estão dormindo no quarto (21/11/2026). */
+export const naSala = (s: Session) => daCasa(s) && !s.dormindo;
+
+/** Quem dorme no quarto da casa, quem dormiu por último primeiro. */
+export const noQuarto = (world: World, projectId: string) =>
+  world.sessions.filter((s) => s.projectId === projectId && daCasa(s) && s.dormindo).sort((a, b) => b.lastActivity - a.lastActivity);
 
 /** Rodada em andamento no porão do projeto: a conversa do maestro ou alguma sessão de tarefa ainda aberta. */
 export function rodadaEmAndamento(world: World, projectId: string): boolean {
@@ -264,6 +312,18 @@ export interface PedidoPorao {
   criadoEm: number;
   estado: 'aguardando' | 'aprovado' | 'recusado';
   sessoes: Record<string, { sessionId: string } | { erro: string }>;
+  /** Segunda opinião do crítico do cartão (21/11/2026): só os apontamentos confirmados; nunca bloqueia o clique. */
+  critica?: CriticaDoCartao;
+}
+
+export interface CriticaDoCartao {
+  estado: 'conferindo' | 'pronta' | 'falhou';
+  apontamentos: { item: string; tarefa: string | null; problema: string; evidencia: string }[];
+  levantados: number;
+  refutados: number;
+  incertos: number;
+  foraDoTeto: number;
+  erro?: string;
 }
 
 export interface World {
@@ -287,6 +347,10 @@ export interface World {
   maestroChamando: Record<string, string>;
   /** Rodadas do maestro em andamento, conduzidas pela vila (maestro v2): o quadro da estante de partitura. */
   rodadasPorao: RodadaPorao[];
+  /** Contas configuradas, Claude primeiro: o seletor da sessão avulsa (banco da praça). Opcional na janela do servidor antigo. */
+  contas?: ContaResumo[];
+  /** @deprecated Servidor antigo, até o reinício; o front novo usa `contas`. */
+  perfisExtras?: { nome: string; configDir: string }[];
 }
 
 /** Uma tarefa da rodada como a vila a conduz (servidor: `rodada.ts`). */
@@ -350,7 +414,7 @@ const PLAZA_OFFLINE_LIMIT = 4;
 export function yardResidents(world: World, projectId: string | null): Session[] {
   const rank = { permission: 0, working: 1, idle: 2, offline: 3 };
   const sorted = world.sessions
-    .filter((s) => s.projectId === projectId && daCasa(s))
+    .filter((s) => s.projectId === projectId && naSala(s))
     .sort((a, b) => rank[activityOf(a)] - rank[activityOf(b)] || b.lastActivity - a.lastActivity);
   if (projectId !== null) return sorted.filter((s) => s.live);
   const live = sorted.filter((s) => s.live).length;
@@ -378,6 +442,8 @@ export interface AgentSummary {
   managed: boolean;
   /** Agente da vila (`server/agents/` no repo): só leitura, sem NPC no pátio e sem conversa por `--agent`. */
   village: boolean;
+  /** Conta que responde por ele, nos agentes da vila; null nos demais (seguem a conta da sessão). */
+  conta: { nome: string; provedor: Provedor } | null;
 }
 
 export interface AgentFile extends AgentSummary {
@@ -435,7 +501,7 @@ export const skills = {
   remove: (path: string) => request('DELETE', `/api/skills?path=${encodeURIComponent(path)}`),
 };
 
-/** Plugins e servidores MCP dos dois perfis (Fábrica, quadro de força; só leitura). Espelha `server/src/plugins.ts`. */
+/** Plugins e servidores MCP de cada conta (Fábrica, quadro de força; só leitura). Espelha `server/src/plugins.ts`. */
 export interface PluginInfo {
   id: string;
   name: string;
@@ -443,7 +509,9 @@ export interface PluginInfo {
   version: string;
   description: string;
   enabled: boolean;
-  perfil: 'pessoal' | 'profissional';
+  conta?: ContaResumo;
+  /** @deprecated Servidor antigo, até o reinício: `conta` passa a valer no lugar. */
+  perfil?: 'pessoal' | 'profissional';
   scope: string;
   installedAt: string | null;
   traz: { skills: number; comandos: number; agentes: number; hooks: boolean; mcp: string[] };
@@ -452,25 +520,43 @@ export interface PluginInfo {
 export interface McpInfo {
   name: string;
   type: string;
-  perfil: 'pessoal' | 'profissional';
+  /** Conta dona da configuração (o `.mcp.json` do repositório aparece na conta padrão da casa). */
+  conta?: ContaResumo;
+  /** @deprecated Servidor antigo, até o reinício. */
+  perfil?: 'pessoal' | 'profissional';
   onde: string;
 }
+
+/** Conta de um item da Fábrica, com o legado do servidor antigo. */
+export const contaDoItem = (x: { conta?: ContaResumo; perfil?: 'pessoal' | 'profissional' }): ContaResumo => x.conta ?? contaDeLegado(x.perfil);
 
 export const plugins = {
   list: () => request<{ plugins: PluginInfo[]; mcp: McpInfo[] }>('GET', '/api/plugins'),
 };
 
+/** Uma conta no moinho. */
+export interface GastoConta {
+  conta: ContaResumo;
+  total: number;
+  anterior: number;
+  projetos: { projectId: string | null; nome: string; peso: number; sessoes: { id: string; peso: number }[] }[];
+}
+
 /** Gasto por projeto na semana do plano (moinho). Espelha `server/src/gasto.ts`. */
 export interface GastoView {
   janela: { inicio: number; fim: number; fonte: 'plano' | '7dias' };
-  perfis: {
-    perfil: 'pessoal' | 'profissional';
-    total: number;
-    anterior: number;
-    projetos: { projectId: string | null; nome: string; peso: number; sessoes: { id: string; peso: number }[] }[];
-  }[];
+  /** Opcional só na janela do servidor antigo; use `contasDoGasto`. */
+  contas?: GastoConta[];
+  /** @deprecated Servidor antigo, até o reinício: `contas` passa a valer no lugar. */
+  perfis?: { perfil: 'pessoal' | 'profissional'; total: number; anterior: number; projetos: GastoConta['projetos'] }[];
   /** Previsão de cada limite do plano (sessão de 5h e semana), pelos números dos limites (os da clínica); vazio até a primeira leitura. */
   limites: LimiteRitmo[];
+}
+
+/** As contas do moinho, traduzindo o `perfis` do servidor antigo enquanto ele não reinicia. */
+export function contasDoGasto(v: GastoView): GastoConta[] {
+  if (v.contas?.length) return v.contas;
+  return (v.perfis ?? []).map(({ perfil, ...p }) => ({ conta: contaDeLegado(perfil), ...p }));
 }
 
 export const gasto = {
@@ -615,11 +701,18 @@ export const api = {
   relatorioLido: (projectId: string, path: string) => request<{ ok: boolean }>('POST', '/api/relatorios/lido', { projectId, path }),
   atenderChamado: (maestro: string) => request<{ ok: boolean }>('POST', '/api/porao/chamar/atendido', { maestro }),
   encerrarRodada: (projectId: string) => request<{ apagadas: number }>('POST', '/api/porao/encerrar', { projectId }),
+  /** A crítica do cartão enquanto ele está aberto (ela termina depois de o cartão aparecer). */
+  pedidoPorao: (id: string) => request<{ estado: string; critica: CriticaDoCartao | null }>('GET', `/api/porao/pedidos/${encodeURIComponent(id)}`),
   recusarPedido: (id: string) => request<{ estado: string }>('POST', `/api/porao/pedidos/${encodeURIComponent(id)}/recusar`),
   novoMaestro: (projectId: string) => request<{ sessionId: string; projectId: string }>('POST', '/api/porao/maestro', { projectId }),
-  newSession: (project?: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project }),
+  /** `conta`: nome da conta escolhida na tela (Claude, DeepSeek pessoal, DeepSeek trabalho); sem ela, a padrão da casa. */
+  newSession: (project?: string, conta?: string) => request<{ sessionId: string; cwd: string }>('POST', '/api/sessions', { project, conta }),
   /** Encerra e apaga a conversa de vez. */
   deleteSession: (id: string) => request('DELETE', `/api/sessions/${id}`),
+  /** Manda para o quarto: encerra o processo e guarda a conversa; `recusadas` traz o motivo de cada uma que não foi. */
+  dormir: (ids: string[]) => request<{ dormindo: number; recusadas: { id: string; motivo: string }[] }>('POST', '/api/sessions/dormir', { ids }),
+  /** Título dado pelo usuário, só na vila; vazio volta ao automático. */
+  renomearSessao: (id: string, titulo: string) => request<{ ok: boolean }>('PUT', `/api/sessions/${id}/titulo`, { titulo }),
   /** Passagem de bastão: a sessão escreve o resumo e, quando termina, nasce o sucessor na mesma casa (BT-1). */
   /** Clínica: pacientes vivos e sinais vitais (leva ~1 s: a CPU sai de duas leituras do `/proc`). */
   clinica: () => request<Triagem>('GET', '/api/clinica'),
@@ -662,7 +755,7 @@ export function wsUrl(path: string): string {
 
 // ---- Estado do mundo (atualizado pelo servidor via WebSocket) ----
 
-let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [] };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [], contas: [] };
 const listeners = new Set<(w: World) => void>();
 
 export function getWorld(): World {

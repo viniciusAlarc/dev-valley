@@ -21,7 +21,7 @@ function splitFrontmatter(md: string): { meta: string | null; body: string } {
 }
 
 /** Markdown vem de repositórios clonados: sempre sanitizado — a vila tem terminal. */
-function renderMarkdown(md: string): string {
+export function renderMarkdown(md: string): string {
   const { meta, body } = splitFrontmatter(md);
   const html = DOMPurify.sanitize(marked.parse(body, { async: false }) as string);
   return (meta ? `<pre class="frontmatter">${escapeHtml(meta)}</pre>` : '') + html;

@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { describe, test } from 'node:test';
+import { CONTA_CLAUDE, type Conta } from '../src/config.js';
 import { Gasto, janelaDe, pesoDe } from '../src/gasto.js';
 import { preverLimite } from '../src/statusline.js';
-import type { Project } from '../src/world.js';
+import { resumoDe, type Project } from '../src/world.js';
 import { subir } from './servidor.js';
 import { projeto } from './util.js';
 
-// Moinho (02/11/2026): peso = entrada + saída + criação de cache + leitura ÷ 10; semana do plano; perfis separados.
+// Moinho (02/11/2026): peso = entrada + saída + criação de cache + leitura ÷ 10; semana do plano; contas separadas.
 const AGORA = Date.parse('2026-11-05T12:00:00Z');
 const USAGE = { rows: [{ kind: 'weekly_all', group: '', label: '', percent: 10, resetsAt: '2026-11-08T10:00:00Z', severity: 'normal' }], updatedAt: 0 };
 
@@ -33,13 +34,20 @@ async function cenario() {
       resposta('m6', '2026-11-03T10:00:00Z', { input_tokens: 999 }, { cwd: '/fora', message: undefined }),
   });
   const pessoal = await projeto({ 'p1.jsonl': resposta('m7', '2026-11-04T10:00:00Z', { input_tokens: 30 }, { cwd: repo }) });
+  const trabalho = await projeto({ 't1.jsonl': resposta('m9', '2026-11-04T10:00:00Z', { input_tokens: 12 }, { cwd: repo }) });
   const cacheFile = path.join(await projeto(), 'gasto.json');
   const projects = [{ id: 'r', name: 'repo', path: repo } as Project];
-  const dirs = () => [
-    { dir: prof, perfil: 'profissional' as const },
-    { dir: pessoal, perfil: 'pessoal' as const },
+  const contas: Conta[] = [
+    CONTA_CLAUDE,
+    { nome: 'DeepSeek pessoal', provedor: 'deepseek', configDir: pessoal, roots: [], finalidade: 'pessoal' },
+    { nome: 'DeepSeek trabalho', provedor: 'deepseek', configDir: trabalho, roots: [], finalidade: 'trabalho' },
   ];
-  return { prof, cacheFile, gasto: new Gasto({ perfilPessoal: null }, () => projects, cacheFile, dirs) };
+  const dirs = () => [
+    { dir: prof, conta: resumoDe(CONTA_CLAUDE) },
+    { dir: pessoal, conta: { nome: 'DeepSeek pessoal', provedor: 'deepseek', finalidade: 'pessoal' } as const },
+    { dir: trabalho, conta: { nome: 'DeepSeek trabalho', provedor: 'deepseek', finalidade: 'trabalho' } as const },
+  ];
+  return { prof, cacheFile, gasto: new Gasto({ contas }, () => projects, cacheFile, dirs) };
 }
 
 describe('moinho: gasto por projeto', () => {
@@ -53,23 +61,25 @@ describe('moinho: gasto por projeto', () => {
     assert.equal(janelaDe(null, AGORA).fonte, '7dias');
   });
 
-  test('soma por projeto e perfil, sem contar a repetição, com subagente na conta da sessão', async () => {
+  test('soma por projeto e conta, sem contar a repetição, com subagente na conta da sessão', async () => {
     const { gasto } = await cenario();
     const v = await gasto.resumo(USAGE, AGORA);
-    const [prof, pessoal] = v.perfis;
-    assert.equal(prof!.perfil, 'profissional');
+    const [claude, pessoal, trabalho] = v.contas;
+    assert.equal(claude!.conta.nome, 'Claude');
     // repo: m1 (150) + m2 (100 + 10) + m3 (40) = 300; praça: m4 (5); semana anterior: m5 (70)
     assert.deepEqual(
-      prof!.projetos.map((p) => [p.nome, p.peso]),
+      claude!.projetos.map((p) => [p.nome, p.peso]),
       [
         ['repo', 300],
         ['Praça (sessões avulsas)', 5],
       ],
     );
-    assert.deepEqual(prof!.projetos[0]!.sessoes, [{ id: 's1', peso: 300 }]);
-    assert.equal(prof!.total, 305);
-    assert.equal(prof!.anterior, 70);
-    assert.deepEqual([pessoal!.perfil, pessoal!.total], ['pessoal', 30]);
+    assert.deepEqual(claude!.projetos[0]!.sessoes, [{ id: 's1', peso: 300 }]);
+    assert.equal(claude!.total, 305);
+    assert.equal(claude!.anterior, 70);
+    // As duas assinaturas DeepSeek ficam em listas próprias: nada de somar uma na outra.
+    assert.deepEqual([pessoal!.conta.nome, pessoal!.total], ['DeepSeek pessoal', 30]);
+    assert.deepEqual([trabalho!.conta.nome, trabalho!.total], ['DeepSeek trabalho', 12]);
   });
 
   test('incremental: lê só o que cresceu, ignora linha pela metade e esquece arquivo apagado', async () => {
@@ -79,10 +89,10 @@ describe('moinho: gasto por projeto', () => {
     assert.equal(await gasto.atualizar(), true);
     assert.equal(await gasto.atualizar(), false, 'nada novo: não relê');
     let v = await gasto.resumo(USAGE, AGORA);
-    assert.equal(v.perfis[0]!.projetos.find((p) => p.projectId === null)!.peso, 25);
+    assert.equal(v.contas[0]!.projetos.find((p) => p.projectId === null)!.peso, 25);
     await fs.rm(path.join(prof, 's2.jsonl'));
     v = await gasto.resumo(USAGE, AGORA + 10 * 60_000);
-    assert.equal(v.perfis[0]!.projetos.find((p) => p.projectId === null), undefined);
+    assert.equal(v.contas[0]!.projetos.find((p) => p.projectId === null), undefined);
     assert.ok(!(await fs.readFile(cacheFile, 'utf8')).includes('s2.jsonl'));
   });
 
@@ -92,8 +102,8 @@ describe('moinho: gasto por projeto', () => {
     const s = await subir({}, { gasto, statusLine: { handle: () => false, ritmo: () => [limite] } });
     const r = await s.get('/api/gasto');
     assert.equal(r.status, 200);
-    const corpo = (await r.json()) as { perfis: unknown[]; limites: unknown[] };
-    assert.ok(Array.isArray(corpo.perfis));
+    const corpo = (await r.json()) as { contas: unknown[]; limites: unknown[] };
+    assert.ok(Array.isArray(corpo.contas));
     assert.deepEqual(corpo.limites, [limite]);
   });
 });

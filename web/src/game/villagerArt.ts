@@ -51,8 +51,8 @@ export const tone = (c: string): Tone => ({ base: c, dark: shade(c), light: ligh
 const SKINS = ['#f7d3b0', '#eab48a', '#c98e62', '#9a6340', '#6e4429'];
 const HAIRS = ['#4a2c17', '#e0b252', '#a3431f', '#26201f', '#efe4d2', '#7b4fb0', '#d0662f', '#3f6fb5', '#e48aa8'];
 /**
- * Roupas por perfil (decisão do usuário, 02/11/2026): sessão do Claude veste tons quentes (laranja da Anthropic) e sessão
- * do perfil pessoal, que fala com o DeepSeek, veste tons frios (azul do DeepSeek). Vale para camisa, calça, jaqueta,
+ * Roupas por provedor (decisão do usuário, 02/11/2026; vocabulário de 19/11/2026): sessão do Claude veste tons quentes
+ * (laranja da Anthropic) e sessão do DeepSeek veste tons frios (azul do DeepSeek). Vale para camisa, calça, jaqueta,
  * acessório e lenço; pele, cabelo e olhos não mudam. Peças neutras (avental, cinto, sapato, palha do chapéu) ficam.
  */
 type Paleta = { shirts: string[]; pants: string[]; accents: string[]; jackets: string[] };
@@ -69,9 +69,9 @@ const FRIA: Paleta = {
   accents: ['#2e6fb5', '#4d6bfe', '#1abc9c', '#48c9d6', '#5d6d7e', '#2c3e66'],
   jackets: ['#3b5b8c', '#2c4a5e', '#33585a', '#2c3e66', '#3a55c8'],
 };
-/** Perfil da sessão (servidor, `perfil.ts`): pessoal = DeepSeek. */
-export type Perfil = 'pessoal' | 'profissional';
-export const paletaDo = (perfil: Perfil): Paleta => (perfil === 'pessoal' ? FRIA : QUENTE);
+/** Provedor da conta da sessão (servidor, `config.ts`): DeepSeek veste frio, Claude veste quente. */
+export type Provedor = 'claude' | 'deepseek';
+export const paletaDo = (provedor: Provedor): Paleta => (provedor === 'deepseek' ? FRIA : QUENTE);
 const EYES = ['#2b1d14', '#2f4f7a', '#2f6a3a', '#5a3a1a'];
 /** Armação dos óculos de grau (os escuros são só dos agentes, regra 8). */
 const FRAMES = ['#2b1d14', '#7a5a3a', '#c9a227', '#8a8f98'];
@@ -126,10 +126,10 @@ export interface Look {
 /**
  * Sorteio da aparência pelo id da sessão, combinando com a marca do nome (decisão do usuário, 31/10/2026): barba e
  * bigode nunca em nome feminino; vestido e laço nunca em nome masculino; penteados de cada lista; neutro pode tudo.
- * `perfil` escolhe só a paleta das roupas; a sequência do sorteio é a mesma, então pele, cabelo e penteado não mudam.
+ * `provedor` escolhe só a paleta das roupas; a sequência do sorteio é a mesma, então pele, cabelo e penteado não mudam.
  */
-export function lookFor(id: string, genero: Genero = null, perfil: Perfil = 'profissional'): Look {
-  const P = paletaDo(perfil);
+export function lookFor(id: string, genero: Genero = null, provedor: Provedor = 'claude'): Look {
+  const P = paletaDo(provedor);
   const r = mulberry32(hash(id));
   const pick = <T>(a: readonly T[]): T => a[Math.floor(r() * a.length)];
   const chance = (p: number) => r() < p;

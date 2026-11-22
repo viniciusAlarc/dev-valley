@@ -6,25 +6,27 @@ import path from 'node:path';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { askAdministrador } from './administrador.js';
 import { askMirim } from './mirim.js';
+import { criticaDoPorao, perguntarDeVerdade } from './critico.js';
 import { askMedica, Clinica } from './clinica.js';
 import { Agents } from './agents.js';
 import { criarApp } from './app.js';
-import { loadConfig, ROOT_DIR } from './config.js';
+import { CONTA_CLAUDE, loadConfig, ROOT_DIR } from './config.js';
 import { sugerirMensagem } from './escrevente.js';
 import { HookStore } from './hooks.js';
 import { Lareiras } from './lareira.js';
 import { askLibrarian } from './librarian.js';
 import { Library } from './library.js';
 import { Moradores } from './moradores.js';
+import { Quarto } from './quarto.js';
 import { buscar } from './pombal.js';
 import { isLocalOrigin } from './seguranca.js';
-import { ambienteDoTerminal, projectsDirs } from './perfil.js';
+import { ambienteDoTerminal, contaDaSessao, contaPorNome, projectsDirs, type Conta } from './perfil.js';
 import { Bastao } from './bastao.js';
 import { deleteSessionFiles } from './sessions.js';
 import { Gasto } from './gasto.js';
 import { askJornaleiro, Jornal } from './jornal.js';
 import { Plugins } from './plugins.js';
-import { MAESTRO, Porao } from './porao.js';
+import { MAESTRO, Porao, RODADAS_DIR } from './porao.js';
 import { RelatoriosLidos } from './relatorios.js';
 import { Skills } from './skills.js';
 import { StatusLineStore } from './statusline.js';
@@ -32,12 +34,18 @@ import { TerminalManager } from './terminals.js';
 import { buildWorld, type Project, type World } from './world.js';
 
 const config = loadConfig();
+/** Conta das consultas dos agentes que só leem (`agentes.conta` do config local); nome inexistente cai no Claude. */
+const contaConfigurada = contaPorNome(config, config.agentes.conta);
+const contaDosAgentes = contaConfigurada ?? CONTA_CLAUDE;
+if (config.agentes.conta && !contaConfigurada) {
+  console.warn(`[agentes] a conta "${config.agentes.conta}" não está no config; os agentes usam Claude.`);
+}
 const HOST = '127.0.0.1';
 const POLL_MS = 3000;
 /** De quanto em quanto tempo o pombal busca o remoto (rede); entre uma busca e outra, o estado vem do disco. */
 const POMBAL_FETCH_MS = 5 * 60_000;
 
-let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [] };
+let world: World = { projects: [], sessions: [], agents: [], skills: [], usage: null, restart: { server: false, web: false }, guardrails: null, conversas: [], pedidosPorao: [], maestroChamando: {}, rodadasPorao: [], contas: [] };
 let worldJson = '';
 const eventClients = new Set<WebSocket>();
 
@@ -49,11 +57,12 @@ const statusLine = new StatusLineStore();
 /** Sessões que a própria vila abre por baixo (consultas à bibliotecária e ao administrador) — não viram moradores. */
 const internalSessions = new Set<string>();
 const moradores = new Moradores();
-const agents = new Agents(() => world.projects);
+const quarto = new Quarto();
+const agents = new Agents(() => world.projects, () => contaDosAgentes);
 const skills = new Skills(() => world.projects);
 const plugins = new Plugins(config, () => world.projects);
 const gasto = new Gasto(config, () => world.projects);
-const jornal = new Jornal(() => world, internalSessions);
+const jornal = new Jornal(() => world, internalSessions, contaDosAgentes);
 /** Sessões novas de conversa com um agente, esperando o terminal abrir: id → pasta e agente (o front não escolhe). */
 const agentSessions = new Map<string, { cwd: string; agent: string }>();
 /** Sessões avulsas novas (banco da praça), esperando o terminal abrir: nascem na home, fora de qualquer projeto. */
@@ -61,10 +70,19 @@ const avulsaSessions = new Set<string>();
 /** Quem mora no porão das casas (maestro e tarefas das rodadas, MA-1). */
 const porao = new Porao();
 const bastao = new Bastao();
+/**
+ * Sessões novas que pediram uma conta na casa (decisão do usuário, 19/11/2026): id → nome da conta. Vale até a conversa
+ * ser gravada; depois disso a pasta do `.jsonl` é a fonte (perfil.ts), inclusive ao retomar.
+ */
+const escolhasDeConta = new Map<string, string>();
+
+/** Conta com que uma sessão fala: a conversa salva manda; sem ela, a escolha da abertura; senão, a pasta. */
+const contaDaSessaoDe = (s: { id: string; cwd: string; file: string | null }): Conta =>
+  contaDaSessao(s, config, contaPorNome(config, escolhasDeConta.get(s.id)));
 
 /** Abre uma sessão nova sem ninguém olhando, já com a primeira mensagem (tarefa do porão, roteiro, sucessor do bastão). */
-async function abrirSessao({ sessionId, cwd, prompt, permitir, settings }: { sessionId: string; cwd: string; prompt: string; permitir: string[]; settings?: string }) {
-  const ambiente = await ambienteDoTerminal(cwd, config);
+async function abrirSessao({ sessionId, cwd, prompt, permitir, settings, conta }: { sessionId: string; cwd: string; prompt: string; permitir: string[]; settings?: string; conta?: Conta | null }) {
+  const ambiente = await ambienteDoTerminal(cwd, config, conta);
   if ('erro' in ambiente) return ambiente.erro;
   terminals.start({ sessionId, cwd, mode: 'new', prompt, permitir, settings, env: ambiente.env, cols: 120, rows: 32 });
   return null;
@@ -96,7 +114,10 @@ async function refreshWorld() {
     await porao
       .avancar(world.sessions, abrirDaRodada, config.porao.leitura)
       .catch((err) => console.error('[porão] falha ao conduzir a rodada:', err));
-    const built = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents, skills, porao, relatoriosLidos);
+    const built = await buildWorld(config, terminals.live(), hooks.all(), statusLine, moradores, agents, skills, porao, relatoriosLidos, (id) =>
+      contaPorNome(config, escolhasDeConta.get(id)),
+      quarto,
+    );
     world = { ...built, projects: built.projects.map((p) => ({ ...p, lareira: lareiras.merge(p.id, p.lareira) })) };
     const json = JSON.stringify(world);
     if (json === worldJson) return;
@@ -122,6 +143,7 @@ const app = criarApp({
   library,
   statusLine,
   moradores,
+  quarto,
   agents,
   skills,
   plugins,
@@ -132,18 +154,24 @@ const app = criarApp({
   avulsaSessions,
   porao,
   relatoriosLidos,
+  contas: config.contas,
+  escolhasDeConta,
+  contaDaSessao: contaDaSessaoDe,
   tetoSessoes: config.porao.tetoSessoes,
   leituraPorao: config.porao.leitura,
   abrirTarefa: abrirSessao,
   bastao,
   terminaisDoBastao: terminals,
-  askLibrarian,
+  // Os agentes que só leem respondem na conta DeepSeek do config local; o administrador, único que edita, fica no Claude.
+  askLibrarian: (question, history, onEvent, hooksToIgnore) => askLibrarian(question, history, onEvent, hooksToIgnore, contaDosAgentes),
   askAdministrador,
-  askMirim,
+  askMirim: (question, history, project, sessions, onEvent, hooksToIgnore) => askMirim(question, history, project, sessions, onEvent, hooksToIgnore, contaDosAgentes),
+  // Crítico na conta dos agentes (DeepSeek Flash); verificador no Claude (Haiku): outra família confere cada apontamento.
+  criticaDoCartao: criticaDoPorao(perguntarDeVerdade(contaDosAgentes, CONTA_CLAUDE, internalSessions), RODADAS_DIR, () => void refreshWorld()),
   clinica,
-  askMedica,
-  sugerirMensagem,
-  askJornaleiro,
+  askMedica: (question, history, ficha, onEvent, hooksToIgnore) => askMedica(question, history, ficha, onEvent, hooksToIgnore, contaDosAgentes),
+  sugerirMensagem: (dir, arquivos, hooksToIgnore) => sugerirMensagem(dir, arquivos, hooksToIgnore, contaDosAgentes),
+  askJornaleiro: (question, history, jornal, onEvent, hooksToIgnore) => askJornaleiro(question, history, jornal, onEvent, hooksToIgnore, contaDosAgentes),
   apagarConversa: (id: string) => deleteSessionFiles(id, projectsDirs(config)),
   abrirVscode: (args) => spawn('code', args, { detached: true, stdio: 'ignore' }).unref(),
   webDist: fs.existsSync(webDist) ? webDist : null,
@@ -188,11 +216,14 @@ server.on('upgrade', (req, socket, head) => {
         ws.close(1008, 'sessão inválida');
         return;
       }
-      // Perfil pessoal abre com outro CLAUDE_CONFIG_DIR, e não abre se o perfil não está configurado (perfil.ts).
-      const ambiente = terminals.has(sessionId) ? { env: {} } : await ambienteDoTerminal(cwd, config);
+      // Conta exata: a conversa salva manda; sem ela, a escolha da abertura; senão, a raiz da pasta. Não abre se a conta
+      // DeepSeek escolhida está sem configuração (perfil.ts).
+      const ambiente = terminals.has(sessionId)
+        ? { env: {} }
+        : await ambienteDoTerminal(cwd, config, contaDaSessaoDe({ id: sessionId, cwd, file: known?.file ?? null }));
       if ('erro' in ambiente) {
         ws.send(`\r\n\x1b[31m[${ambiente.erro} O terminal não abriu, para não usar a licença do trabalho.]\x1b[0m\r\n`);
-        ws.close(1008, 'perfil pessoal sem configuração');
+        ws.close(1008, 'conta sem configuração');
         return;
       }
       // Maestro do porão: sabe onde está a vila e qual é a própria sessão, para pedir as sessões da rodada (MA-1, fase 3).
@@ -200,6 +231,8 @@ server.on('upgrade', (req, socket, head) => {
       const porta = ehMaestro ? { DEV_VALLEY_URL: `http://127.0.0.1:${config.port}`, DEV_VALLEY_SESSION: sessionId } : {};
       // Tarefa do porão retomada: volta com as regras e os hooks com que nasceu (MA-3).
       const daTarefa = known?.porao?.papel === 'tarefa' && !terminals.has(sessionId) ? await porao.retomada(sessionId, config.porao.leitura) : null;
+      // Abrir quem dorme no quarto acorda e a sessão volta à sala (decisão do usuário, 21/11/2026).
+      if (known) await quarto.acordar([sessionId]);
       terminals.attach(ws, {
         env: { ...ambiente.env, ...porta },
         sessionId,

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { activityOf, contextText, horaDoBastao, type AgentSummary, type Session } from '../api';
+import { activityOf, contextText, horaDoBastao, provedorDaSessao, type AgentSummary, type Session } from '../api';
 import { ui } from '../ui/actions';
 import { villagerName } from './names';
 import { StatusBubble } from './statusBubble';
@@ -88,7 +88,7 @@ export class VillagerView {
     x: number,
     y: number,
   ) {
-    this.texture = villagerTexture(scene, session.id, false, session.genero, session.perfil);
+    this.texture = villagerTexture(scene, session.id, false, session.genero, provedorDaSessao(session));
     this.shadow = scene.add.image(x, y, 'shadow').setOrigin(0.5);
     this.sprite = scene.add.sprite(x, y, this.texture, 0).setOrigin(0.5, 1);
     this.bubble = new StatusBubble(scene);

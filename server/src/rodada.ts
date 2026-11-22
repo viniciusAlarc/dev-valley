@@ -27,7 +27,7 @@ export interface TarefaDaRodada {
   sessionId?: string;
   abertaEm?: number;
   prontaEm?: number;
-  /** Por que não abriu (ex.: perfil pessoal sem configuração). */
+  /** Por que não abriu (ex.: conta DeepSeek sem configuração). */
   erro?: string;
   /** Tokens da conversa, lidos do `.jsonl` quando ficou pronta (maestro v3, medição). Só números. */
   tokens?: Tokens;
@@ -150,13 +150,22 @@ export function validarDependencias(deps: Record<string, string[]>): string | nu
 }
 
 /**
- * `--settings` da sessão de trabalho (D1): os dois hooks só dela, sem mexer no mod nem no `settings.json` global.
- * Rodada e tarefa já passaram pelo `NOME_RE` do porão (letras, números, ponto, hífen): seguras na linha de comando.
+ * Modelo das sessões que o maestro gera (tarefas e roteiro de testes): o maestro abre no modelo que o usuário escolher,
+ * quem executa o briefing vai no Sonnet, para gastar menos (decisão do usuário, 20/11/2026). Vai no `--settings`, que
+ * vence o `model` do `settings.json` global; nas contas DeepSeek o apelido vira o modelo `ANTHROPIC_DEFAULT_SONNET_MODEL`.
+ */
+export const MODELO_DAS_SESSOES = 'sonnet';
+
+/**
+ * `--settings` da sessão de trabalho (D1): os dois hooks só dela e o modelo, sem mexer no mod nem no `settings.json`
+ * global. Vale também ao retomar (MA-3). Rodada e tarefa já passaram pelo `NOME_RE` do porão (letras, números, ponto,
+ * hífen): seguras na linha de comando.
  */
 export function settingsDaTarefa(rodadaDir: string, tarefa: string, script = HOOK_SCRIPT): string {
   if (/'/.test(rodadaDir + script)) throw new Error('caminho com aspas simples');
   const cmd = (modo: string) => `bash '${script}' ${modo} '${rodadaDir}' ${tarefa}`;
   return JSON.stringify({
+    model: MODELO_DAS_SESSOES,
     hooks: {
       Stop: [{ hooks: [{ type: 'command', command: cmd('parar') }] }],
       PreToolUse: [

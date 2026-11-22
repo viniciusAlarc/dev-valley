@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import type { Conta } from './config.js';
 import { askAgent, type AgentEvent, type Exchange } from './consulta.js';
 import type { HookState } from './hooks.js';
 import { curto, descreverFerramenta, eventosDoFim, hora, ultimosPassos } from './mirim.js';
@@ -506,6 +507,7 @@ export async function askMedica(
   ficha: string,
   onEvent: (e: AgentEvent) => void,
   hooksToIgnore: Set<string>,
+  conta?: Conta,
 ): Promise<() => void> {
-  return askAgent({ name: 'medica', who: 'A médica', preamble: ficha, estrito: true, stepFor }, question, history, onEvent, hooksToIgnore);
+  return askAgent({ name: 'medica', who: 'A médica', preamble: ficha, estrito: true, stepFor, conta }, question, history, onEvent, hooksToIgnore);
 }

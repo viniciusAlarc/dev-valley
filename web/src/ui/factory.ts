@@ -83,7 +83,11 @@ export async function openFactory(path?: string) {
             ${list
               .map(
                 (a) =>
-                  `<button class="book${a.path === current ? ' active' : ''}" data-path="${escapeHtml(a.path)}" title="${escapeHtml(a.description)}">✦ ${escapeHtml(a.name)}${a.managed && !a.village ? ' <span class="muted">(Dev Valley)</span>' : ''}</button>`,
+                  `<button class="book${a.path === current ? ' active' : ''}" data-path="${escapeHtml(a.path)}" title="${escapeHtml(a.description)}">✦ ${escapeHtml(a.name)}${
+                    a.conta
+                      ? ` <span class="conta-pill"><span class="conta-dot ${a.conta.provedor}"></span>${a.conta.provedor === 'deepseek' ? 'DeepSeek' : 'Claude'}</span>`
+                      : ''
+                  }${a.managed && !a.village ? ' <span class="muted">(Dev Valley)</span>' : ''}</button>`,
               )
               .join('')}
           </details>`,
@@ -109,7 +113,9 @@ export async function openFactory(path?: string) {
     const tools = [...TOOLS, ...(agent?.tools ?? []).filter((t) => !TOOLS.includes(t))];
     const models = agent?.model && !MODELS.some(([v]) => v === agent.model) ? [...MODELS, [agent.model, agent.model] as [string, string]] : MODELS;
     title.innerHTML = agent
-      ? `<b>✦ ${escapeHtml(agent.name)}</b> <span class="muted">· ${escapeHtml(where(groupOf(agent)))}</span>`
+      ? `<b>✦ ${escapeHtml(agent.name)}</b> <span class="muted">· ${escapeHtml(where(groupOf(agent)))}</span>${
+          agent.conta ? ` <span class="conta-pill" title="Conta das consultas da vila"><span class="conta-dot ${agent.conta.provedor}"></span>${escapeHtml(agent.conta.nome)}</span>` : ''
+        }`
       : '<b>Novo agente</b>';
     form.innerHTML = `
       ${
