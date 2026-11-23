@@ -24,6 +24,7 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
+| GR-1 | 👤 | Filete colorido que já existe no `web/src/style.css` (7: seis cabeçalhos com `border-bottom` em `--parchment-dark` e um `border-left` em `--wood-light`). O mod `guardrails` (G19) só barra filete **novo**: decidir se corrige ou se marca como aprovado (`g19-aprovado: DD/MM/AAAA`). Lista: `npx tsx ~/Documents/IA/mods/guardrails/scripts/varrer-filetes.ts .` | 2026-11-23 |
 | AD-1 | 👤 | Reformular o ✦ administrador da praça: o usuário o acha pouco útil (21/11/2026). Desde a mesma data ele cuida só do sino (o quadro de avisos virou as notas do usuário). Conversar antes de qualquer código. | 2026-11-21 |
 | RV-1 | 💻 | Revisor do pombal ("🔍 Revisar" antes de enviar, agente da vila só leitura e de contexto limpo). **Só depois de commitar a entrega de 08/11**, para validar à parte. Plano em `docs-dev/a-codar/revisor-pombal.md`. | 2026-11-08 |
 | MA-5 | 👤 | Maestro v2 e v3 codados em 11/11 (v2: devolutiva em arquivo com hook `Stop`, posse de arquivo por hook, dependências no cartão, relatório montado pela vila, quadro da rodada, resume com as regras; v3: linha de base e gate rodados pela vila, aceite na devolutiva, "Custo e ganho" no relatório). Ensaio isolado do v3 feito (c8, reprovado). Falta: reiniciar a vila e conferir numa rodada de verdade pequena, com uma tarefa que depende de outra e comando de teste. `docs-dev/context/maestro-v2.md`, `docs-dev/context/maestro-v3.md`. | 2026-11-11 |

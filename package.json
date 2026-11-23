@@ -10,12 +10,14 @@
     "dev": "concurrently -n server,web -c green,cyan \"npm run dev -w server\" \"npm run dev -w web\"",
     "build": "npm run build -w web",
     "start": "npm run build && npm run start -w server",
-    "test": "tsx --test \"server/tests/*.test.ts\" \"web/tests/*.test.ts\"",
+    "test": "tsx --import ./scripts/isolar-home.mjs --test \"server/tests/*.test.ts\" \"web/tests/*.test.ts\"",
+    "prepare": "git config core.hooksPath .githooks || true",
     "hooks:install": "npm run hooks:install -w server",
     "hooks:uninstall": "npm run hooks:uninstall -w server"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "concurrently": "^9.1.0",
+    "fast-check": "^3.23.2"
   },
   "allowScripts": {
     "node-pty@1.1.0": true,

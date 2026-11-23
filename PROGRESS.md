@@ -3,6 +3,32 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-23 — Regras em prosa viram checagem: HOME isolado, fronteira do app.ts, repositório público e porão por propriedade
+
+**O que mudou:** pedido do usuário, depois de analisarmos a palestra *All code is slop (except mine)* (Lauren Tan):
+correção vira checagem que roda sempre, não mais uma linha de regra. Quatro regras daqui deixaram de depender de serem
+lidas:
+- **HOME isolado nos testes:** o `npm test` carrega `scripts/isolar-home.mjs` (`--import`), que troca o `HOME` por uma
+  pasta temporária antes de qualquer teste. O erro das linhas de 29/10 e 08/11 do `RETRABALHO.md` (teste gravando no
+  `~` de verdade) deixou de ser possível. `server/tests/isolamento.test.ts` falha se rodar sem o preload.
+- **Fronteira das rotas:** `server/tests/arquitetura.test.ts` lê os imports do `server/src/app.ts`: `import type` passa,
+  import de valor só da lista `PERMITIDOS` (o que existe hoje). Import novo falha com a mensagem dizendo como injetar
+  pelo `Contexto`; a lista também falha se tiver item sobrando (só encolhe). Decisão do usuário: teste, não ESLint.
+- **Repositório público (regra 1):** hooks do git `pre-commit` e `commit-msg` em `.githooks/` rodam
+  `scripts/conferir-publico.mts` (Node puro): nome com cara de identificador das pastas de `projectRoots`/`extraProjects`
+  (inclusive do config local) e caminho `/home/<usuário>` barram o commit. Palavra comum ("infra") fica de fora para não
+  dar falso positivo. Ligado pelo script `prepare` (`git config core.hooksPath .githooks`, roda no `npm install`); o
+  pombal mostra a recusa no painel (stderr do git). `--tudo` varre o repositório: limpo em 23/11/2026.
+- **Porão por propriedade:** `server/tests/porao-propriedades.test.ts` (fast-check, dependência de desenvolvimento) sorteia
+  a rodada (tarefas, dependências, terminal que não abre) e a ordem de clique, voltas automáticas, terminais subindo e
+  devolutivas, e confere: uma sessão por tarefa, nenhuma abre antes das donas devolverem, registro do porão limpo e
+  nada travado. Conferido que tem dente: sem a trava do `aprovar`, ele reencontra a corrida de 11/11 sozinho (3 tarefas
+  livres). Todos os escritores do `rodada.json` passam pela trava: nenhum bug novo.
+No `~/Documents/IA` (branch `vinicius`), na mesma entrega: triagem com a escada "checagem antes de prosa" e o mod
+`guardrails` barrando filete colorido (G19), `cd X && escrita` (G18) e `painel.json` fora do formato (G14).
+**Testes:** 346/346 (+9); typecheck do servidor e build ok; auditor só com os 5 achados informativos antigos do
+`PROGRESS.md`. Dispensa conferência na vila: nada mudou na tela nem no servidor que roda.
+
 ## 2026-11-22 — Sino mostra o que espera conferência em todas as casas, inclusive pelo PENDENCIAS.md
 
 **O que mudou:** pedido do usuário: o sino deve mostrar o que está pendente de verificação em qualquer repositório. Ele

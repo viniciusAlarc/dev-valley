@@ -1,0 +1,3 @@
+#!/bin/sh
+# Regra 1 do CLAUDE.md (repositório público): a mensagem do commit também é pública.
+exec node "$(git rev-parse --show-toplevel)/scripts/conferir-publico.mts" --mensagem "$1"

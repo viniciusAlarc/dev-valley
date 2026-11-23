@@ -38,7 +38,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 - `server/` — Node + Express + `ws` + `node-pty`, rodado com `tsx`. Lê projetos e sessões
   (`~/.claude/projects/**/*.jsonl`), roda git, mantém os terminais (`claude --resume`).
   - `src/index.ts` (entrada: serviços de verdade, WebSockets e `listen`), `app.ts` (rotas HTTP em `criarApp(ctx)`: o que
-    age fora da pasta do projeto chega pelo `Contexto`, nunca importado direto na rota), `seguranca.ts` (origem local e o que `/api/arquivo` pode entregar), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
+    age fora da pasta do projeto chega pelo `Contexto`, nunca importado direto na rota; cobrado por `server/tests/arquitetura.test.ts`), `seguranca.ts` (origem local e o que `/api/arquivo` pode entregar), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
     `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `consulta.ts` (base dos agentes da vila),
     `administrador.ts` (administrador da praça), `mirim.ts` (maestro mirim: dúvidas da rodada, só lendo), `critico.ts` (crítica do cartão do porão: segunda opinião do DeepSeek, conferida pelo Haiku), `clinica.ts` (clínica: triagem, sinais vitais e a ficha da médica), `agents.ts`/`skills.ts`/`plugins.ts` (Fábrica: agentes, skills e, só leitura, plugins e MCP), `gasto.ts` (moinho: gasto por projeto), `jornal.ts` (banca de jornal), `perfil.ts` (contas do Claude Code: Claude, DeepSeek pessoal e DeepSeek trabalho; a conta padrão da casa vem da raiz e a sessão escolhe a conta), `bastao.ts` (passagem de bastão: resumo e sucessor), `reinicio.ts` (sino:
     reinício pendente), `estrutura.ts` (casa em obra e
@@ -62,11 +62,12 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 - Checagem de tipos do servidor: `npm run typecheck -w server`
 - Testes: `npm test` (`node:test` + `tsx`, em `server/tests/` e `web/tests/`; projeto de mentira em pasta temporária
   por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade; rotas por `subir()` de `server/tests/servidor.ts`,
-  com imitações; teste que usa classe que grava em `~` troca o `HOME` antes do `import`, como
-  `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
-  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 66 rotas e o pombal; WebSockets e front
+  com imitações; o `npm test` já roda com o `HOME` numa pasta temporária (`scripts/isolar-home.mjs`), e teste que
+  precisa de um `HOME` só dele ainda o troca antes do `import`, como `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
+  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 66 rotas, o pombal e, por propriedade (fast-check), o
+  clique e a volta automática do porão em qualquer ordem (`porao-propriedades.test.ts`); WebSockets e front
   seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor, `npm test` e `npm run build` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 22/11/2026 (337/337). O hook `Stop` do `.claude/settings.json` roda
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 23/11/2026 (346/346). O hook `Stop` do `.claude/settings.json` roda
   `scripts/conferir-ao-parar.sh`: a sessão que editou `.ts` daqui só termina a resposta com os tipos do servidor e do front
   passando (G4 cobrado pelo harness, 08/11/2026).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
@@ -79,7 +80,8 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 
 1. **Repositório público.** Os projetos que aparecem na vila são privados: nunca escrever aqui nome, caminho,
    trecho ou dado deles (nem em exemplo, teste, commit ou print). Caminho pessoal vai no
-   `dev-valley.config.local.json`.
+   `dev-valley.config.local.json`. Cobrado pelos hooks do git `pre-commit` e `commit-msg` (`.githooks/`,
+   `scripts/conferir-publico.mts`, ligados pelo `npm install`); `node scripts/conferir-publico.mts --tudo` varre tudo.
 2. **O servidor escuta só em `127.0.0.1` e recusa WebSocket de outra origem:** os terminais rodam comandos de
    verdade. Nunca afrouxar isso.
 3. **O mod (`mod/`) e os hooks de permissão mandam à vila só `session_id`, `cwd`, nome do evento, tipo de
