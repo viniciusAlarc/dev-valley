@@ -9,7 +9,8 @@ import { openDiary } from './diario';
 import { openFactory } from './factory';
 import { openObra } from './obra';
 import { openPainel } from './painel';
-import { openPendencias, openUserPendencias } from './pendencias';
+import { openPendencias } from './pendencias';
+import { carregarContagemDeNotas, notasNoQuadro, openQuadroDeNotas } from './notas';
 import { openProject } from './project';
 import { openRetrabalho } from './retrabalho';
 import { openSementes } from './sementes';
@@ -80,10 +81,12 @@ export const ui = {
     this.hideTooltip();
     openPendencias(project);
   },
-  openUserPendencias(projects: Project[]) {
+  openQuadroDeNotas() {
     this.hideTooltip();
-    openUserPendencias(projects);
+    openQuadroDeNotas();
   },
+  carregarContagemDeNotas,
+  notasNoQuadro,
   openGuardrails(g: NonNullable<World['guardrails']>) {
     this.hideTooltip();
     openGuardrails(g);

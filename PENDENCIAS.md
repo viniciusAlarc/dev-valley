@@ -24,6 +24,7 @@
 
 | ID | Dono | Item | Aberto em |
 |---|---|---|---|
+| AD-1 | 👤 | Reformular o ✦ administrador da praça: o usuário o acha pouco útil (21/11/2026). Desde a mesma data ele cuida só do sino (o quadro de avisos virou as notas do usuário). Conversar antes de qualquer código. | 2026-11-21 |
 | RV-1 | 💻 | Revisor do pombal ("🔍 Revisar" antes de enviar, agente da vila só leitura e de contexto limpo). **Só depois de commitar a entrega de 08/11**, para validar à parte. Plano em `docs-dev/a-codar/revisor-pombal.md`. | 2026-11-08 |
 | MA-5 | 👤 | Maestro v2 e v3 codados em 11/11 (v2: devolutiva em arquivo com hook `Stop`, posse de arquivo por hook, dependências no cartão, relatório montado pela vila, quadro da rodada, resume com as regras; v3: linha de base e gate rodados pela vila, aceite na devolutiva, "Custo e ganho" no relatório). Ensaio isolado do v3 feito (c8, reprovado). Falta: reiniciar a vila e conferir numa rodada de verdade pequena, com uma tarefa que depende de outra e comando de teste. `docs-dev/context/maestro-v2.md`, `docs-dev/context/maestro-v3.md`. | 2026-11-11 |
 | CC-1 | 👤 | Crítica do cartão codada em 21/11 (DeepSeek Flash confere o cartão pelo checklist, Haiku verifica, só avisa). Falta: reiniciar a vila e conferir numa rodada de verdade; depois de ~5 rodadas, decidir se fica pelo `critica-<pedido>.json` de cada rodada. `docs-dev/context/critica-do-cartao.md`. | 2026-11-21 |

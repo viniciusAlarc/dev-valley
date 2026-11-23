@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { CONTA_CLAUDE, type Conta } from './config.js';
 import { askAgent, type AgentEvent, type Exchange } from './consulta.js';
-import { git } from './git.js';
+import { git, isWorktree } from './git.js';
 import type { World } from './world.js';
 
 /**
@@ -233,11 +233,21 @@ export class Jornal {
     return 'ok';
   }
 
+  /**
+   * Projetos que o jornal cobre: worktree ligada fica de fora (decisão do usuário, 21/11/2026). Os commits dela são os
+   * mesmos do repositório principal, que já está na vila, e a notícia saía em dobro.
+   */
+  private async projetosDoJornal() {
+    const projetos = this.world().projects;
+    const worktree = await Promise.all(projetos.map((p) => (p.isGit ? isWorktree(p.path) : false)));
+    return projetos.filter((_, i) => !worktree[i]);
+  }
+
   /** O que o jornaleiro sabe na conversa: os commits dos últimos 30 dias de todos os projetos (sem hash, sem diff). */
   async pautaDaConversa(agora = Date.now()): Promise<string> {
     const desde = agora - JANELA_CONVERSA;
     const movimentos: Movimento[] = [];
-    for (const p of this.world().projects) {
+    for (const p of await this.projetosDoJornal()) {
       if (!p.isGit) continue;
       const { voce, time } = await commitsDesde(p.path, desde, MAX_COMMITS_CONVERSA);
       if (voce.length || time.length) movimentos.push({ nome: p.name, voce, time });
@@ -249,7 +259,7 @@ export class Jornal {
     const lido = extra ? null : await this.lerJson<{ em: number }>(this.lidoFile());
     const desde = extra ? extra.desde : desdeQuando(lido?.em ?? null, agora);
     const { sessions } = this.world();
-    const projects = this.world().projects.filter((p) => !extra?.projectId || p.id === extra.projectId);
+    const projects = (await this.projetosDoJornal()).filter((p) => !extra?.projectId || p.id === extra.projectId);
     const movimentos: Movimento[] = [];
     const semNovidade: string[] = [];
     const parados: Edicao['parados'] = [];

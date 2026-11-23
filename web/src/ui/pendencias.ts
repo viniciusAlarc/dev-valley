@@ -64,23 +64,3 @@ export function openPendencias(project: Project) {
     })
     .join('');
 }
-
-/** Quadro de avisos da praça: só as pendências 👤 (decisão do usuário) de todos os projetos (decisão de 25/10/2026). */
-export function openUserPendencias(projects: Project[]) {
-  const groups = projects
-    .map((project) => ({ project, list: (project.pendencias ?? []).filter((p) => p.owner === 'user').sort((a, b) => a.priority - b.priority) }))
-    .filter((g) => g.list.length)
-    .sort((a, b) => a.list[0].priority - b.list[0].priority || a.project.name.localeCompare(b.project.name));
-  const total = groups.reduce((n, g) => n + g.list.length, 0);
-  const panel = openPanel({ title: 'Quadro de avisos', subtitle: `${total} decisão(ões) esperando você · 👤 nos PENDENCIAS.md`, size: 'lg', scroll: true });
-  if (!total) {
-    panel.body.innerHTML = '<p class="empty">Nenhuma decisão esperando você em nenhum projeto.</p>';
-    return;
-  }
-  panel.body.innerHTML = groups
-    .map(
-      ({ project, list }) => `<h3>${escapeHtml(project.name)}</h3>
-        <ul class="session-list pend-list">${list.map((p) => row(p, `<span class="pend-prio p${p.priority}">P${p.priority}</span>`)).join('')}</ul>`,
-    )
-    .join('');
-}

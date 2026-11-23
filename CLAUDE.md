@@ -43,7 +43,7 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
     `administrador.ts` (administrador da praça), `mirim.ts` (maestro mirim: dúvidas da rodada, só lendo), `critico.ts` (crítica do cartão do porão: segunda opinião do DeepSeek, conferida pelo Haiku), `clinica.ts` (clínica: triagem, sinais vitais e a ficha da médica), `agents.ts`/`skills.ts`/`plugins.ts` (Fábrica: agentes, skills e, só leitura, plugins e MCP), `gasto.ts` (moinho: gasto por projeto), `jornal.ts` (banca de jornal), `perfil.ts` (contas do Claude Code: Claude, DeepSeek pessoal e DeepSeek trabalho; a conta padrão da casa vem da raiz e a sessão escolhe a conta), `bastao.ts` (passagem de bastão: resumo e sucessor), `reinicio.ts` (sino:
     reinício pendente), `estrutura.ts` (casa em obra e
     placa de vistoria), `sementes.ts` (caixa
-    de sementes), `retrabalho.ts` (ervas do quintal), `porao.ts` (porão da casa: quem é do maestro), `quarto.ts` (quarto da casa: quem dorme), `rodada.ts` (estado da rodada, devolutivas e relatório montado pela vila), `gate.ts` (porão: testes do cartão antes e depois da rodada), `relatorios.ts` (estante de partitura do porão: relatórios do maestro, novo até abrir), `quadro.ts` (quadro negro), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
+    de sementes), `retrabalho.ts` (ervas do quintal), `porao.ts` (porão da casa: quem é do maestro), `quarto.ts` (quarto da casa: quem dorme), `rodada.ts` (estado da rodada, devolutivas e relatório montado pela vila), `gate.ts` (porão: testes do cartão antes e depois da rodada), `relatorios.ts` (estante de partitura do porão: relatórios do maestro, novo até abrir), `quadro.ts` (quadro negro), `notas.ts` (quadro de avisos da praça: notas do usuário, em `~/.claude/dev-valley`), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
     (outdoor), `install-hooks.ts`.
   - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md`, `agents/maestro-mirim.md`, `agents/critico-do-cartao.md`, `agents/verificador-do-cartao.md`, `agents/escrevente.md`, `agents/medica.md`, `agents/jornaleiro.md` e `agents/jornaleiro-conversa.md` (sem ferramenta: `--tools ""`): usados só pela vila.
 - `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
@@ -64,9 +64,9 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
   por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade; rotas por `subir()` de `server/tests/servidor.ts`,
   com imitações; teste que usa classe que grava em `~` troca o `HOME` antes do `import`, como
   `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
-  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 63 rotas e o pombal; WebSockets e front
+  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 66 rotas e o pombal; WebSockets e front
   seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor, `npm test` e `npm run build` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 21/11/2026 (329/329). O hook `Stop` do `.claude/settings.json` roda
+  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 22/11/2026 (337/337). O hook `Stop` do `.claude/settings.json` roda
   `scripts/conferir-ao-parar.sh`: a sessão que editou `.ts` daqui só termina a resposta com os tipos do servidor e do front
   passando (G4 cobrado pelo harness, 08/11/2026).
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.

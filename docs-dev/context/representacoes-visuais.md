@@ -15,6 +15,7 @@ A vila passa a mostrar os arquivos de acompanhamento que todo projeto tem (forma
    - P1 aberta → sinal "!" na fachada da casa, visível da vila. (Antes P1/P2; P2 saiu em 25/10/2026 a pedido do
      usuário: projeto com várias pendências não deve alertar o tempo todo.)
    - Pendências 👤 de todos os projetos → o quadro de avisos da praça (hoje decorativo) passa a funcionar.
+     *(Desfeito em 21/11/2026: o quadro da praça virou as notas do usuário; as pendências 👤 ficam só nas casas.)*
    - `docs-dev/painel.json` → horta no quintal: cada fase é um canteiro (feito = planta madura,
      em andamento = broto, a fazer = terra arada).
    - `PROGRESS.md` → diário dentro da casa: abre como livro, uma página por entrega.

@@ -18,6 +18,7 @@ import { askLibrarian } from './librarian.js';
 import { Library } from './library.js';
 import { Moradores } from './moradores.js';
 import { Quarto } from './quarto.js';
+import { Notas } from './notas.js';
 import { buscar } from './pombal.js';
 import { isLocalOrigin } from './seguranca.js';
 import { ambienteDoTerminal, contaDaSessao, contaPorNome, projectsDirs, type Conta } from './perfil.js';
@@ -58,6 +59,7 @@ const statusLine = new StatusLineStore();
 const internalSessions = new Set<string>();
 const moradores = new Moradores();
 const quarto = new Quarto();
+const notas = new Notas();
 const agents = new Agents(() => world.projects, () => contaDosAgentes);
 const skills = new Skills(() => world.projects);
 const plugins = new Plugins(config, () => world.projects);
@@ -144,6 +146,7 @@ const app = criarApp({
   statusLine,
   moradores,
   quarto,
+  notas,
   agents,
   skills,
   plugins,

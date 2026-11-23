@@ -33,6 +33,19 @@ export async function isGitRepo(dir: string): Promise<boolean> {
   }
 }
 
+/**
+ * Worktree ligada (`git worktree add`): a pasta de git dela é diferente da pasta comum do repositório principal.
+ * O repositório principal, um submódulo ou uma pasta sem git respondem `false`.
+ */
+export async function isWorktree(cwd: string): Promise<boolean> {
+  try {
+    const [gitDir, comum] = (await git(cwd, ['rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir'])).trim().split('\n');
+    return !!gitDir && !!comum && path.resolve(gitDir) !== path.resolve(comum);
+  } catch {
+    return false;
+  }
+}
+
 export async function branch(cwd: string): Promise<string> {
   try {
     return (await git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD'])).trim();

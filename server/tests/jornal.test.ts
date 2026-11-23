@@ -56,7 +56,7 @@ async function vila() {
     pautas.push(p);
     return resposta;
   });
-  return { jornal, pautas, ativo, setResposta: (r: string) => (resposta = r) };
+  return { jornal, pautas, ativo, projects, setResposta: (r: string) => (resposta = r) };
 }
 
 describe('banca de jornal', () => {
@@ -152,6 +152,20 @@ describe('banca de jornal', () => {
     assert.match(texto, /## parado/, 'commit de 30 dias atrás ainda entra');
     const { voce } = await commitsDesde(ativo, AGORA - 24 * HORA);
     assert.ok(!texto.includes(voce[0]!.hash));
+  });
+
+  test('worktree de um projeto da vila fica fora do jornal: nem notícia, nem sem novidade, nem na conversa', async () => {
+    const { jornal, pautas, ativo, projects } = await vila();
+    const wt = path.join(await projeto(), 'wt');
+    execFileSync('git', ['worktree', 'add', '-q', '-b', 'outra', wt], { cwd: ativo });
+    projects.push({ id: 'w', name: 'ativo-worktree', path: wt, isGit: true } as Project);
+    await jornal.imprimir(AGORA);
+    const v = await jornal.view(AGORA);
+    assert.equal(v.erro, null);
+    assert.ok(!pautas[0]!.includes('ativo-worktree'), 'worktree não entra na pauta');
+    assert.match(pautas[0]!, /## ativo/, 'o repositório principal continua');
+    assert.deepEqual(v.edicao!.semNovidade, ['parado']);
+    assert.ok(!(await jornal.pautaDaConversa(AGORA)).includes('ativo-worktree'));
   });
 
   test('rotas: GET entrega a edição; imprimir e marcar lido só de página local', async () => {

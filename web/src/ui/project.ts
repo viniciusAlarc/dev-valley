@@ -90,9 +90,12 @@ export function openProject(project: Project, aviso?: string) {
     confirma.hidden = true;
   }
   todas.addEventListener('change', () => {
+    // O valor vem antes do laço: cada `change` disparado recalcula o "Marcar todas" (1 de N = desmarcado), e o laço que
+    // comparava com ele parava na primeira caixa, marcando uma por clique (21/11/2026).
+    const marcar = todas.checked;
     for (const c of caixas) {
-      if (c.checked !== todas.checked) {
-        c.checked = todas.checked;
+      if (c.checked !== marcar) {
+        c.checked = marcar;
         c.dispatchEvent(new Event('change'));
       }
     }

@@ -51,10 +51,10 @@ const LIBRARIAN: ChatAgent = {
 const ADMINISTRADOR: ChatAgent = {
   endpoint: '/api/administrador/ask',
   title: '✦ Administrador da praça',
-  subtitle: 'Agente permanente: explica o sino e o quadro de avisos, e registra o que você conferiu',
+  subtitle: 'Agente permanente: explica o sino e registra o que você conferiu',
   placeholder: 'ex.: o que é para conferir na horta? · conferi o sino, está ok',
   hello: `
-    <p><b>Olá!</b> Eu cuido do sino de conferência e do quadro de avisos da praça.</p>
+    <p><b>Olá!</b> Eu cuido do sino de conferência da praça.</p>
     <p>Pergunte o que um item quer dizer e o que conferir. Quando tiver conferido, me avise: eu registro nos arquivos do
     projeto como a sessão faria (<code>PROGRESS.md</code>, plano em <code>a-codar/</code>, <code>PENDENCIAS.md</code>).</p>
     <p class="muted">Só edito esses arquivos de acompanhamento; código e o resto são das sessões. Se você relatar um problema, não marco nada.</p>`,

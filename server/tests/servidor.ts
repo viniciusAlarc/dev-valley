@@ -75,6 +75,7 @@ export async function subir(
     statusLine: { handle: proibido('statusLine.handle'), ritmo: () => [] },
     moradores: { claim: proibido('moradores.claim'), renomear: proibido('moradores.renomear') },
     quarto: { dormir: proibido('quarto.dormir') },
+    notas: { list: proibido('notas.list'), criar: proibido('notas.criar'), excluir: proibido('notas.excluir') },
     agents: { read: proibido('agents.read'), create: proibido('agents.create'), save: proibido('agents.save'), remove: proibido('agents.remove') },
     skills: { read: proibido('skills.read'), create: proibido('skills.create'), save: proibido('skills.save'), remove: proibido('skills.remove') },
     plugins: { list: proibido('plugins.list') },

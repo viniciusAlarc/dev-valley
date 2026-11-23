@@ -498,11 +498,12 @@ export class TownScene extends Phaser.Scene {
     makeInteractive(
       board,
       () => {
-        const n = this.world.projects.flatMap((p) => p.pendencias ?? []).filter((p) => p.owner === 'user').length;
-        return n ? `Quadro de avisos — ${n} decisão(ões) esperando você` : 'Quadro de avisos — nada esperando decisão sua';
+        const n = ui.notasNoQuadro();
+        return n === null ? 'Quadro de avisos — suas notas' : n ? `Quadro de avisos — ${n} nota(s)` : 'Quadro de avisos — nenhuma nota';
       },
-      () => ui.openUserPendencias(this.world.projects),
+      () => ui.openQuadroDeNotas(),
     );
+    ui.carregarContagemDeNotas();
     this.addSprite('planter', fountain.x + 34, plaza.y + 28);
     // Sino entre o canteiro e a árvore do canto (poste de 10px, sobra folga dos dois lados).
     const post = this.addSprite('bell-post', fountain.x + 52, plaza.y + 30);
@@ -517,8 +518,8 @@ export class TownScene extends Phaser.Scene {
     );
     this.time.addEvent({ delay: 6000, loop: true, callback: () => this.ringBell() });
 
-    // ✦ Administrador da praça (agente permanente), entre o quadro de avisos e o chafariz: explica o sino e o quadro e
-    // registra o que o usuário conferiu. Mesmos fundamentos da bibliotecária (consulta curta, não vira morador).
+    // ✦ Administrador da praça (agente permanente), entre o quadro de avisos e o chafariz: explica o sino e registra o
+    // que o usuário conferiu. Mesmos fundamentos da bibliotecária (consulta curta, não vira morador).
     const adminX = fountain.x - 20;
     const adminY = plaza.y + 34;
     const admin = this.add.sprite(adminX, adminY, villagerTexture(this, 'administrador-dev-valley', true), 0).setOrigin(0.5, 1).setDepth(adminY);

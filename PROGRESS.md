@@ -3,6 +3,51 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-22 — Sino mostra o que espera conferência em todas as casas, inclusive pelo PENDENCIAS.md
+
+**O que mudou:** pedido do usuário: o sino deve mostrar o que está pendente de verificação em qualquer repositório. Ele
+já lia o `PROGRESS.md` de todas as casas, mas os outros repositórios não usam a frase "Falta conferir na vila": marcam o
+que espera validação como pendência aberta, dona 👤, com "falta conferir na tela" e parecidos. Agora o sino lista também
+essas pendências (`pendenciasAConferir` em `web/src/api.ts`: aberta, dona 👤 e "falta … conferir" na mesma frase), por
+casa, sem caixinha: fechar pendência é da sessão ou do administrador (G6). Entram na conta e no balanço do sino.
+Conferido contra os repositórios reais pela rota `/api/world`: aparecem as 3 do Dev Valley e as do ERP, nenhuma fora do
+assunto. Painel em `web/src/ui/conferir.ts`; README atualizado.
+**Testes:** 337/337 (+3 em `web/tests/sino.test.ts`); build ok. Falta conferir na vila (recarregar a página basta: só front).
+
+## 2026-11-21 — "Marcar todas" da escrivaninha marca todas de uma vez
+
+**O que mudou:** o usuário viu na vila que o "Marcar todas" da escrivaninha marcava uma sessão por clique (no sino
+funcionava). Causa: o laço comparava cada caixa com o próprio "Marcar todas", que o `change` da primeira caixa
+recalculava para desmarcado. Agora o valor é lido antes do laço (`web/src/ui/project.ts`). Linha no `RETRABALHO.md`.
+**Testes:** build do front ok (só front). Falta conferir na vila (o front já buildado vale ao recarregar a página).
+
+## 2026-11-21 — Jornal ignora worktrees
+
+**O que mudou:** pedido do usuário. A banca noticiava duas vezes o mesmo trabalho: o repositório principal e a worktree
+dele, que aparece na vila como outra casa e tem os mesmos commits. Agora worktree ligada fica de fora do jornal inteiro
+(notícias, "sem novidade", parados, edição extra e conversa com o jornaleiro); só o repositório principal é noticiado.
+**Como:** `isWorktree` em `server/src/git.ts` (`git rev-parse --git-dir` diferente de `--git-common-dir`; submódulo e
+repositório principal não contam) e `projetosDoJornal()` em `server/src/jornal.ts`, usado por `montar` e
+`pautaDaConversa`. A casa da worktree continua na vila; só o jornal deixa de olhar para ela.
+**Testes:** caso novo em `server/tests/jornal.test.ts` (worktree de verdade criada com `git worktree add`). `npm test`
+334/334, typecheck ok. Falta conferir na vila (reinício do usuário).
+
+## 2026-11-21 — Quadro de avisos da praça vira as notas do usuário
+
+**O que mudou:** pedido do usuário. O quadro de avisos da praça deixa de listar as pendências 👤 de todos os projetos
+(elas continuam dentro de cada casa) e passa a guardar **notas soltas**: o clique abre o quadro de perto (cortiça com
+os papéis presos, texto inteiro e data), com **Nova nota** no cabeçalho (Ctrl+Enter salva) e ✕ em cada nota, que
+pergunta antes de excluir. Decisões do usuário (21/11/2026): notas sem projeto, só criar e excluir (sem editar), as
+pendências 👤 só nas casas e o ✦ administrador cuida só do sino e não vê as notas (a reformulação dele ficou na AD-1).
+**Como:** `server/src/notas.ts` (`Notas`: `notas.json` em `~/.claude/dev-valley/`, fora do repositório público;
+arquivo estragado = quadro vazio); rotas `GET /api/notas`, `POST /api/notas` (texto limpo, até 2000 caracteres) e
+`DELETE /api/notas/:id` (404 se não existe), gravar e apagar só com `Origin` local presente; front em
+`web/src/ui/notas.ts` (painel e contagem do tooltip) e CSS `.quadro-cortica`/`.nota` (contorno inteiro, sem faixa nem
+gradiente, cores do sprite `noticeboard`). Saíram `openUserPendencias` e o bloco "Quadro" do preâmbulo do
+administrador; agente, saudação dele, README e `representacoes-visuais.md` acompanham.
+**Testes:** `server/tests/notas.test.ts` (classe e rotas: sucesso, entrada inválida, origem de fora). `npm test`
+333/333, typecheck e build ok, auditor sem achado novo. Falta conferir na vila (reinício do usuário).
+
 ## 2026-11-21 — Sino com "Marcar todas" e frase padrão de validação em todos os projetos
 
 **O que mudou:** pedido do usuário. O sino ganha o "Marcar todas" da escrivaninha (mesma barra `.lote-barra`, com a

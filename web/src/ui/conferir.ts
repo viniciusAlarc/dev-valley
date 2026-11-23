@@ -1,10 +1,12 @@
-import { api, onWorld, type World } from '../api';
+import { api, onWorld, pendenciasAConferir, type World } from '../api';
 import { button, escapeHtml, openPanel } from './panel';
 
 /**
  * Sino da praça: entregas do `PROGRESS.md` de todos os projetos que ainda dizem "Falta conferir na vila", e o reinício
  * pendente do próprio Dev Valley. As caixinhas marcam a entrega como conferida no `PROGRESS.md` sem passar pelo
  * administrador (pedido do usuário, 29/10/2026); plano em `a-codar/` e pendência continuam com a sessão ou o administrador.
+ * Pendências abertas que esperam conferência (dona 👤, "falta … conferir"), de qualquer casa, aparecem também, sem
+ * caixinha: fechar uma é tarefa da sessão ou do administrador (22/11/2026).
  */
 export function openConferir(world: World) {
   const unsubscribe = onWorld(draw);
@@ -20,15 +22,16 @@ export function openConferir(world: World) {
   // O mundo chega a cada evento de sessão: só redesenha quando o que o sino mostra mudou, e mantém o que está marcado.
   function draw(w: World) {
     const groups = w.projects
-      .map((project) => ({ project, list: project.progress?.toCheck ?? [] }))
-      .filter((g) => g.list.length)
+      .map((project) => ({ project, list: project.progress?.toCheck ?? [], pend: pendenciasAConferir(project) }))
+      .filter((g) => g.list.length || g.pend.length)
       .sort((a, b) => a.project.name.localeCompare(b.project.name));
-    const key = JSON.stringify([w.restart, groups.map((g) => [g.project.id, g.list, g.project.sementes?.filter((s) => s.toCheck)])]);
+    const key = JSON.stringify([w.restart, groups.map((g) => [g.project.id, g.list, g.pend, g.project.sementes?.filter((s) => s.toCheck)])]);
     if (key === drawnKey) return;
     drawnKey = key;
     const marked = new Set([...panel.body.querySelectorAll<HTMLInputElement>('.conferir-list input:checked')].map(checkKey));
     const total = groups.reduce((n, g) => n + g.list.length, 0);
-    if (subtitle) subtitle.textContent = `${total} entrega(s) esperando você conferir · PROGRESS.md`;
+    const pendTotal = groups.reduce((n, g) => n + g.pend.length, 0);
+    if (subtitle) subtitle.textContent = `${total} entrega(s) e ${pendTotal} pendência(s) esperando você conferir · PROGRESS.md e PENDENCIAS.md`;
 
     const restart = [
       w.restart.server && 'O servidor do Dev Valley mudou depois que a vila subiu.',
@@ -41,7 +44,7 @@ export function openConferir(world: World) {
       : '';
 
     submit.hidden = !total;
-    if (!total && !restartHtml) {
+    if (!total && !pendTotal && !restartHtml) {
       panel.body.innerHTML = '<p class="empty">Nada esperando conferência na vila.</p>';
       return;
     }
@@ -53,20 +56,30 @@ export function openConferir(world: World) {
       restartHtml +
       barra +
       groups
-        .map(({ project, list }) => {
+        .map(({ project, list, pend }) => {
           const planos = (project.sementes ?? []).filter((s) => s.toCheck);
           const aviso = planos.length
             ? `<p class="muted">Plano em <code>docs-dev/a-codar/</code> ainda esperando conferência
                (${planos.map((s) => escapeHtml(s.title)).join(', ')}): a caixinha não mexe nele, peça ao administrador ou à sessão.</p>`
             : '';
+          // Pendência: só o começo do texto, sem o negrito do markdown; a linha inteira está no quadro da casa.
+          const pendHtml = pend.length
+            ? `<p class="muted">No <code>PENDENCIAS.md</code> (feche pela sessão ou pelo administrador; a caixinha não mexe nelas):</p>
+               <ul class="session-list pend-list">${pend
+                 .map((p) => {
+                   const texto = p.item.replace(/\*\*/g, '');
+                   return `<li><span class="muted">${escapeHtml(p.id.replace(/\*\*/g, ''))}</span> <span class="pend-item">${escapeHtml(texto.length > 180 ? `${texto.slice(0, 180)}…` : texto)}</span></li>`;
+                 })
+                 .join('')}</ul>`
+            : '';
           return `<h3>${escapeHtml(project.name)}</h3>
-            <ul class="session-list pend-list conferir-list">${list
+            ${list.length ? `<ul class="session-list pend-list conferir-list">${list
               .map(
                 (e) => `<li><label><input type="checkbox" data-project="${escapeHtml(project.id)}"
                   data-date="${escapeHtml(e.date)}" data-title="${escapeHtml(e.title)}" />
                   <span class="muted">${escapeHtml(e.date)}</span> <span class="pend-item">${escapeHtml(e.title)}</span></label></li>`,
               )
-              .join('')}</ul>${aviso}`;
+              .join('')}</ul>` : ''}${pendHtml}${aviso}`;
         })
         .join('');
     const caixas = [...panel.body.querySelectorAll<HTMLInputElement>('.conferir-list input')];

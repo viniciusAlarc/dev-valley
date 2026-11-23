@@ -19,25 +19,20 @@ function stepFor(tool: string, input: any): string {
   return `🔧 ${tool}`;
 }
 
-/** O que está no sino e no quadro agora, com o caminho de cada projeto. */
+/** O que está no sino agora, com o caminho de cada projeto. O quadro de avisos virou notas do usuário (21/11/2026): fica fora. */
 function preamble(projects: Project[]) {
   const today = new Date();
   const date = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
   const blocks = projects
     .map((p) => {
       const toCheck = p.progress?.toCheck ?? [];
-      const decisions = (p.pendencias ?? []).filter((d) => d.owner === 'user');
-      if (!toCheck.length && !decisions.length) return '';
-      return [
-        `### ${p.name} — ${p.path}`,
-        ...toCheck.map((e) => `- Sino (a conferir): ${e.date} — ${e.title}`),
-        ...decisions.map((d) => `- Quadro (decisão 👤, P${d.priority}): ${d.id} — ${d.item}`),
-      ].join('\n');
+      if (!toCheck.length) return '';
+      return [`### ${p.name} — ${p.path}`, ...toCheck.map((e) => `- Sino (a conferir): ${e.date} — ${e.title}`)].join('\n');
     })
     .filter(Boolean);
   return [
     `Hoje é ${date}.`,
-    blocks.length ? `## Na praça agora\n\n${blocks.join('\n\n')}` : '## Na praça agora\n\nNada no sino nem no quadro de avisos.',
+    blocks.length ? `## Na praça agora\n\n${blocks.join('\n\n')}` : '## Na praça agora\n\nNada no sino.',
   ].join('\n\n');
 }
 

@@ -185,9 +185,22 @@ export const contaDaSessao = (s: Session): ContaResumo | null => s.conta ?? (s.p
 /** Provedor da sessão, para a paleta; sem conta, Claude (o padrão de sempre). */
 export const provedorDaSessao = (s: Session): Provedor => contaDaSessao(s)?.provedor ?? 'claude';
 
-/** Sino da praça: quantas entregas esperam conferência na vila, mais o reinício pendente do próprio Dev Valley. */
+/**
+ * Pendência que espera o usuário conferir (sino, 22/11/2026): aberta, dona 👤 e dizendo "falta … conferir" ("falta
+ * conferir na tela", "Falta: reiniciar a vila e conferir"). É como os outros repositórios marcam o que espera validação;
+ * no `PROGRESS.md` deles a redação é livre e quase sempre aponta para uma pendência destas.
+ */
+const FALTA_CONFERIR = /\bfalta\b[^.|]{0,60}?\bconfer(?:ir|ência|encia)\b/i;
+export function pendenciasAConferir(project: Project): Pendencia[] {
+  return (project.pendencias ?? []).filter((p) => p.owner === 'user' && FALTA_CONFERIR.test(p.item));
+}
+
+/**
+ * Sino da praça: entregas do `PROGRESS.md` esperando conferência e pendências a conferir, de todas as casas, mais o
+ * reinício pendente do próprio Dev Valley.
+ */
 export function bellCount(world: World): number {
-  const entries = world.projects.reduce((n, p) => n + (p.progress?.toCheck.length ?? 0), 0);
+  const entries = world.projects.reduce((n, p) => n + (p.progress?.toCheck.length ?? 0) + pendenciasAConferir(p).length, 0);
   return entries + (world.restart.server || world.restart.web ? 1 : 0);
 }
 
@@ -499,6 +512,19 @@ export const skills = {
   create: (projectId: string | null, name: string, input: SkillInput) => request<{ path: string }>('POST', '/api/skills', { projectId, name, ...input }),
   save: (path: string, mtime: number, input: SkillInput) => request<{ mtime: number }>('PUT', '/api/skills', { path, mtime, ...input }),
   remove: (path: string) => request('DELETE', `/api/skills?path=${encodeURIComponent(path)}`),
+};
+
+/** Nota do quadro de avisos da praça (21/11/2026). Espelha `server/src/notas.ts`. */
+export interface Nota {
+  id: string;
+  texto: string;
+  criadaEm: string;
+}
+
+export const notas = {
+  list: () => request<{ notas: Nota[] }>('GET', '/api/notas').then((r) => r.notas),
+  criar: (texto: string) => request<Nota>('POST', '/api/notas', { texto }),
+  excluir: (id: string) => request('DELETE', `/api/notas/${encodeURIComponent(id)}`),
 };
 
 /** Plugins e servidores MCP de cada conta (Fábrica, quadro de força; só leitura). Espelha `server/src/plugins.ts`. */

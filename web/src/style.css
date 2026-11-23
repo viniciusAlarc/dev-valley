@@ -1819,3 +1819,123 @@ h3 .conta-dot {
   display: block;
   overflow-wrap: anywhere;
 }
+
+/* Quadro de avisos da praça (21/11/2026): o zoom do quadro, notas de papel presas na cortiça. Cores da cortiça e dos
+   papéis iguais às do sprite `noticeboard` (textures.ts). */
+.quadro-cortica {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 22px 18px;
+  align-items: start;
+  padding: 22px 18px;
+  min-height: 260px;
+  background: #c79a5e;
+  border: 6px solid #7a4b20;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 2px #a87a42;
+}
+
+.quadro-cortica .quadro-vazio {
+  grid-column: 1 / -1;
+  align-self: center;
+  text-align: center;
+  color: #4a2c12;
+}
+
+.nota {
+  position: relative;
+  padding: 16px 12px 8px;
+  background: #fbf3dc;
+  border: 2px solid #8a6a46;
+  box-shadow: 3px 3px 0 rgba(59, 35, 18, 0.35);
+  color: var(--ink);
+  transform: rotate(-1deg);
+}
+
+.nota.nota-cor1 {
+  background: #fbe9a0;
+  transform: rotate(1deg);
+}
+
+.nota.nota-cor2 {
+  background: #d4ebf3;
+  transform: rotate(-0.5deg);
+}
+
+.nota.nota-nova {
+  transform: none;
+  background: #fffaf0;
+}
+
+.nota-alfinete {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: #d64545;
+  border: 2px solid #8c2c20;
+}
+
+.nota-excluir {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 5px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.nota-excluir:hover {
+  color: var(--red);
+}
+
+.nota-texto {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+}
+
+.nota-data {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.nota-nova textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  font-family: var(--font);
+  font-size: 16px;
+  color: var(--ink);
+  background: transparent;
+  border: 2px dashed #b89a72;
+  padding: 6px;
+}
+
+.nota-botoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.nota-botoes .btn {
+  font-size: 14px;
+  padding: 3px 10px;
+}
+
+.nota-erro {
+  margin: 6px 0 0;
+  font-size: 13px;
+}

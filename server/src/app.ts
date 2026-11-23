@@ -29,6 +29,7 @@ import type { TerminalManager } from './terminals.js';
 import type { Project, World, WorldSession } from './world.js';
 import type { Conta } from './perfil.js';
 import type { Quarto } from './quarto.js';
+import { NOTA_MAX, type Notas } from './notas.js';
 
 /**
  * O que as rotas usam da vila (PD-8, passo 2). O `index.ts` passa os de verdade; os testes passam imitações. Tudo que
@@ -50,6 +51,8 @@ export interface Contexto {
   moradores: Pick<Moradores, 'claim' | 'renomear'>;
   /** Quarto da casa (21/11/2026): quem a escrivaninha mandou dormir. */
   quarto: Pick<Quarto, 'dormir'>;
+  /** Quadro de avisos da praça (21/11/2026): notas soltas do usuário. */
+  notas: Pick<Notas, 'list' | 'criar' | 'excluir'>;
   agents: Pick<Agents, 'read' | 'create' | 'save' | 'remove'>;
   skills: Pick<Skills, 'read' | 'create' | 'save' | 'remove'>;
   /** Plugins e MCP de cada conta, só leitura (Fábrica, 02/11/2026; por conta em 19/11/2026). */
@@ -541,7 +544,7 @@ export function criarApp(ctx: Contexto): express.Express {
     });
   });
 
-  // Pergunta ao administrador da praça (sino e quadro de avisos); ele pode registrar conferências nos arquivos de
+  // Pergunta ao administrador da praça (sino de conferência); ele pode registrar conferências nos arquivos de
   // acompanhamento dos projetos. Mesmo formato NDJSON da bibliotecária.
   app.post('/api/administrador/ask', (req, res) => {
     const question = String(req.body?.question ?? '').trim();
@@ -802,6 +805,26 @@ export function criarApp(ctx: Contexto): express.Express {
   // `recusadas` com o motivo, sem parar as outras. Trabalhando também dorme: a escrivaninha avisa antes (decisão do
   // usuário). O processo sai antes da anotação: com ele vivo, a sessão ainda apareceria acordada. Encerra processos, então
   // só a página da vila (Origin local presente, como no cartão do porão): o `curl` de uma sessão não põe outra para dormir.
+  // Quadro de avisos da praça (21/11/2026): notas soltas, só criar e excluir (decisão do usuário). Gravar e apagar só
+  // pela página; ler também pelo curl local, como o resto da vila.
+  app.get('/api/notas', async (_req, res) => {
+    res.json({ notas: await ctx.notas.list() });
+  });
+
+  app.post('/api/notas', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila escreve no quadro.' });
+    const texto = typeof req.body?.texto === 'string' ? req.body.texto.trim() : null;
+    if (!texto) return res.status(400).json({ error: 'Escreva alguma coisa na nota.' });
+    if (texto.length > NOTA_MAX) return res.status(400).json({ error: `A nota passa de ${NOTA_MAX} caracteres.` });
+    res.json(await ctx.notas.criar(texto));
+  });
+
+  app.delete('/api/notas/:id', async (req, res) => {
+    if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila tira nota do quadro.' });
+    if (!(await ctx.notas.excluir(req.params.id))) return res.status(404).json({ error: 'Nota não encontrada.' });
+    res.json({ ok: true });
+  });
+
   app.post('/api/sessions/dormir', async (req, res) => {
     if (!daPagina(req.headers.origin)) return res.status(403).json({ error: 'Só a página da vila manda dormir.' });
     const ids = req.body?.ids;
