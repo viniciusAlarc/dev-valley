@@ -75,27 +75,16 @@ export function fitZoom(wTiles: number, hTiles: number, view: View): number {
 }
 
 /**
- * Quantas casas por linha (pedido do usuário, 02/11/2026): a que deixa a vila ocupar mais da tela na visão geral. Com 5
- * casas numa tela larga, uma linha de 5 em vez de 4 + 1 (que deixava a tela com uma faixa vazia ao lado). Empate:
- * menos lotes vazios, depois menos colunas. Diferença de até 2% de tela conta como empate.
+ * Quantas casas por linha: as casas sempre se dividem em duas linhas (pedido do usuário, 24/11/2026), metade em cima e
+ * metade embaixo (a de baixo fica com uma a menos quando o número é ímpar). Não depende do tamanho da tela: antes a
+ * escolha pelo melhor preenchimento (02/11/2026) fazia a vila alternar entre uma e duas linhas conforme a janela.
  */
-export function chooseCols(n: number, view: View): number {
-  let best = { cols: 3, fill: -1, empty: 0 };
-  for (let cols = 3; cols <= Math.max(3, n); cols++) {
-    const rows = Math.max(1, Math.ceil(n / cols));
-    const { w, h } = villageTiles(cols, rows);
-    const zoom = fitZoom(w, h, view);
-    const fill = Math.min(1, ((w - 6) * TILE * zoom) / view.w) * Math.min(1, ((h - 4) * TILE * zoom) / view.h);
-    // Lotes vazios contados na largura real da linha (a mínima da linha cívica vale para qualquer número de colunas).
-    const empty = rows * Math.max(cols, CIVIC_MIN_W / PLOT_W) - n;
-    const better = fill > best.fill + 0.02 || (Math.abs(fill - best.fill) <= 0.02 && empty < best.empty);
-    if (better) best = { cols, fill, empty };
-  }
-  return best.cols;
+export function chooseCols(n: number): number {
+  return Math.max(1, Math.ceil(n / 2));
 }
 
 export function computeLayout(projects: Project[], view: View = { w: 1600, h: 900 }): Layout {
-  const cols = chooseCols(projects.length, view);
+  const cols = chooseCols(projects.length);
   const rows = Math.max(1, Math.ceil(projects.length / cols));
   const { w: vwTiles, h: vhTiles } = villageTiles(cols, rows);
   const zoom = fitZoom(vwTiles, vhTiles, view);

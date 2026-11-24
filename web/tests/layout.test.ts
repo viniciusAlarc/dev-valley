@@ -8,10 +8,16 @@ const LARGA = { w: 1920, h: 1000 };
 const ESTREITA = { w: 900, h: 1000 };
 
 describe('layout da vila ocupa a tela (pedido do usuário, 02/11/2026)', () => {
-  test('5 casas numa tela larga ficam numa linha só; numa estreita, quebram em linhas', () => {
-    assert.equal(chooseCols(5, LARGA), 5);
-    assert.ok(chooseCols(5, ESTREITA) < 5);
-    assert.equal(chooseCols(1, LARGA), 3, 'a linha cívica precisa de pelo menos 3 lotes de largura');
+  test('as casas sempre se dividem em duas linhas, em qualquer tela (pedido do usuário, 24/11/2026)', () => {
+    for (const view of [LARGA, ESTREITA]) {
+      for (const n of [2, 3, 5, 6, 9]) {
+        const l = computeLayout(casas(n), view);
+        const linhas = new Set(l.plots.map((p) => p.house.y)).size;
+        assert.equal(linhas, 2, `${n} casas em ${view.w}x${view.h}`);
+      }
+    }
+    assert.equal(chooseCols(5), 3, 'ímpar: a linha de cima fica com uma a mais');
+    assert.equal(chooseCols(1), 1);
   });
 
   test('a vila enquadrada preenche a largura ou a altura inteira da tela', () => {

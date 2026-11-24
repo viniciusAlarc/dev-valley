@@ -3,6 +3,39 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-24 — Casas da vila sempre em duas linhas
+
+**O que mudou:** pedido do usuário: a vila às vezes punha todas as casas numa linha só e às vezes dividia em duas.
+A causa era `chooseCols` (`web/src/game/layout.ts`) escolher o número de colunas pelo melhor preenchimento da tela,
+que muda com o tamanho da janela no momento em que a cena monta. Agora a divisão não depende da tela: metade das casas
+na linha de cima e metade embaixo (ímpar: a de cima fica com uma a mais; uma casa só continua numa linha). O zoom e a
+floresta em volta continuam se ajustando à tela.
+**Testes:** `npm test` 356/356 (o teste de "5 casas numa linha em tela larga" virou "sempre duas linhas, em tela larga
+e estreita"), `npm run typecheck -w server`, `npm run build`, auditor sem achado novo (só as referências históricas).
+Falta conferir na vila.
+
+## 2026-11-24 — Mapa do ecossistema de IA: análise e apresentação geradas dos arquivos reais
+
+**O que mudou:** pedido do usuário: uma visualização clara do que é dito à IA, do que ela guarda e do que ela
+aprende, para apresentar e para analisar. Um gerador local (`scripts/mapa-ecossistema.ts`, com o domínio em
+`mapa-ecossistema-dominio.ts` e a página em `mapa-ecossistema-pagina.ts`) varre as regras em `~/Documents/IA`, as
+configs de `~/.claude` e `~/.claude-deepseek` e os rastros do repositório, e escreve **duas páginas** em
+`docs-dev/ecossistema/` (pasta agora ignorada pelo git): a de **análise**, com caminho absoluto e nomes, e a de
+**apresentação**, com caminho pessoal mascarado para `~`, projeto como "Casa N" e listas de memória/pendência
+omitidas. A separação é a fronteira de privacidade; um botão que só esconde texto não bastaria. A página tem cinco
+camadas (Entrada, Contexto, Ação, Rastro e Aprendizado) com 38 cards clicáveis, quatro fluxos, a tabela G1-G21 lida do
+núcleo real e um bloco de saúde calculado. Sinais que ela já mostra: núcleo com 21 guardrails em 129 linhas (acima do
+teto de ~20/120), mods instalados de commits diferentes nas duas contas, 2 agentes do cartão ainda não instalados
+(7 de 9 nas duas) e os dois roteadores gerados divergindo na linha 30. Nada disso foi alterado por esta entrega: a
+página só mostra. A memória automática aparece como a menor camada (10 arquivos), com a ressalva de que o núcleo é
+regra versionada + rastro. Doc de decisão em `docs-dev/context/mapa-do-ecossistema.md`. A linguagem visual é
+editorial e sóbria (fundo claro, tipografia de sistema, bordas finas, uma cor de acento): a identidade em
+pergaminho/pixel da vila atrapalhava a leitura de uma página densa, correção apontada pelo usuário na mesma data.
+**Testes:** `npm test` 356/356 (10 novos em `server/tests/mapa-ecossistema.test.ts`, com home e projeto de mentira),
+`npm run typecheck -w server`, `npm run build`, auditor sem achado novo (as 5 referências históricas do PROGRESS
+continuam) e `conferir-publico --tudo` limpo. As duas páginas saem sem URL externa e sem filete novo (G19).
+Falta conferir na vila.
+
 ## 2026-11-24 — Memória entre sessões: auto-dream desligado, consolidador planejado e auditoria de regras
 
 **O que mudou:** pesquisa sobre memória entre sessões (fontes da Anthropic, concorrentes e comunidade). O auto-dream

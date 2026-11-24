@@ -3,3 +3,4 @@ dist/
 *.log
 .env
 dev-valley.config.local.json
+docs-dev/ecossistema/
