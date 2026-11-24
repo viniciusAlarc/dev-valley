@@ -4,6 +4,8 @@
 
 > Os guardrails universais e as convenções de trabalho vêm do `~/.claude/CLAUDE.md`.
 > Aqui ficam **só** as regras que dependem deste projeto. Em conflito, este arquivo vence.
+> O detalhe das regras 5, 7, 8 e 10 mora em `.claude/rules/`, carregado quando a sessão abre os arquivos daquele
+> assunto; mexendo no assunto sem ter aberto esses arquivos, ler a regra de lá antes.
 
 ---
 
@@ -13,12 +15,6 @@ Vila em pixel art (inspirada em Stardew Valley) para organizar projetos e sessõ
 Uso pessoal, roda local. Casa = projeto (pasta em `projectRoots`), morador = sessão do Claude Code,
 pombal = git (o que é só seu × o que o time já tem), biblioteca = CLAUDE.md, memórias e docs, NPC com ✦ = agente permanente.
 Mapa completo "na vila → por baixo" no `README.md`.
-
-## Estado atual
-
-Vila, interior das casas, status ao vivo, biblioteca, bibliotecária e painel de uso prontos. Contas com nome (Claude,
-DeepSeek pessoal e DeepSeek trabalho) e a tela de escolha da sessão nova prontas.
-O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-dev/painel.json`.
 
 ## Documentos de referência — consultar antes de implementar
 
@@ -34,23 +30,12 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 
 ## Stack e estrutura
 
-- Monorepo npm com workspaces `server` e `web`, tudo em TypeScript.
-- `server/` — Node + Express + `ws` + `node-pty`, rodado com `tsx`. Lê projetos e sessões
-  (`~/.claude/projects/**/*.jsonl`), roda git, mantém os terminais (`claude --resume`).
-  - `src/index.ts` (entrada: serviços de verdade, WebSockets e `listen`), `app.ts` (rotas HTTP em `criarApp(ctx)`: o que
-    age fora da pasta do projeto chega pelo `Contexto`, nunca importado direto na rota; cobrado por `server/tests/arquitetura.test.ts`), `seguranca.ts` (origem local e o que `/api/arquivo` pode entregar), `world.ts`, `sessions.ts`, `git.ts`, `terminals.ts`, `hooks.ts`, `statusline.ts`,
-    `library.ts`/`catalog.ts`/`librarian.ts` (biblioteca e bibliotecária), `consulta.ts` (base dos agentes da vila),
-    `administrador.ts` (administrador da praça), `mirim.ts` (maestro mirim: dúvidas da rodada, só lendo), `critico.ts` (crítica do cartão do porão: segunda opinião do DeepSeek, conferida pelo Haiku), `clinica.ts` (clínica: triagem, sinais vitais e a ficha da médica), `agents.ts`/`skills.ts`/`plugins.ts` (Fábrica: agentes, skills e, só leitura, plugins e MCP), `gasto.ts` (moinho: gasto por projeto), `jornal.ts` (banca de jornal), `perfil.ts` (contas do Claude Code: Claude, DeepSeek pessoal e DeepSeek trabalho; a conta padrão da casa vem da raiz e a sessão escolhe a conta), `bastao.ts` (passagem de bastão: resumo e sucessor), `reinicio.ts` (sino:
-    reinício pendente), `estrutura.ts` (casa em obra e
-    placa de vistoria), `sementes.ts` (caixa
-    de sementes), `retrabalho.ts` (ervas do quintal), `porao.ts` (porão da casa: quem é do maestro), `quarto.ts` (quarto da casa: quem dorme), `rodada.ts` (estado da rodada, devolutivas e relatório montado pela vila), `gate.ts` (porão: testes do cartão antes e depois da rodada), `relatorios.ts` (estante de partitura do porão: relatórios do maestro, novo até abrir), `quadro.ts` (quadro negro), `notas.ts` (quadro de avisos da praça: notas do usuário, em `~/.claude/dev-valley`), `estante.ts` (estante), `lareira.ts` (lareira: tabela "Subir" e portas), `pombal.ts` (pombal: commit, pull e push), `escrevente.ts` (pombal: sugerir texto do commit), `guardrails.ts`
-    (outdoor), `install-hooks.ts`.
-  - `agents/bibliotecaria.md`: agente instalado em `~/.claude/agents`; `agents/administrador.md`, `agents/maestro-mirim.md`, `agents/critico-do-cartao.md`, `agents/verificador-do-cartao.md`, `agents/escrevente.md`, `agents/medica.md`, `agents/jornaleiro.md` e `agents/jornaleiro-conversa.md` (sem ferramenta: `--tools ""`): usados só pela vila.
-- `mod/` — mod do Claude Code (`mod/hooks/register.ts`, lógica em `mod/hooks/moradores.ts`, testes em `mod/tests/`): eventos de
-  sessão, rodapé com contexto e uso, nomes dos moradores e `@Nome`. Marketplace local em `.claude-plugin/`.
-- `web/` — Vite + Phaser 3 (vila), xterm.js (chat), Monaco (diff), marked + DOMPurify (leitor de docs).
-  - `src/game/` cenas Phaser (`TownScene`, `InteriorScene`, `LibraryScene`, `FactoryScene`, `PoraoScene`, `QuartoScene`, `ClinicaScene`) e pixel art gerada em código.
-  - `src/ui/` painéis HTML sobre o jogo (terminal, commit, biblioteca, uso…).
+- Monorepo npm com workspaces `server` (Node + Express + `ws` + `node-pty`, rodado com `tsx`), `web` (Vite + Phaser 3,
+  xterm.js, Monaco, marked + DOMPurify) e o mod do Claude Code em `mod/` (marketplace local em `.claude-plugin/`).
+- **Fronteira das rotas:** `server/src/app.ts` monta as rotas em `criarApp(ctx)`; o que age fora da pasta do projeto
+  chega pelo `Contexto`, nunca importado direto na rota (cobrado por `server/tests/arquitetura.test.ts`).
+- Agentes usados pela vila em `server/agents/`; cenas Phaser em `web/src/game/`, painéis HTML em `web/src/ui/`. Qual
+  arquivo faz o quê: pelo nome (cada peça da vila tem o seu, ex.: `pombal.ts`, `quarto.ts`) e pelo mapa do `README.md`.
 - Config: `dev-valley.config.json` (versionado) sobrescrito por `dev-valley.config.local.json` (ignorado pelo git).
 
 ## Comandos
@@ -60,16 +45,12 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
 - Desenvolvimento: `npm run dev` (front com hot reload em http://localhost:5173)
 - Build: `npm run build` (front: `tsc && vite build`)
 - Checagem de tipos do servidor: `npm run typecheck -w server`
-- Testes: `npm test` (`node:test` + `tsx`, em `server/tests/` e `web/tests/`; projeto de mentira em pasta temporária
-  por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade; rotas por `subir()` de `server/tests/servidor.ts`,
-  com imitações; o `npm test` já roda com o `HOME` numa pasta temporária (`scripts/isolar-home.mjs`), e teste que
-  precisa de um `HOME` só dele ainda o troca antes do `import`, como `rotas-fabrica-biblioteca.test.ts`; git em remoto e clones de mentira, isolado do `~/.gitconfig`, como
-  `pombal.test.ts`). Cobre leitores, estado da lareira, travas de segurança, as 66 rotas, o pombal e, por propriedade (fast-check), o
-  clique e a volta automática do porão em qualquer ordem (`porao-propriedades.test.ts`); WebSockets e front
-  seguem validados com typecheck + build e na vila. O CI do GitHub roda typecheck do servidor, `npm test` e `npm run build` a cada push
-  (job `testes` em `.github/workflows/auditor.yml`). Nada vermelho em 23/11/2026 (346/346). O hook `Stop` do `.claude/settings.json` roda
-  `scripts/conferir-ao-parar.sh`: a sessão que editou `.ts` daqui só termina a resposta com os tipos do servidor e do front
-  passando (G4 cobrado pelo harness, 08/11/2026).
+- Testes: `npm test` (`node:test` + `tsx`, em `server/tests/` e `web/tests/`, com o `HOME` numa pasta temporária por
+  `scripts/isolar-home.mjs`). Projeto de mentira por `projeto()` de `server/tests/util.ts`, nunca projeto de verdade;
+  rotas por `subir()` de `server/tests/servidor.ts`; git em remoto e clones de mentira, como `pombal.test.ts`.
+  WebSockets e front: typecheck + build e conferência na vila. O CI (`.github/workflows/auditor.yml`) roda typecheck,
+  `npm test` e build a cada push; o hook `Stop` (`scripts/conferir-ao-parar.sh`) não deixa terminar a resposta com
+  `.ts` editado e tipos quebrados.
 - Mod: `claude plugin validate mod` e `claude plugin test mod`.
 - Prévia dos moradores em PNG, sem navegador: `npx tsx scripts/previa-moradores.ts <saida.png> [quantos|catalogo]`.
 - Auditor de referências: `python3 scripts/auditar-referencias.py . --tudo` (o CI do GitHub roda o mesmo com
@@ -95,56 +76,24 @@ O que está aberto e o próximo passo: `PENDENCIAS.md`. Fases do plano: `docs-de
    backup) só nas entradas do Dev Valley (os hooks de shell de `PermissionRequest` e `Notification`; o mod não vê
    quando o diálogo de permissão abre):** nunca sobrescreve agente do usuário com o mesmo nome, e o
    uninstall remove só o que é do Dev Valley.
-5. **Consultas da bibliotecária, do administrador da praça, do maestro mirim, da médica da clínica, do escrevente do pombal, do jornaleiro da banca e do crítico e do verificador do cartão usam `claude -p --no-session-persistence`** para não
-   virarem moradores (base comum em `server/src/consulta.ts`). **Os agentes que só leem** (bibliotecária, maestro
-   mirim, médica, escrevente, jornaleiro, jornaleiro da conversa e crítico do cartão) **respondem na conta DeepSeek de `agentes.conta`**
-   do config local, com a mesma trava de chave do terminal, para continuarem disponíveis quando o Claude está no
-   limite; o **administrador**, único que edita arquivos, continua no Claude (decisão do usuário, 19/11/2026).
-   **O administrador só edita `PROGRESS.md`,
-   `PENDENCIAS.md`, `docs-dev/painel.json` e `docs-dev/a-codar/` dos projetos da vila**, por regra `Edit(//caminho)`
-   passada na chamada; nunca liberar `Edit` inteiro nem outra ferramenta de escrita para ele. **O maestro mirim só lê** (Read, Grep, Glob e `git -C <projeto> status/diff/log/show`, em modo estrito: o
-   resto é negado mesmo com o `auto` do usuário) e não fala com o maestro nem com as sessões (decisão do usuário, 04/11/2026). **A médica também só lê** (Read, Grep e Glob,
-   em modo estrito; a ficha com processos e máquina vem montada pela vila) e não fala com a sessão examinada nem encerra
-   processo (decisão do usuário, 09/11/2026). **O crítico do cartão e o verificador dele só leem** (Read, Grep e Glob,
-   em modo estrito; o verificador fica no Claude, Haiku, para a outra família conferir) e **só avisam** no cartão do
-   porão: nunca bloqueiam o clique nem mexem no briefing (decisão do usuário, 21/11/2026).
+5. **Agentes da vila** (consultas por `claude -p --no-session-persistence`, base em `server/src/consulta.ts`): os que
+   só leem respondem na conta DeepSeek de `agentes.conta`; o administrador, único que edita, fica no Claude e só edita
+   os arquivos de rastro. Conta e ferramentas de cada um em `.claude/rules/agentes-da-vila.md`.
 6. **Este repositório costuma ser editado de dentro da própria vila.** Reiniciar o servidor (`npm start` de novo,
    `npm run dev`, que reinicia sozinho ao salvar em `server/`) encerra todos os terminais da vila, inclusive a
    sessão que está editando. Nunca reiniciar nem rodar `npm run dev` por conta própria: avisar o usuário e ele
    reinicia quando as sessões terminarem (G21). O `.claude/settings.json` do repositório nega `npm start` e `npm run dev` às sessões
    (regra dura, 08/11/2026): o usuário reinicia pelo próprio terminal.
-7. **Pixel art é gerada em código** (`web/src/game/textures.ts`, `interiorTextures.ts`; ícones do balão em grade de
-   caracteres em `iconesBalao.ts`; moradores em `villagerArt.ts`,
-   sem Phaser); prévia em `web/sprites.html` e, dos moradores, em PNG por `scripts/previa-moradores.ts` (o `catalogo`
-   mostra cada peça). A aparência do morador combina com a marca do nome (`generoDoNome` no servidor): barba nunca em
-   nome feminino, vestido e laço nunca em masculino (decisão do usuário, 31/10/2026). A roupa (camisa, calça, jaqueta,
-   acessório, lenço) segue o provedor da conta da sessão: tons quentes no Claude, frios no DeepSeek (`paletaDo`); pele,
-   cabelo e penteado nunca mudam com o provedor (decisão do usuário, 02/11/2026; vocabulário de contas em 19/11/2026).
-8. **Todo agente (NPC ✦) veste o traje de agente secreto**, estilo "homens de preto": paletó e calça pretos, camisa
-   branca, gravata e óculos escuros; só pele e cor do cabelo variam. É o que separa agente de sessão à primeira vista
-   (decisão do usuário, 27/10/2026). Vale para os da Fábrica (automático na `AgentNpc`) e para qualquer agente da
-   vila novo: desenhe com `villagerTexture(scene, id, true)`, nunca com a aparência sorteada dos moradores. Agente da vila
-   novo entra na lista que reserva a combinação de pele × cabelo em `villagerArt.ts`, para nenhum agente sair igual a ele.
-   **Exceção única: a médica da clínica** (`MEDICA_ID`) usa o traje com jaleco por cima, máscara, estetoscópio e coque
-   (decisão do usuário, 09/11/2026). Nenhum outro agente ganha acessório de ofício sem decisão do usuário.
+7. **Pixel art é gerada em código**, e a aparência do morador segue a marca do nome e o provedor da conta.
+   Detalhe em `.claude/rules/pixel-art.md`.
+8. **Todo agente (NPC ✦) veste o traje de agente secreto** (`villagerTexture(scene, id, true)`); a única exceção é a
+   médica da clínica. Detalhe em `.claude/rules/pixel-art.md`.
 9. **O pombal (`server/src/pombal.ts`) faz push numa branch que outras pessoas podem usar.** Push só por clique
    confirmado no painel e só de página local, nunca `--force` (o git só aceita fast-forward). Conflito no rebase sempre
    termina em `rebase --abort` (o repositório fica como estava).
-10. **Sessão de trabalho do porão (`server/src/porao.ts`) só nasce de uma tarefa que o usuário aprovou no cartão.** O
-   maestro pede pela rota (`curl` local), mas aprovar e recusar exigem `Origin` local presente (a página), nunca só a
-   ausência dele. O clique aprova a rodada inteira: a tarefa com `dependeDe`, listada no cartão, a vila abre sozinha
-   quando as donas ficam prontas; nenhuma tarefa fora do cartão abre (decisão do usuário, 11/11/2026). Teto de 5 sessões
-   por rodada (o config só baixa; conta também as que esperam a vez; o padrão de 3 é só do agente, a rota aceita até 5),
-   e cada sessão é anotada no `porao.json` antes de o
-   terminal abrir (decisão do usuário, 03/11/2026). A vila conduz a rodada pelo `rodada.json` (`server/src/rodada.ts`,
-   único escritor: a vila) e passa às sessões de trabalho, só a elas e por `--settings`, os hooks de
-   `scripts/porao-hook.sh` (devolutiva ao parar, posse de arquivo). **Gate (maestro v3, `server/src/gate.ts`):** a vila
-   roda os comandos de teste do cartão (os que passaram por `validarPermissoes`), sem shell, antes de abrir as sessões
-   (linha de base) e com todas prontas, antes do relatório; saída só em arquivo da pasta da rodada, nunca no
-   `rodada.json`. Gate vermelho só avisa (relatório "Reprovada" e ❗ na estante): nenhuma sessão é reaberta (decisão do
-   usuário, 11/11/2026). A sessão do roteiro de testes (uma por rodada, pedida
-   pela vila quando uma devolutiva diz `mexeu_em_tela: sim`) também só nasce do clique, mas na **casa**: não é anotada,
-   não conta no teto e o gongo não a apaga (decisão do usuário, 05/11/2026).
+10. **Sessão de trabalho do porão só nasce de uma tarefa que o usuário aprovou no cartão** (aprovar exige `Origin`
+   local presente; teto de 5 sessões por rodada; a vila é a única que escreve o `rodada.json`). Detalhe em
+   `.claude/rules/porao.md`.
 
 ## Regras de processo deste projeto
 

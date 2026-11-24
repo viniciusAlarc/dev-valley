@@ -27,7 +27,7 @@ SEM_HOME = '--sem-home' in sys.argv
 
 ALVOS = [('skill', '.claude/commands/*.md'), ('skill', '.claude/skills/*/SKILL.md'),
          ('hook', '.claude/hooks/*.sh'), ('instrucao', 'CLAUDE.md'), ('instrucao', 'AGENTS.md'),
-         ('instrucao', 'server/agents/*.md')]
+         ('instrucao', 'server/agents/*.md'), ('instrucao', '.claude/rules/*.md')]
 ALVOS_DOC = [('doc', 'docs-dev/*.md'), ('doc', 'docs-dev/guias/*.md'), ('doc', 'README.md'),
              ('doc', 'PROGRESS.md'), ('doc', 'PENDENCIAS.md')]
 ALVOS_IA = [(tipo, os.path.expanduser(g)) for tipo in ('guardrail', 'perfil') for g in ACERVOS.get(tipo, [])]

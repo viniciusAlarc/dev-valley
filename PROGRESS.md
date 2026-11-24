@@ -3,6 +3,31 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-24 — Memória entre sessões: auto-dream desligado, consolidador planejado e auditoria de regras
+
+**O que mudou:** pesquisa sobre memória entre sessões (fontes da Anthropic, concorrentes e comunidade). O auto-dream
+nativo do Claude Code (2.1.331, sem doc oficial: achado no executável, roda com 24 h e 5 sessões desde a última vez e
+mexe só na pasta `memory/`) ficou `autoDreamEnabled: false` nas três contas, por decisão do usuário. O agente que
+consolida propondo, sem aplicar, virou plano em `docs-dev/a-codar/consolidador-de-memoria.md` (MC-1). Auditoria de
+regras rodada: 5 referências mortas, só em entradas antigas deste arquivo (histórico, ficam); núcleo dos guardrails em
+133 linhas e 21 guardrails (acima do orçamento de 120/20). Cortes aplicados com o ok do usuário: `CLAUDE.md` daqui de
+15 KB para 7,7 KB (lista de arquivos do `server/src`, status dos testes e "Estado atual" saíram; o detalhe das regras 5,
+7, 8 e 10 foi para `.claude/rules/` com `paths:`, e o número e uma linha de cada ficaram); o auditor de referências
+passou a ler `.claude/rules/*.md`. No `~/Documents/IA`: G14, G19 e G20 encurtados (o detalhe já estava nos arquivos
+de cada um), "O que se cobra" do `como-trabalhamos.md` virou ponteiro, e o `sobre-mim.md` registra que a branch
+`vinicius` não sincroniza mais com o `main` do Matheus.
+**Testes:** `npm test` 346/346, auditor sem achado novo (só as 5 referências históricas), `conferir-publico --tudo`
+limpo. Nada de código de produção mudou. Dispensa conferência na vila.
+
+## 2026-11-23 — GR-1 fechada: os filetes antigos do style.css ficam como estão
+
+**O que mudou:** decisão do usuário: os 7 filetes que já existiam no `web/src/style.css` (seis sublinhados de cabeçalho
+em `--parchment-dark` e o `border-left` da citação em `--wood-light`) ficam como estão; o mod `guardrails` (G19) só
+barra filete novo. Pendência GR-1 saiu do `PENDENCIAS.md`. Na mesma conversa, no `~/Documents/IA`: G5 virou trava ao
+parar, `git push` passou a perguntar sempre, a opção pessoal `wslLimpo` do mod foi ligada, o "manter as 10 últimas"
+do painel foi tirado e o núcleo dos guardrails foi enxugado (166 → 133 linhas).
+**Testes:** nada de código mudou aqui. Dispensa conferência na vila.
+
 ## 2026-11-23 — Regras em prosa viram checagem: HOME isolado, fronteira do app.ts, repositório público e porão por propriedade
 
 **O que mudou:** pedido do usuário, depois de analisarmos a palestra *All code is slop (except mine)* (Lauren Tan):
