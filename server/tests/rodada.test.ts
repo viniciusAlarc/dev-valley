@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 import type { ExecutarComando } from '../src/gate.js';
 import { Porao, type AbrirSessao, type SessaoAgora } from '../src/porao.js';
-import { HOOK_SCRIPT, lerDevolutiva, lerRodada, montarRelatorio, settingsDaTarefa, validarDependencias, type Rodada } from '../src/rodada.js';
+import { gravarScriptDeTestes, HOOK_SCRIPT, lerDevolutiva, lerRodada, montarRelatorio, settingsDaTarefa, testarDaRodada, validarDependencias, type Rodada } from '../src/rodada.js';
 
 // Maestro v2 (docs-dev/a-codar/maestro-v2.md): a vila conduz a rodada. Tudo em pasta temporária, nunca em ~/.claude.
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'dev-valley-rodada-'));
@@ -130,6 +130,10 @@ describe('settingsDaTarefa', () => {
 
   test('a sessão de trabalho vai no Sonnet, sem depender do modelo do maestro (20/11/2026)', () => {
     assert.equal(JSON.parse(settingsDaTarefa('/tmp/r1', 't1')).model, 'sonnet');
+  });
+
+  test('a sessão sabe a própria tarefa (DEV_VALLEY_TAREFA), para o testar.sh da rodada (P2, 25/11/2026)', () => {
+    assert.deepEqual(JSON.parse(settingsDaTarefa('/tmp/r1', 't3')).env, { DEV_VALLEY_TAREFA: 't3' });
   });
 });
 
@@ -417,5 +421,80 @@ describe('scripts/porao-hook.sh', () => {
       'ls -R src test',
       'sed -n 1,20p src/soma.js',
     ]) assert.equal(roda(c).status, 0, c);
+  });
+
+  // Modo início de sprint (docs-dev/context/porao-modo-sprint.md, 25/11/2026).
+  const rodadaDoHook = (nome: string, tarefas: Rodada['tarefas']) => {
+    const dir = path.join(TMP, nome);
+    const pasta = path.join(TMP, `${nome}-casa`);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(pasta, { recursive: true });
+    const r: Rodada = { versao: 2, rodada: 'r1', projectId: 'p', pasta, aprovadaEm: 0, tarefas };
+    fs.writeFileSync(path.join(dir, 'rodada.json'), JSON.stringify(r));
+    return { dir, pasta, r };
+  };
+
+  test('P1 posse por sessão: só a sessão registrada da tarefa edita e roda; sem session_id ou sem registro, passa', { skip: !temJq && 'sem jq' }, () => {
+    const { dir, pasta } = rodadaDoHook('hook-sessao', {
+      t1: { arquivos: ['a.ts'], testes: [], dependeDe: [], estado: 'aberta', sessionId: 's-certa' },
+      t2: { arquivos: ['b.ts'], testes: [], dependeDe: [], estado: 'aberta' },
+    });
+    const editar = (t: string, sid?: string) => rodar('posse', dir, t, { ...(sid ? { session_id: sid } : {}), tool_name: 'Edit', tool_input: { file_path: path.join(pasta, t === 't1' ? 'a.ts' : 'b.ts') } });
+    const ler = (sid: string) => rodar('bash', dir, 't1', { session_id: sid, tool_name: 'Bash', tool_input: { command: 'ls' } });
+    assert.equal(editar('t1', 's-certa').status, 0, 'a sessão registrada edita');
+    const intrusa = editar('t1', 's-outra');
+    assert.equal(intrusa.status, 2, 'outra sessão com o mesmo nome de tarefa é recusada');
+    assert.match(intrusa.stderr, /não é a sessão registrada da tarefa t1; pare e avise o usuário/);
+    assert.equal(ler('s-outra').status, 2, 'também no modo bash');
+    assert.equal(ler('s-certa').status, 0);
+    assert.equal(editar('t1').status, 0, 'entrada sem session_id passa (não trava rodada antiga)');
+    assert.equal(editar('t2', 'qualquer').status, 0, 'cartão sem sessionId passa');
+  });
+
+  test('P2 fila: a suíte crua da rodada é recusada e aponta o testar.sh; teste focado e o próprio testar.sh passam', { skip: !temJq && 'sem jq' }, () => {
+    const { dir } = rodadaDoHook('hook-fila', {
+      t1: { arquivos: ['a.ts'], testes: ['npm run build', 'npm test'], dependeDe: [], estado: 'aberta' },
+      t2: { arquivos: ['b.ts'], testes: ['npx vitest run'], dependeDe: [], estado: 'aberta' },
+    });
+    const roda = (command: string) => rodar('bash', dir, 't1', { tool_name: 'Bash', tool_input: { command } });
+    const cru = roda('npm test');
+    assert.equal(cru.status, 2);
+    assert.ok(cru.stderr.includes(`bash ${dir}/testar.sh 2`), cru.stderr);
+    for (const c of ['npm test 2>&1 | tail -15', 'cd x && npm run build', 'npm  test >/dev/null']) assert.equal(roda(c).status, 2, c);
+    assert.match(roda('npx vitest run').stderr, /suíte de outra tarefa/);
+    for (const c of ['npm test -- server/tests/a.test.ts', `bash ${dir}/testar.sh 2`, 'npx vitest run src/a.test.ts', 'npm run typecheck']) assert.equal(roda(c).status, 0, c);
+  });
+
+  const temFlock = spawnSync('flock', ['--version']).status === 0;
+  test('P2 testar.sh: duas suítes pedidas juntas rodam uma depois da outra, na pasta do projeto', { skip: !temFlock && 'sem flock' }, async () => {
+    const { dir, pasta, r } = rodadaDoHook('fila-sh', {
+      t1: { arquivos: ['a.ts'], testes: ['node registra.mjs um'], dependeDe: [], estado: 'aberta' },
+      t2: { arquivos: ['b.ts'], testes: ['node registra.mjs dois'], dependeDe: [], estado: 'aberta' },
+    });
+    // O "teste" grava o horário de início e de fim, com uma pausa no meio.
+    fs.writeFileSync(path.join(pasta, 'registra.mjs'), `import fs from 'node:fs';
+const q = process.argv[2];
+fs.appendFileSync('horarios.txt', q + ' inicio ' + Date.now() + '\\n');
+await new Promise((r) => setTimeout(r, 400));
+fs.appendFileSync('horarios.txt', q + ' fim ' + Date.now() + '\\n');
+`);
+    await gravarScriptDeTestes(r, dir);
+    const roda = (args: string[], env: NodeJS.ProcessEnv = {}) =>
+      new Promise<{ codigo: number | null; err: string }>((resolve) => {
+        const p = spawn('bash', [testarDaRodada(dir), ...args], { env: { ...process.env, ...env } });
+        let err = '';
+        p.stderr.on('data', (d) => (err += d));
+        p.on('close', (codigo) => resolve({ codigo, err }));
+      });
+    const [a, b] = await Promise.all([roda(['1'], { DEV_VALLEY_TAREFA: 't1' }), roda(['1', 't2'])]);
+    assert.equal(a.codigo, 0, a.err);
+    assert.equal(b.codigo, 0, b.err);
+    const h = Object.fromEntries(fs.readFileSync(path.join(pasta, 'horarios.txt'), 'utf8').trim().split('\n').map((l) => { const [q, m, t] = l.split(' '); return [`${q} ${m}`, Number(t)]; }));
+    const [primeira, segunda] = h['um inicio'] < h['dois inicio'] ? ['um', 'dois'] : ['dois', 'um'];
+    assert.ok(h[`${segunda} inicio`] >= h[`${primeira} fim`], `a segunda começou antes do fim da primeira: ${JSON.stringify(h)}`);
+    const fora = await roda(['3', 't1']);
+    assert.equal(fora.codigo, 2);
+    assert.match(fora.err, /1 = node registra\.mjs um/);
+    assert.equal((await roda(['1'])).codigo, 2, 'sem tarefa');
   });
 });

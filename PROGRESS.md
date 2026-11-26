@@ -3,6 +3,27 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-25 — Porão no modo início de sprint: posse por sessão, fila de testes e ondas de até 3 (MS-1)
+
+**O que mudou** (plano `docs-dev/context/porao-modo-sprint.md`, decidido pelo usuário em 25/11/2026):
+1. **P1, posse por sessão:** `scripts/porao-hook.sh`, modos `posse` e `bash`, recusa a sessão cujo `session_id` não é o
+   `sessionId` da tarefa no `rodada.json` ("pare e avise o usuário"). Sem um dos dois, segue como antes.
+2. **P2, fila de testes:** a vila grava `<rodada>/testar.sh` a cada pedido aprovado (`scriptDeTestes`, `rodada.ts`):
+   `testar.sh <n>` roda o n-ésimo teste da tarefa (do `DEV_VALLEY_TAREFA`, posto no `env` do `--settings`) na pasta do
+   projeto, com `flock` em `<rodada>/testes.lock`. O hook recusa a suíte crua (de qualquer tarefa) e aponta o número;
+   teste focado continua livre. Linha de base e gate final esperam na mesma trava (`executarComando`, `gate.ts`).
+3. **P3, ondas:** `porao.simultaneas` no config (padrão 3, até 5); o clique e a volta automática só abrem tarefa livre
+   com menos de 3 abertas ou abrindo na rodada. O cartão avisa "abre em ondas de até 3".
+4. **Junto (G16):** regra 10 do `CLAUDE.md`, `.claude/rules/porao.md`, `README.md`, `maestro-v3.md` e o briefing do
+   `~/Documents/IA/claude/agents/maestro.md` (branch `vinicius`, commit `07a9f44`): "Testes liberados" numerados e pela fila,
+   até 3 por vez.
+**Testes:** `npm test` 365/365 (antes 361; novos: sessão no hook, suíte crua recusada, duas `testar.sh` em sequência
+conferidas por horário, `env` no `--settings`; a propriedade do porão ganhou "nunca mais de `simultaneas` abertas",
+que falha com a trava desligada). `npm run typecheck -w server` e `npm run build` ok. Auditor: achados só em
+`PROGRESS.md:1106-1109`, da reorganização do PROGRESS de outra sessão.
+Falta conferir na vila (reiniciar; numa rodada: o cartão com mais de 3 tarefas livres diz "ondas de até 3" e abre só 3;
+`npm test` cru numa sessão de tarefa é recusado e `bash <rodada>/testar.sh 1` roda).
+
 ## 2026-11-24 — Casas da vila sempre em duas linhas
 
 **O que mudou:** pedido do usuário: a vila às vezes punha todas as casas numa linha só e às vezes dividia em duas.

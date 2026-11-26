@@ -36,6 +36,8 @@ O v2 está codado e sem commit; a suíte completa não rodou depois da última m
 ### 1. Padrão 3, teto 5 (V1)
 
 - `TETO_PADRAO` continua 5 (`server/src/config.ts`): é o máximo duro, e conta todas as tarefas da rodada, como hoje.
+  Desde 25/11/2026 (modo início de sprint, `docs-dev/context/porao-modo-sprint.md`) há também `porao.simultaneas`
+  (padrão 3): as 5 cabem na rodada, mas abrem em ondas de até 3.
 - **Nada muda na rota nem no cartão:** o pedido com 4 ou 5 tarefas é aceito como hoje, sem campo novo.
 - Só o agente muda: "até 3 por padrão; 4 ou 5 só se as tarefas forem independentes de verdade, com arquivos disjuntos,
   e dizendo por quê ao usuário, no bloco de resposta". A descrição do agente (frontmatter) troca "até 5 sessões" por

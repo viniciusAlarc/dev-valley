@@ -319,6 +319,7 @@ describe('validarPermissoes: o que o maestro pode liberar para uma sessão de tr
       'Edit(//casa/proj/server/a.ts)',
       'Edit(//casa/proj/PROGRESS.md)',
       'Bash(npm test:*)',
+      'Bash(bash /home/u/.claude/maestro/rodadas/r1/testar.sh:*)',
     ]);
   });
 });

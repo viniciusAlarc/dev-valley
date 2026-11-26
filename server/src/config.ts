@@ -57,14 +57,17 @@ export interface Config {
    */
   agentes: { conta: string | null };
   /**
-   * Porão (MA-1): quantas sessões de trabalho o maestro abre por rodada (padrão e máximo: 5, decisão de 03/11/2026), e o
-   * que elas podem ler fora do projeto sem pedir permissão (`leitura`, absolutos: ex. o contrato "Sob o maestro").
+   * Porão (MA-1): quantas sessões de trabalho o maestro abre por rodada (padrão e máximo: 5, decisão de 03/11/2026),
+   * quantas delas ficam abertas ao mesmo tempo (`simultaneas`, padrão 3, máximo 5: modo início de sprint, 25/11/2026),
+   * e o que elas podem ler fora do projeto sem pedir permissão (`leitura`, absolutos: ex. o contrato "Sob o maestro").
    */
-  porao: { tetoSessoes: number; leitura: string[] };
+  porao: { tetoSessoes: number; simultaneas: number; leitura: string[] };
 }
 
 /** Sessões de trabalho por rodada do maestro (decisão do usuário, 03/11/2026); `porao.tetoSessoes` no config só baixa. */
 export const TETO_PADRAO = 5;
+/** Sessões de uma rodada abertas ao mesmo tempo (P3, 25/11/2026): o resto abre em ondas. `porao.simultaneas`, até 5. */
+export const SIMULTANEAS_PADRAO = 3;
 
 export const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const CLAUDE_PROJECTS_DIR = path.join(os.homedir(), '.claude', 'projects');
@@ -150,6 +153,7 @@ export function loadConfig(): Config {
     },
     porao: {
       tetoSessoes: Math.min(TETO_PADRAO, Math.max(1, Math.floor(Number(merged.porao?.tetoSessoes) || TETO_PADRAO))),
+      simultaneas: Math.min(TETO_PADRAO, Math.max(1, Math.floor(Number(merged.porao?.simultaneas) || SIMULTANEAS_PADRAO))),
       // Só caminho absoluto (ou com ~), sem parêntese nem `..`: vira regra `Read(//…)` das sessões de trabalho.
       leitura: (Array.isArray(merged.porao?.leitura) ? merged.porao.leitura : [])
         .filter((x): x is string => typeof x === 'string')

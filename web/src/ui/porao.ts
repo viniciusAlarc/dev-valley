@@ -55,12 +55,15 @@ export function openPedidoPorao(pedido: PedidoPorao, project: Project) {
   // Maestro v3: com comando de teste, a vila roda a linha de base antes de abrir qualquer sessão.
   const comandos = comandosDoPedido(pedido);
   const agora = comandos.length ? 'abrem quando a linha de base terminar' : 'abrem agora';
+  // Ondas (P3, 25/11/2026): passou de `simultaneas` tarefas livres, a vila abre as primeiras e as outras conforme vagam.
+  const max = pedido.simultaneas ?? n;
+  const ondas = n - depois > max;
   const panel = openPanel({ title: `O maestro quer abrir ${n} ${n === 1 ? 'sessão' : 'sessões'}`, subtitle: `${project.name} · rodada ${pedido.rodada}` });
   const lista = (xs: string[]) => xs.map((x) => `<code>${escapeHtml(x)}</code>`).join(', ');
   panel.body.innerHTML = `
     <p>Uma sessão de trabalho por tarefa. Cada uma começa lendo o briefing dela e fica só no porão.${
       depois ? ` ${n - depois} ${agora}; ${depois === 1 ? 'a outra abre sozinha' : `as outras ${depois} abrem sozinhas`} quando a tarefa de que depende ficar pronta.` : ''
-    } Abrir libera, sem pedir de novo, o que está em cada tarefa:</p>
+    }${ondas ? ` A rodada abre em ondas de até ${max}: as outras entram sozinhas quando uma ficar pronta, para não esgotar o limite do plano.` : ''} Abrir libera, sem pedir de novo, o que está em cada tarefa:</p>
     <ul class="session-list">${pedido.tarefas
       .map((t) => {
         const perm = pedido.permissoes?.[t];
@@ -101,6 +104,7 @@ export function openPedidoPorao(pedido: PedidoPorao, project: Project) {
           .map((t) => {
             const s = r.sessoes[t];
             if (!s && pedido.dependencias?.[t]?.length) return `<li><b>${escapeHtml(t)}</b> espera ${pedido.dependencias[t]!.map(escapeHtml).join(' e ')}</li>`;
+            if (!s && ondas && !comandos.length) return `<li><b>${escapeHtml(t)}</b> abre na próxima onda, quando uma sessão ficar pronta</li>`;
             if (!s && comandos.length) return `<li><b>${escapeHtml(t)}</b> abre quando a linha de base terminar (o quadro na estante mostra)</li>`;
             return `<li><b>${escapeHtml(t)}</b> ${s && 'sessionId' in s ? 'aberta, já está numa mesa do porão' : `não abriu: ${escapeHtml(s && 'erro' in s ? s.erro : 'sem resposta')}`}</li>`;
           })

@@ -71,6 +71,7 @@ const agentSessions = new Map<string, { cwd: string; agent: string }>();
 const avulsaSessions = new Set<string>();
 /** Quem mora no porão das casas (maestro e tarefas das rodadas, MA-1). */
 const porao = new Porao();
+porao.simultaneas = config.porao.simultaneas;
 const bastao = new Bastao();
 /**
  * Sessões novas que pediram uma conta na casa (decisão do usuário, 19/11/2026): id → nome da conta. Vale até a conversa

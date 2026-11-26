@@ -10,6 +10,7 @@
     ]
   },
   "entregas": [
+    { "data": "2026-11-25", "o_que": "Porão no modo início de sprint (MS-1): posse confere a sessão registrada da tarefa, suítes de teste numa fila da rodada (testar.sh com flock, a mesma trava do gate) e até 3 sessões abertas ao mesmo tempo, o resto em ondas; falta a rodada real", "como": "scripts/porao-hook.sh, server/src/rodada.ts, gate.ts, porao.ts, config.ts, web/src/ui/porao.ts; briefing em ~/Documents/IA" },
     { "data": "2026-11-11", "o_que": "Maestro v3: a vila roda os testes do cartão antes de abrir as sessões e de novo no fim (rodada aprovada ou reprovada, sem reabrir sessão), aceite na devolutiva, seção Custo e ganho no relatório e agente com padrão de 3 sessões e checklist de viabilidade; falta o ensaio e a rodada real", "como": "server/src/gate.ts, rodada.ts, porao.ts, gasto.ts; agente e contrato em ~/Documents/IA" },
     { "data": "2026-11-11", "o_que": "Maestro v2: a vila conduz a rodada pela devolutiva em arquivo, hooks de devolutiva e de posse de arquivo, dependências aprovadas no cartão, relatório montado sem modelo, quadro da rodada na estante e resume com as regras (MA-3); falta conferir numa rodada de verdade", "como": "server/src/rodada.ts, porao.ts, scripts/porao-hook.sh, web/src/ui/porao.ts; agente e contrato em ~/Documents/IA" },
     { "data": "2026-11-03", "o_que": "Maestro e porão fechados: rodada de verdade pela vila com COMECEI e PRONTA chegando ao maestro; MA-1 encerrada", "como": "docs-dev/context/maestro.md; agente e contrato em ~/Documents/IA" },

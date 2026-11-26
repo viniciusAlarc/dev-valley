@@ -18,6 +18,7 @@ interface Cenario {
   deps: number[][]; // deps[i] = índices (< i) das tarefas que a tarefa i espera
   falha: number[]; // tarefas cujo terminal não abre
   voltas: number[]; // quantas voltas automáticas correm junto em cada rodada da vila
+  simultaneas: number; // sessões abertas ao mesmo tempo (P3, 25/11/2026)
 }
 
 const cenario: fc.Arbitrary<Cenario> = fc.integer({ min: 1, max: 5 }).chain((n) =>
@@ -25,6 +26,7 @@ const cenario: fc.Arbitrary<Cenario> = fc.integer({ min: 1, max: 5 }).chain((n) 
     deps: fc.tuple(...Array.from({ length: n }, (_, i) => fc.subarray(Array.from({ length: i }, (_, j) => j)))),
     falha: fc.subarray(Array.from({ length: n }, (_, i) => i), { maxLength: Math.min(2, n) }),
     voltas: fc.array(fc.integer({ min: 1, max: 4 }), { minLength: 1, maxLength: 4 }),
+    simultaneas: fc.integer({ min: 1, max: 4 }),
   }),
 );
 
@@ -46,12 +48,16 @@ async function rodar(c: Cenario, s: fc.Scheduler): Promise<void> {
   const sessoes = new Map<string, string>(); // tarefa → sessão que abriu
   const devolvidas = new Set<string>();
   const cedo: string[] = [];
+  porao.simultaneas = c.simultaneas;
+  let maisQueOTeto = 0; // maior número de sessões abertas ou abrindo visto no rodada.json, a cada terminal que sobe
 
   const abrir: AbrirSessao = async (id, prompt) => {
     const t = /\/(t\d+)\.md$/.exec(prompt)![1]!;
     const i = Number(t.slice(1));
     for (const d of c.deps[i]!) if (!devolvidas.has(nome(d))) cedo.push(`${t} abriu antes de ${nome(d)} devolver`);
     aberturas.push(t);
+    const r = JSON.parse(fs.readFileSync(path.join(dir, 'rodada.json'), 'utf8')) as { tarefas: Record<string, { estado: string }> };
+    maisQueOTeto = Math.max(maisQueOTeto, Object.values(r.tarefas).filter((x) => x.estado === 'aberta' || x.estado === 'abrindo').length);
     await s.schedule(Promise.resolve(), `terminal de ${t} subindo`); // a abertura lenta, como a do terminal de verdade
     if (c.falha.includes(i)) return 'o terminal não abriu';
     sessoes.set(t, id);
@@ -102,12 +108,14 @@ async function rodar(c: Cenario, s: fc.Scheduler): Promise<void> {
     const esperado = c.deps[i]!.some(bloqueada) ? 'esperando' : c.falha.includes(i) ? 'erro' : 'pronta';
     assert.equal(r.tarefas[nome(i)]!.estado, esperado, `${nome(i)} (depende de ${c.deps[i]!.map(nome).join(', ') || 'ninguém'})`);
   }
+  // 6. Ondas (P3): nunca mais de `simultaneas` sessões abertas ao mesmo tempo, com clique e voltas em qualquer ordem.
+  assert.ok(maisQueOTeto <= c.simultaneas, `${maisQueOTeto} abertas juntas com simultaneas = ${c.simultaneas}`);
   // 5. Sem terminal que falhou, a vila monta o relatório.
   if (!c.falha.length) assert.ok(r.relatorio, 'rodada inteira pronta e sem relatório');
 }
 
 describe('porão: aprovar e avancar juntos, em qualquer ordem (teste por propriedade)', () => {
-  test('uma sessão por tarefa, dependências respeitadas, registro limpo e nada travado', async () => {
+  test('uma sessão por tarefa, dependências respeitadas, nunca mais de `simultaneas` abertas, registro limpo e nada travado', async () => {
     await fc.assert(fc.asyncProperty(cenario, fc.scheduler(), rodar), { numRuns: 100 });
   });
 });

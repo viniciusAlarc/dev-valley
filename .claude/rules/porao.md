@@ -23,8 +23,14 @@ Sessão de trabalho do porão (`server/src/porao.ts`) só nasce de uma tarefa qu
 - Teto de 5 sessões por rodada (o config só baixa; conta também as que esperam a vez; o padrão de 3 é só do agente, a
   rota aceita até 5), e cada sessão é anotada no `porao.json` antes de o terminal abrir (decisão do usuário,
   03/11/2026).
+- **Modo início de sprint (decisão do usuário, 25/11/2026, `docs-dev/context/porao-modo-sprint.md`):** no máximo
+  `porao.simultaneas` sessões da rodada abertas ou abrindo ao mesmo tempo (padrão 3, até 5; o resto abre em ondas, na
+  volta automática); a suíte de teste roda só pela fila da rodada (`<rodada>/testar.sh <n>`, `flock` em
+  `<rodada>/testes.lock`, a mesma trava do gate), e o hook recusa a suíte crua; a posse confere a **sessão** registrada
+  da tarefa, não só o nome.
 - A vila conduz a rodada pelo `rodada.json` (`server/src/rodada.ts`, único escritor: a vila) e passa às sessões de
-  trabalho, só a elas e por `--settings`, os hooks de `scripts/porao-hook.sh` (devolutiva ao parar, posse de arquivo).
+  trabalho, só a elas e por `--settings`, os hooks de `scripts/porao-hook.sh` (devolutiva ao parar, posse de arquivo)
+  e o `DEV_VALLEY_TAREFA` que o `testar.sh` lê.
 - **Gate (maestro v3, `server/src/gate.ts`):** a vila roda os comandos de teste do cartão (os que passaram por
   `validarPermissoes`), sem shell, antes de abrir as sessões (linha de base) e com todas prontas, antes do relatório;
   saída só em arquivo da pasta da rodada, nunca no `rodada.json`. Gate vermelho só avisa (relatório "Reprovada" e ❗ na

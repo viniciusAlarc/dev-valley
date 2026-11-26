@@ -18,12 +18,16 @@ import {
   mexeuEmTela,
   settingsDaTarefa,
   MODELO_DAS_SESSOES,
+  gravarScriptDeTestes,
+  testarDaRodada,
+  travaDosTestes,
   validarDependencias,
   type Devolutiva,
   type Rodada,
   type RodadaNoMundo,
 } from './rodada.js';
-export { TETO_PADRAO } from './config.js';
+import { SIMULTANEAS_PADRAO } from './config.js';
+export { SIMULTANEAS_PADRAO, TETO_PADRAO } from './config.js';
 
 /**
  * Porão da casa (MA-1, `docs-dev/context/maestro.md`): onde o maestro coordena até 5 sessões em paralelo no projeto.
@@ -77,6 +81,8 @@ export interface PedidoPorao {
   sessoes: Record<string, { sessionId: string } | { erro: string }>;
   /** Segunda opinião do crítico do cartão (21/11/2026, `critico.ts`): só avisa, nunca bloqueia o clique. */
   critica?: CriticaDoCartao;
+  /** Quantas sessões da rodada abrem ao mesmo tempo (P3, 25/11/2026): o cartão avisa das ondas. */
+  simultaneas?: number;
 }
 
 export interface PermissoesDaTarefa {
@@ -142,6 +148,8 @@ export function regrasDaTarefa(projeto: string, rodadaDir: string, perm: Permiss
     ...perm.arquivos.map((a) => `Edit(${abs(path.join(projeto, a))})`),
     ...(tarefa ? [`Edit(${abs(devolutivaDe(rodadaDir, tarefa))})`] : []),
     ...perm.testes.map((t) => `Bash(${t}:*)`),
+    // A suíte crua roda pela fila da rodada (P2, 25/11/2026); o hook recusa o comando cru e aponta para cá.
+    ...(perm.testes.length ? [`Bash(bash ${testarDaRodada(rodadaDir)}:*)`] : []),
   ];
 }
 
@@ -207,6 +215,11 @@ export class Porao {
   private ocupada = false;
   /** Gates rodando agora (`<pasta da rodada>:<antes|depois>`): a volta seguinte não dispara outro (maestro v3). */
   private gates = new Map<string, Promise<void>>();
+  /**
+   * Sessões de uma rodada abertas ao mesmo tempo (modo início de sprint, P3, 25/11/2026; `porao.simultaneas` do config,
+   * padrão 3): 4 juntas esgotaram o limite do plano na rodada de 19/11. A tarefa livre que passa disso espera a vaga.
+   */
+  simultaneas = SIMULTANEAS_PADRAO;
 
   constructor(
     private file = PORAO_FILE,
@@ -353,6 +366,7 @@ export class Porao {
       criadoEm: Date.now(),
       estado: 'aguardando',
       sessoes: {},
+      simultaneas: this.simultaneas,
     };
     this.pedidos.set(pedido.id, pedido);
     return pedido;
@@ -441,6 +455,7 @@ export class Porao {
     if (comandos.length && !rodada.gate) rodada.gate = { comandos, linhaDeBase: { inicio: Date.now() } };
     else if (rodada.gate) rodada.gate.comandos = comandos;
     await gravarRodada(dir, rodada);
+    await gravarScriptDeTestes(rodada, dir);
     // Conferindo a linha de base: o clique responde já, e as tarefas livres abrem na volta em que ela terminar.
     if (estadoDoGate(rodada.gate) === 'linha-de-base') {
       this.lancarGate(dir, rodada, 'antes');
@@ -448,6 +463,7 @@ export class Porao {
     }
     for (const t of novas) {
       if (rodada.tarefas[t]!.dependeDe.length) continue;
+      if (!this.temVaga(rodada)) break; // a próxima onda abre na volta automática
       pedido.sessoes[t] = await this.abrirTarefa(rodada, t, abrir, leitura);
     }
     return pedido;
@@ -469,6 +485,11 @@ export class Porao {
       this.ocupada = false;
       soltar();
     }
+  }
+
+  /** Menos de `simultaneas` sessões abertas ou abrindo na rodada (P3). */
+  private temVaga(r: Rodada): boolean {
+    return Object.values(r.tarefas).filter((t) => t.estado === 'aberta' || t.estado === 'abrindo').length < this.simultaneas;
   }
 
   /**
@@ -566,6 +587,7 @@ export class Porao {
       for (const [id, t] of Object.entries(r.tarefas)) {
         if (linhaDeBase) break;
         if (t.estado !== 'esperando' || !t.dependeDe.every((d) => r.tarefas[d]?.estado === 'pronta')) continue;
+        if (!this.temVaga(r)) break; // ondas (P3): espera a próxima volta, como quem espera dependência
         await this.abrirTarefa(r, id, abrirNo(r.projectId), leitura);
         gravar = true;
       }
@@ -639,7 +661,7 @@ export class Porao {
       const resultados: ResultadoDoComando[] = [];
       for (const [i, c] of comandos.entries()) {
         if (await encerrada()) return;
-        resultados.push(await this.executar(c, pasta, saidaDoGate(dir, momento, i), this.limiteDoGate).catch(() => ({ comando: c, codigo: null, duracaoMs: 0 })));
+        resultados.push(await this.executar(c, pasta, saidaDoGate(dir, momento, i), this.limiteDoGate, travaDosTestes(dir)).catch(() => ({ comando: c, codigo: null, duracaoMs: 0 })));
       }
       await this.comTrava(async () => {
         const atual = await lerRodada(dir);

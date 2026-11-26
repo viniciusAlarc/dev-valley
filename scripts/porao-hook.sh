@@ -18,7 +18,13 @@
 #   porao-hook.sh bash <pasta da rodada> <tarefa>    (PreToolUse em Bash)
 #     Recusa escrever arquivo pelo Bash (sed -i, > e >> para arquivo, tee, cp, mv, rm...) e o git que mexe no
 #     repositório: a edição tem que passar pelo Edit/Write, onde a posse é conferida (rodada de 11/11/2026: as sessões
-#     editavam com printf >> e sed -i, por fora do hook). Ler e rodar teste pelo Bash continua livre.
+#     editavam com printf >> e sed -i, por fora do hook). Ler e rodar teste pelo Bash continua livre, menos o comando
+#     de teste cru da tarefa (o mesmo texto de um item de `testes`): esse roda pela fila, `bash <rodada>/testar.sh <n>`,
+#     uma suíte por vez na rodada (modo início de sprint, P2, 25/11/2026). Teste focado (com argumento a mais) é livre.
+#
+#   Posse por sessão (P1, 25/11/2026): nos modos `posse` e `bash`, a sessão que chama (`session_id` da entrada) tem que
+#   ser a registrada para a tarefa no rodada.json. A mesma tarefa aberta duas vezes passava pela posse, que só olhava o
+#   nome (rodada de 11/11/2026). Sem `session_id` na entrada ou sem `sessionId` no cartão, segue como antes.
 
 set -u
 modo=${1:-}
@@ -32,6 +38,17 @@ aberta() { # a tarefa $1 ainda trabalha?
   [ "$(jq -r --arg t "$1" '.tarefas[$t].estado // ""' "$dir/rodada.json" 2>/dev/null)" = aberta ] ||
     [ "$(jq -r --arg t "$1" '.tarefas[$t].estado // ""' "$dir/rodada.json" 2>/dev/null)" = abrindo ]
 }
+
+case "$modo" in
+  posse | bash)
+    eu=$(jq -r '.session_id // empty' <<<"$entrada")
+    registrada=$(jq -r --arg t "$tarefa" '.tarefas[$t].sessionId // empty' "$dir/rodada.json" 2>/dev/null)
+    if [ -n "$eu" ] && [ -n "$registrada" ] && [ "$eu" != "$registrada" ]; then
+      echo "Porão (Dev Valley): esta sessão não é a sessão registrada da tarefa $tarefa; pare e avise o usuário." >&2
+      exit 2
+    fi
+    ;;
+esac
 
 case "$modo" in
   parar)
@@ -103,7 +120,25 @@ case "$modo" in
     elif printf '%s' "$limpo" | grep -Eq '(^|[;&|(]|[[:space:]])git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(add|commit|stash|reset|checkout|switch|restore|clean|rebase|merge|push|pull|cherry-pick|revert|apply|am|rm|mv|tag|branch)([[:space:]]|$)'; then
       motivo='git que mexe no repositório (commit e cia. são do usuário, pelo pombal)'
     fi
-    [ -z "$motivo" ] && exit 0
+    if [ -z "$motivo" ]; then
+      # Fila de testes (P2): cada trecho do comando (entre ; && || |), sem redirecionamento, igual a um item de `testes`
+      # de alguma tarefa da rodada = a suíte crua. A da própria tarefa roda pelo testar.sh; a de outra, não roda aqui.
+      [ -f "$dir/rodada.json" ] || exit 0
+      while IFS= read -r trecho; do
+        trecho=$(printf '%s' "$trecho" | sed -E 's/[0-9]*>&[0-9-]+//g; s/&>>?[[:space:]]*[^[:space:]]+//g; s/[0-9]*>>?[[:space:]]*[^[:space:]]+//g; s/[[:space:]]+/ /g; s/^ //; s/ $//')
+        [ -n "$trecho" ] || continue
+        n=$(jq -r --arg t "$tarefa" --arg c "$trecho" '(.tarefas[$t].testes // []) | index($c) // empty' "$dir/rodada.json" 2>/dev/null)
+        if [ -n "$n" ]; then
+          echo "Porão (Dev Valley): a suíte roda pela fila da rodada, uma por vez: bash $dir/testar.sh $((n + 1)) (o mesmo \`$trecho\`). Teste focado, com o arquivo ou filtro a mais, continua livre." >&2
+          exit 2
+        fi
+        if jq -e --arg c "$trecho" '[.tarefas[] | (.testes // [])[]] | index($c) != null' "$dir/rodada.json" >/dev/null 2>&1; then
+          echo "Porão (Dev Valley): \`$trecho\` é suíte de outra tarefa da rodada: não rode aqui; rode as suas pela fila (bash $dir/testar.sh <n>)." >&2
+          exit 2
+        fi
+      done < <(printf '%s\n' "$cmd" | sed -E 's/(\|\||&&|;|\|)/\n/g')
+      exit 0
+    fi
     echo "Porão (Dev Valley): recusado ($motivo). Aqui arquivo se edita só com as ferramentas Edit/Write, onde a vila confere de quem é cada arquivo (a devolutiva também: Write). Ler e rodar teste pelo Bash continua livre." >&2
     exit 2
     ;;

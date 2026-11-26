@@ -95,6 +95,64 @@ export const RASTRO = ['PROGRESS.md', 'PENDENCIAS.md'];
 export const HOOK_SCRIPT = path.join(ROOT_DIR, 'scripts', 'porao-hook.sh');
 
 export const arquivoDaRodada = (dir: string) => path.join(dir, 'rodada.json');
+/** Fila de testes da rodada (modo início de sprint, P2, 25/11/2026): o script e a trava que o `flock` segura. */
+export const testarDaRodada = (dir: string) => path.join(dir, 'testar.sh');
+export const travaDosTestes = (dir: string) => path.join(dir, 'testes.lock');
+/** Quanto uma suíte espera a vez na fila antes de desistir (30 min). */
+export const ESPERA_DA_FILA_S = 1800;
+
+/** Texto entre aspas simples para o bash (a aspa simples de dentro vira `'\''`). */
+const aspas = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
+
+/**
+ * `<rodada>/testar.sh <n>` (P2): roda o n-ésimo comando de `testes` da tarefa, a partir da pasta do projeto, com
+ * `flock` na trava da rodada: uma suíte por vez, e as sessões, a linha de base e o gate final esperam na mesma fila
+ * (rodadas de 11, 19 e 20/11/2026: suítes juntas lotaram o banco local e sujaram a pasta de build). O `flock` solta a
+ * trava quando o processo termina, então sessão que cai não deixa a fila presa. A tarefa vem do `DEV_VALLEY_TAREFA`
+ * (o `--settings` da sessão) ou do segundo argumento. Os comandos já passaram por `validarPermissoes` (só palavras):
+ * viram lista de palavras e rodam sem `eval`.
+ */
+export function scriptDeTestes(r: Rodada, dir: string): string {
+  const casos = Object.entries(r.tarefas).map(([t, x]) => `  ${aspas(t)}) testes=(${x.testes.map(aspas).join(' ')}) ;;`);
+  return [
+    '#!/usr/bin/env bash',
+    `# Fila de testes da rodada ${r.rodada}, gravada pela vila (Dev Valley, P2 do modo início de sprint). Não edite.`,
+    '# Uso: bash testar.sh <n> [tarefa]   (n = posição do comando em "Testes liberados" do seu briefing, a partir de 1)',
+    'set -u',
+    `pasta=${aspas(r.pasta)}`,
+    `trava=${aspas(travaDosTestes(dir))}`,
+    'n=${1:-}',
+    'tarefa=${2:-${DEV_VALLEY_TAREFA:-}}',
+    'case "$tarefa" in',
+    ...casos,
+    `  *) echo "testar.sh: tarefa desconhecida (\${tarefa:-nenhuma}); use: bash ${testarDaRodada(dir).replace(/["$`\\]/g, '\\$&')} <n> <tarefa>" >&2; exit 2 ;;`,
+    'esac',
+    'if ! [[ "$n" =~ ^[1-9][0-9]*$ ]] || [ "$n" -gt "${#testes[@]}" ]; then',
+    '  echo "testar.sh: a tarefa $tarefa tem ${#testes[@]} comando(s) de teste:" >&2',
+    '  for i in "${!testes[@]}"; do echo "  $((i + 1)) = ${testes[$i]}" >&2; done',
+    '  exit 2',
+    'fi',
+    'read -r -a cmd <<<"${testes[$((n - 1))]}"',
+    'cd "$pasta" || exit 2',
+    'if ! command -v flock >/dev/null 2>&1; then',
+    '  echo "testar.sh: sem flock nesta máquina; roda sem fila (pode cruzar com outra suíte)." >&2',
+    '  "${cmd[@]}"',
+    '  exit $?',
+    'fi',
+    'echo "Fila de testes da rodada: na vez, roda ${testes[$((n - 1))]}" >&2',
+    `flock -w ${ESPERA_DA_FILA_S} -E 75 "$trava" "\${cmd[@]}"`,
+    'codigo=$?',
+    `[ "$codigo" = 75 ] && echo "testar.sh: esperou ${ESPERA_DA_FILA_S / 60} min na fila e não chegou a vez; diga na devolutiva." >&2`,
+    'exit "$codigo"',
+    '',
+  ].join('\n');
+}
+
+/** Grava o `testar.sh` da rodada (a cada pedido aprovado: um segundo pedido soma tarefas). */
+export async function gravarScriptDeTestes(r: Rodada, dir: string): Promise<void> {
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(testarDaRodada(dir), scriptDeTestes(r, dir), { mode: 0o755 });
+}
 export const devolutivaDe = (dir: string, tarefa: string) => path.join(dir, 'devolutivas', `${tarefa}.md`);
 
 export async function lerRodada(dir: string): Promise<Rodada | null> {
@@ -166,6 +224,8 @@ export function settingsDaTarefa(rodadaDir: string, tarefa: string, script = HOO
   const cmd = (modo: string) => `bash '${script}' ${modo} '${rodadaDir}' ${tarefa}`;
   return JSON.stringify({
     model: MODELO_DAS_SESSOES,
+    // O `testar.sh` da rodada sabe de qual tarefa é a fila pedida (P2, 25/11/2026).
+    env: { DEV_VALLEY_TAREFA: tarefa },
     hooks: {
       Stop: [{ hooks: [{ type: 'command', command: cmd('parar') }] }],
       PreToolUse: [

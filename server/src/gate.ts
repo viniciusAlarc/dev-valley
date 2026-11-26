@@ -41,8 +41,22 @@ export interface GateDaRodada {
 
 export type Veredito = 'passou' | 'já estava vermelho' | 'quebrou' | 'consertou';
 
-/** Roda um comando; a saída (stdout e stderr) vai para `saida`. */
-export type ExecutarComando = (comando: string, cwd: string, saida: string, limiteMs: number) => Promise<ResultadoDoComando>;
+/**
+ * Roda um comando; a saída (stdout e stderr) vai para `saida`. Com `trava`, espera a vez na fila de testes da rodada
+ * (`flock`, a mesma do `testar.sh` das sessões: P2.4, 25/11/2026), para o gate nunca rodar junto com uma sessão atrasada.
+ */
+export type ExecutarComando = (comando: string, cwd: string, saida: string, limiteMs: number, trava?: string) => Promise<ResultadoDoComando>;
+
+/** `flock` na máquina? Sem ele, o gate roda sem fila (como o `testar.sh`). */
+let flockDisponivel: Promise<boolean> | null = null;
+function temFlock(): Promise<boolean> {
+  flockDisponivel ??= new Promise((resolve) => {
+    const p = spawn('flock', ['--version'], { stdio: 'ignore' });
+    p.on('error', () => resolve(false));
+    p.on('close', (c) => resolve(c === 0));
+  });
+  return flockDisponivel;
+}
 
 /** Comandos do gate: os `testes` das tarefas, na ordem do pedido, cada um uma vez. */
 export function comandosDoGate(testesPorTarefa: string[][]): string[] {
@@ -59,8 +73,10 @@ export const saidaDoGate = (rodadaDir: string, momento: MomentoDoGate, i: number
  * `execFile`, mas com a saída indo direto para o arquivo, sem limite de buffer). No estouro, mata o grupo inteiro
  * (o `npm test` abre outros processos).
  */
-export const executarComando: ExecutarComando = async (comando, cwd, saida, limiteMs) => {
-  const [prog, ...args] = comando.split(' ');
+export const executarComando: ExecutarComando = async (comando, cwd, saida, limiteMs, trava) => {
+  let [prog, ...args] = comando.split(' ');
+  // Na fila: o `flock` espera a vez (dentro do mesmo limite de tempo do comando) e roda o comando sem shell.
+  if (trava && (await temFlock())) [prog, ...args] = ['flock', '-w', String(Math.ceil(limiteMs / 1000)), trava, prog!, ...args];
   await fs.mkdir(path.dirname(saida), { recursive: true });
   const fh = await fs.open(saida, 'w');
   const inicio = Date.now();

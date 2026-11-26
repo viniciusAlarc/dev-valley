@@ -92,8 +92,8 @@ Mapa completo "na vila → por baixo" no `README.md`.
    confirmado no painel e só de página local, nunca `--force` (o git só aceita fast-forward). Conflito no rebase sempre
    termina em `rebase --abort` (o repositório fica como estava).
 10. **Sessão de trabalho do porão só nasce de uma tarefa que o usuário aprovou no cartão** (aprovar exige `Origin`
-   local presente; teto de 5 sessões por rodada; a vila é a única que escreve o `rodada.json`). Detalhe em
-   `.claude/rules/porao.md`.
+   local presente; teto de 5 sessões por rodada, até 3 abertas ao mesmo tempo; a vila é a única que escreve o
+   `rodada.json`). Detalhe em `.claude/rules/porao.md`.
 
 ## Regras de processo deste projeto
 

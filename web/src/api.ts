@@ -327,6 +327,8 @@ export interface PedidoPorao {
   sessoes: Record<string, { sessionId: string } | { erro: string }>;
   /** Segunda opinião do crítico do cartão (21/11/2026): só os apontamentos confirmados; nunca bloqueia o clique. */
   critica?: CriticaDoCartao;
+  /** Sessões da rodada abertas ao mesmo tempo (P3, 25/11/2026): passou disso, abre em ondas. */
+  simultaneas?: number;
 }
 
 export interface CriticaDoCartao {
