@@ -66,5 +66,5 @@ vila atrapalhava a leitura de uma página densa (correção do usuário em 24/11
   de verdade. Ele confere os parsers, a máscara, o determinismo e a ausência de dado pessoal na versão
   de apresentação.
 - G19 vale para a página: contorno inteiro neutro; cor de identidade só em ponto, badge ou número.
-- Limite conhecido (PP-5): a conta DeepSeek aparece parcialmente, porque a Fábrica e a biblioteca da
-  vila ainda leem só `~/.claude`.
+- A PP-5 (Fábrica e biblioteca lendo só `~/.claude`) deixou de limitar o mapa em 24/11/2026: o `CLAUDE.md`,
+  `skills/` e `agents/` das contas DeepSeek são links para os de lá (`perfil-pessoal.md`, D16).

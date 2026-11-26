@@ -45,7 +45,7 @@ export interface Project {
   isGit: boolean;
   /** Conta que abre a casa por padrão (pela raiz; sem raiz, o Claude). */
   contaPadrao: ContaResumo;
-  /** Contas que a casa oferece na sessão nova: as da mesma finalidade da padrão. */
+  /** Contas que a casa oferece na sessão nova: as da mesma finalidade da padrão (a pessoal, também as DeepSeek de trabalho). */
   contas: ContaResumo[];
   branch: string | null;
   remote: string | null;

@@ -15,7 +15,7 @@ import type { askLibrarian } from './librarian.js';
 import type { Library } from './library.js';
 import { TITULO_MAX, type Moradores } from './moradores.js';
 import { buscar, cartas, PombalError, voar } from './pombal.js';
-import { markChecked, readProgress } from './progress.js';
+import { markChecked, readProgressComArquivo } from './progress.js';
 import { arquivoPermitido, isLocalOrigin } from './seguranca.js';
 import type { Bastao } from './bastao.js';
 import type { Gasto } from './gasto.js';
@@ -573,7 +573,7 @@ export function criarApp(ctx: Contexto): express.Express {
   app.get('/api/progress', async (req, res) => {
     const project = findProject(req.query.project);
     if (!project) return res.status(400).json({ error: 'projeto inválido' });
-    res.json((await readProgress(project.path)) ?? []);
+    res.json((await readProgressComArquivo(project.path)) ?? []);
   });
 
   // Sino da praça: marca entregas como conferidas pelas caixinhas (pedido do usuário, 29/10/2026). Escreve em arquivo de
@@ -773,7 +773,7 @@ export function criarApp(ctx: Contexto): express.Express {
     }
     const project = findProject(req.body.project);
     if (!project) return res.status(400).json({ error: 'projeto inválido' });
-    // A casa oferece só as contas da mesma finalidade (pessoal ou trabalho); o resto responde 400.
+    // A casa oferece só as contas da finalidade dela (a pessoal, também as DeepSeek de trabalho); o resto responde 400.
     if (conta) {
       if (!project.contas.some((c) => c.nome === conta.nome)) {
         return res.status(400).json({ error: `Esta casa abre em: ${project.contas.map((c) => c.nome).join(', ')}.` });

@@ -140,10 +140,11 @@ export function lerRoteador(texto: string): RoteadorLido {
 // ---------------------------------------------------------------------------
 // Guardrails (guardrails-core.md)
 
-const TITULO_GUARDRAIL = /^## (G\d+) — (.+)$/;
+// Regras parecidas dividem o bloco sem renumerar ("## G3 e G20 — ...", 24/11/2026): uma linha por código.
+const TITULO_GUARDRAIL = /^## (G\d+(?:(?:, | e )G\d+)*) — (.+)$/;
 
 function classificarCobranca(corpo: string): Cobranca {
-  if (/cobrado pelo mod|barrado pelo mod|o mod pergunta/i.test(corpo)) return 'mod';
+  if (/cobrado pelo mod|barrado pelo mod|o mod pergunta|\(mod\)|^Mod:|\. Mod:/im.test(corpo)) return 'mod';
   if (/\btestes?\b|\bsuíte\b|\bchecklist\b/i.test(corpo)) return 'teste';
   return 'julgamento';
 }
@@ -153,14 +154,19 @@ export function lerGuardrails(texto: string): { guardrails: Guardrail[]; linhas:
   let atual: { codigo: string; titulo: string; corpo: string[] } | null = null;
   const fechar = () => {
     if (!atual) return;
-    const corpo = atual.corpo.join('\n');
+    // O "(mod)" do título conta como cobrança pelo mod.
+    const corpo = [atual.titulo, ...atual.corpo].join('\n');
     const detalhe = /\bguardrails-ia\/([a-z0-9-]+\.md)\b/i.exec(corpo)?.[1];
-    guardrails.push({
-      codigo: atual.codigo,
-      titulo: atual.titulo,
-      cobranca: classificarCobranca(corpo),
-      onde: detalhe ? `guardrails-ia/${detalhe}` : 'guardrails-core.md',
-    });
+    for (const codigo of atual.codigo.split(/, | e /)) {
+      // Bloco com um item por regra ("- **G9**, ..."): a cobrança de cada uma sai do item dela.
+      const item = new RegExp(`^- \\*\\*${codigo}\\*\\*[^\\n]*(?:\\n  [^\\n]*)*`, 'm').exec(atual.corpo.join('\n'))?.[0];
+      guardrails.push({
+        codigo,
+        titulo: atual.titulo.replace(/\s*\(mod\)$/, ''),
+        cobranca: classificarCobranca(item ?? corpo),
+        onde: detalhe ? `guardrails-ia/${detalhe}` : 'guardrails-core.md',
+      });
+    }
   };
   for (const linha of texto.split('\n')) {
     const m = TITULO_GUARDRAIL.exec(linha);

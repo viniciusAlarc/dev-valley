@@ -33,7 +33,7 @@ export interface Project {
   isGit: boolean;
   /** Conta que abre a casa por padrão (pela raiz; sem raiz, o Claude). Opcional só na janela do servidor antigo. */
   contaPadrao?: ContaResumo;
-  /** Contas que a casa oferece na sessão nova (as da mesma finalidade da padrão). Opcional na janela do servidor antigo. */
+  /** Contas que a casa oferece na sessão nova (as da mesma finalidade da padrão; a pessoal, também as DeepSeek de trabalho). Opcional na janela do servidor antigo. */
   contas?: ContaResumo[];
   /** @deprecated Servidor antigo, até o reinício: `contaPadrao`/`contas` passam a valer no lugar. */
   perfil?: 'pessoal' | 'profissional';

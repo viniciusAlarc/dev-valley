@@ -3,7 +3,7 @@
  * - o mod `dev-valley` (pasta `mod/`, marketplace local na raiz do repo): eventos de sessão, rodapé, nomes e `@Nome`
  *   (decisão de 26/10/2026, PD-11);
  * - os hooks de shell que o mod não consegue fazer (SHELL_EVENTS: o pedido de permissão), no ~/.claude/settings.json;
- * - os agentes permanentes em ~/.claude/agents.
+ * - a bibliotecária em ~/.claude/agents (os outros agentes da vila rodam só pela vila, por `--agents`).
  * Tudo isso vale para cada conta do Claude Code (`config.contas`, 19/11/2026): o de sempre (~/.claude), o pessoal
  * (decisão do usuário de 01/11/2026) e as assinaturas DeepSeek, para toda sessão acender o status na vila.
  * No settings.json só mexe no que é do Dev Valley (entradas marcadas com MARKER): hooks e status line que você já tem
@@ -22,6 +22,8 @@ const MARKETPLACE = 'dev-valley';
 const PLUGIN = `dev-valley@${MARKETPLACE}`;
 /** Porta da vila para o mod (ele não lê o dev-valley.config.json, que mora no repo). */
 const VILA_FILE = path.join(MORADORES_DIR, 'vila.json');
+/** Agentes da vila que as sessões também usam, por isso copiados para `<conta>/agents`; os demais rodam só pela vila. */
+const NA_CONTA = new Set(['bibliotecaria.md']);
 
 interface HookEntry {
   matcher?: string;
@@ -96,8 +98,13 @@ for (const perfilDir of perfis) {
       notes.push(`⚠ ${target} já existe e não é do Dev Valley — mantive o seu.`);
       continue;
     }
-    if (uninstall) {
-      if (existing !== null) fs.rmSync(target);
+    // Os outros agentes da vila rodam só pela vila (`--agents` em consulta.ts, lidos de server/agents/): a cópia na
+    // conta só poluía a lista de subagentes das sessões. Cópia de instalação antiga sai (24/11/2026).
+    if (uninstall || !NA_CONTA.has(file)) {
+      if (existing !== null) {
+        fs.rmSync(target);
+        if (!uninstall) notes.push(`Cópia antiga removida (o agente roda só pela vila): ${target}`);
+      }
       continue;
     }
     const content = fs.readFileSync(path.join(ROOT_DIR, 'server', 'agents', file), 'utf8').replaceAll('{{CATALOGO}}', CATALOG_PATH);

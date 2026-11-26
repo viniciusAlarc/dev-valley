@@ -40,8 +40,8 @@ describe('contas do Claude Code (01/11/2026; redesenhadas em 19/11/2026)', () =>
     assert.equal(contaPadraoDe('/x/pessoais/app', { contas: [CONTA_CLAUDE] }), CONTA_CLAUDE);
   });
 
-  it('a casa oferece as contas da mesma finalidade: pessoal só pessoal; trabalho, Claude e as de trabalho', () => {
-    assert.deepEqual(contasDaCasa('/x/pessoais/app', CONFIG), [PESSOAL]);
+  it('a casa oferece as contas da mesma finalidade: pessoal, as pessoais e as DeepSeek de trabalho (25/11/2026); trabalho, Claude e as de trabalho', () => {
+    assert.deepEqual(contasDaCasa('/x/pessoais/app', CONFIG), [PESSOAL, TRABALHO]);
     assert.deepEqual(contasDaCasa('/x/trabalho/app', CONFIG), [CONTA_CLAUDE, TRABALHO]);
   });
 

@@ -52,6 +52,8 @@ deixaram de ser a mesma coisa: o que antes era um “perfil extra” virou uma *
 | D13 | Entram nesta entrega a criação, os rótulos, o moinho e a Fábrica (plugins/MCP) por conta; a biblioteca recebeu só os rótulos por conta. Ficam para depois a Fábrica de agentes/skills e as instruções globais (PP-5). |
 | D14 | Decisão de implementação: a **sessão avulsa** (banco da praça) oferece **todas** as contas, porque não é casa e a sessão pode ser pessoal. |
 | D15 | (19/11/2026, noite) Os agentes que **só leem** (bibliotecária, jornaleiro, jornaleiro da conversa, escrevente, médica e maestro mirim) respondem na conta **DeepSeek trabalho**, escolhida em `agentes.conta` do config local, para continuarem disponíveis quando o Claude está no limite. O **administrador**, único que edita arquivos, continua no Claude; o **maestro** (sessão do porão) fica como está. |
+| D16 | (24/11/2026) O `CLAUDE.md`, `skills/`, `agents/` e `rules/` das contas DeepSeek (`~/.claude-pessoal`, `~/.claude-deepseek`) são **links** para os do `~/.claude`: o que nasce numa conta vale nas três. O que havia antes ficou em `backups/antes-dos-links-*` de cada conta. Plugins continuam por conta (`installed_plugins.json` de cada uma). |
+| D17 | (24/11/2026) O esforço padrão das contas DeepSeek na vila é **high**: saiu o `CLAUDE_CODE_EFFORT_LEVEL: "max"` do `env` dos dois `settings.json` (era ele que forçava toda sessão e impedia o `/effort` de mudar), e o `modelSettings.deepseek-flash.effortLevel` ficou `high` nas duas contas. Terminais e agentes da vila leem o `settings.json` da conta a cada processo novo; sessão já aberta mantém o esforço com que nasceu. |
 
 ## Como funciona
 
@@ -68,7 +70,7 @@ deixaram de ser a mesma coisa: o que antes era um “perfil extra” virou uma *
    O formato antigo (`perfilPessoal` + `perfisExtras`) continua aceito e é convertido; nome e pasta são únicos, e a
    pasta do Claude não pode ser repetida.
 2. A vila procura projetos nas `projectRoots` e em todas as `roots` das contas. Cada casa recebe `contaPadrao` (pela
-   raiz) e `contas` (as da mesma finalidade da padrão). A placa da casa mostra “· pessoal” quando a padrão é pessoal.
+   raiz) e `contas` (as da mesma finalidade da padrão; a casa pessoal oferece também as DeepSeek de trabalho, 25/11/2026). A placa da casa mostra “· pessoal” quando a padrão é pessoal.
 3. O painel da casa tem **um** botão “Nova sessão”. Ele abre `web/src/ui/novaSessao.ts` com as contas da casa (ou todas,
    na praça). O clique chama `POST /api/sessions` com `{ project, conta }`; a rota valida a conta contra `project.contas`
    e guarda a escolha em `escolhasDeConta` (id da sessão → nome), só até a conversa ser gravada.
@@ -105,8 +107,7 @@ teste ou print (G13): só a referência ao arquivo.
 ## Limitações conhecidas e pendências
 
 - A outra API ignora servidores MCP e `cache_control`; o modelo mais forte do DeepSeek não lê imagem.
-- **PP-5:** a Fábrica de **agentes e skills** e as **instruções globais** da biblioteca ainda leem só `~/.claude`;
-  agentes/skills globais das contas DeepSeek não aparecem nem podem ser criados pela vila, e o `CLAUDE.md` global delas
-  não abre no leitor. Memórias, plugins/MCP, moinho e sessões já são por conta.
+- **PP-5 (resolvida em 24/11/2026 por D16):** a Fábrica de agentes e skills e as instruções globais da biblioteca
+  leem só `~/.claude`, mas o `CLAUDE.md`, `skills/` e `agents/` das contas DeepSeek agora são links para os de lá.
 - **PP-6:** os limites do plano (canto, clínica e moinho) guardam um único `usage`; se uma sessão DeepSeek reportar
   `rate_limits`, ela sobrescreve os números do Claude. A API do DeepSeek normalmente não manda esse campo.

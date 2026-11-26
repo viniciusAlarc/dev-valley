@@ -35,18 +35,66 @@ export async function readProgress(dir: string): Promise<ProgressEntry[] | null>
   } catch {
     return null;
   }
-  const entries: ProgressEntry[] = [];
-  let current: { date: string; title: string; lines: string[] } | null = null;
-  const close = () => current && entries.push({ date: current.date, title: current.title, body: current.lines.join('\n').trim() });
+  return parseEntries(text);
+}
+
+/** Pasta do arquivo do `PROGRESS.md`: um `AAAA-MM.md` por mês, só com entregas já conferidas (24/11/2026). */
+export const ARQUIVO_DIR = path.join('docs-dev', 'progresso');
+
+/**
+ * Diário do atril: o `PROGRESS.md` e, depois dele, os meses arquivados (o mais recente primeiro). O sino não usa isto:
+ * o que está arquivado já foi conferido. Null só quando não há nem o `PROGRESS.md` nem arquivo.
+ */
+export async function readProgressComArquivo(dir: string): Promise<ProgressEntry[] | null> {
+  const atual = await readProgress(dir);
+  let meses: string[] = [];
+  try {
+    meses = (await fs.readdir(path.join(dir, ARQUIVO_DIR))).filter((f) => /^\d{4}-\d{2}\.md$/.test(f)).sort().reverse();
+  } catch {
+    // Sem arquivo: só o PROGRESS.md.
+  }
+  if (!atual && !meses.length) return null;
+  const arquivadas = await Promise.all(meses.map(async (f) => parseEntries(await fs.readFile(path.join(dir, ARQUIVO_DIR, f), 'utf8'))));
+  return [...(atual ?? []), ...arquivadas.flat()];
+}
+
+function parseEntries(text: string): ProgressEntry[] {
+  return sections(text).flatMap((s) =>
+    s.heading ? [{ ...s.heading, body: s.lines.slice(1).join('\n').trim() }] : [],
+  );
+}
+
+/** Corta o texto em seções: a primeira (cabeçalho do arquivo) sem título; cada outra vai de um `## ` até o próximo. */
+function sections(text: string): { heading: { date: string; title: string } | null; lines: string[] }[] {
+  const out: { heading: { date: string; title: string } | null; lines: string[] }[] = [{ heading: null, lines: [] }];
   for (const line of text.split('\n')) {
     const m = line.match(HEADING);
-    if (m) {
-      close();
-      current = { date: m[1] ?? '', title: m[2].trim(), lines: [] };
-    } else current?.lines.push(line);
+    if (m) out.push({ heading: { date: m[1] ?? '', title: m[2].trim() }, lines: [line] });
+    else out[out.length - 1].lines.push(line);
   }
-  close();
-  return entries;
+  return out;
+}
+
+/**
+ * Separa o que sai do `PROGRESS.md` para o arquivo: entrega com data de mês anterior a `mesAtual` (`AAAA-MM`) e que não
+ * espera conferência. Entrega sem data, do mês corrente ou com "Falta conferir na vila" fica (senão o sino a perde).
+ * Pura: quem grava é `scripts/arquivar-progress.ts`.
+ */
+export function separarParaArquivo(text: string, mesAtual: string): { fica: string; porMes: Map<string, string[]> } {
+  const fica: string[] = [];
+  const porMes = new Map<string, string[]>();
+  for (const s of sections(text)) {
+    const mes = s.heading?.date.slice(0, 7);
+    const body = s.lines.slice(1).join('\n');
+    if (!s.heading || !mes || mes >= mesAtual || isToCheck({ ...s.heading, body })) {
+      fica.push(...s.lines);
+      continue;
+    }
+    // Sem as linhas em branco do fim; quem grava junta as seções com uma linha em branco.
+    const bloco = s.lines.join('\n').trimEnd();
+    porMes.set(mes, [...(porMes.get(mes) ?? []), bloco]);
+  }
+  return { fica: fica.join('\n'), porMes };
 }
 
 export async function summarizeProgress(dir: string): Promise<ProgressSummary | null> {
@@ -74,14 +122,9 @@ export async function markChecked(dir: string, items: { date: string; title: str
   const now = new Date();
   const today = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
   // Mesmo corte do `readProgress`: cada seção vai do título até o próximo `## `.
-  const sections: { heading: { date: string; title: string } | null; lines: string[] }[] = [{ heading: null, lines: [] }];
-  for (const line of text.split('\n')) {
-    const m = line.match(HEADING);
-    if (m) sections.push({ heading: { date: m[1] ?? '', title: m[2].trim() }, lines: [line] });
-    else sections[sections.length - 1].lines.push(line);
-  }
+  const secoes = sections(text);
   let changed = 0;
-  for (const s of sections) {
+  for (const s of secoes) {
     if (!s.heading || !wanted.has(`${s.heading.date}\n${s.heading.title}`)) continue;
     const [head, ...rest] = s.lines;
     const body = rest.join('\n');
@@ -89,6 +132,6 @@ export async function markChecked(dir: string, items: { date: string; title: str
     s.lines = [head, ...body.replace(TO_CHECK_FULL, `Conferido na vila pelo usuário em ${today}`).split('\n')];
     changed++;
   }
-  if (changed) await fs.writeFile(file, sections.flatMap((s) => s.lines).join('\n'));
+  if (changed) await fs.writeFile(file, secoes.flatMap((s) => s.lines).join('\n'));
   return changed;
 }

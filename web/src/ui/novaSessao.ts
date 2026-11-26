@@ -4,7 +4,8 @@ import { openTerminal } from './terminal';
 
 /**
  * Tela de sessão nova (decisão do usuário, 19/11/2026): um botão só, e aqui a escolha da conta — Claude, DeepSeek
- * pessoal ou DeepSeek trabalho. A casa oferece só as contas da finalidade dela (`project.contas`); a praça oferece todas.
+ * pessoal ou DeepSeek trabalho. A casa oferece as contas da finalidade dela (`project.contas`; a pessoal, também as
+ * DeepSeek de trabalho); a praça oferece todas.
  * A escolha vale só para esta sessão; nada fica guardado por casa.
  */
 export function openNovaSessao(opts: { project?: Project; voltar?: () => void }) {

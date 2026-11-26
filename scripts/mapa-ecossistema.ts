@@ -29,8 +29,9 @@ import {
 } from './mapa-ecossistema-dominio.js';
 import { montarHtml } from './mapa-ecossistema-pagina.js';
 
-const PESO_TETO_REGRAS = 20;
-const PESO_TETO_LINHAS = 120;
+// Teto do TRIAGEM.md (Passo 0b), baixado em 24/11/2026: conta blocos `## G…`, não números (regras dividem bloco).
+const PESO_TETO_BLOCOS = 14;
+const PESO_TETO_LINHAS = 75;
 
 // ---------------------------------------------------------------------------
 // I/O básico
@@ -460,7 +461,8 @@ export function coletarEcossistema(opcoes: OpcoesColeta): Ecossistema {
   const dadosContextos = somarArquivos(contextos);
 
   const cobertura = contarPorCobranca(nucleo.guardrails);
-  const orcamentoEstourado = nucleo.guardrails.length > PESO_TETO_REGRAS || nucleo.linhas > PESO_TETO_LINHAS;
+  const blocosNucleo = coreTexto.split('\n').filter((l) => /^## G\d/.test(l)).length;
+  const orcamentoEstourado = blocosNucleo > PESO_TETO_BLOCOS || nucleo.linhas > PESO_TETO_LINHAS;
   const vencida = auditoriaVencida(auditoriaData, agora);
   const dias = auditoriaData ? diasAte(auditoriaData, agora) : null;
 
@@ -475,9 +477,12 @@ export function coletarEcossistema(opcoes: OpcoesColeta): Ecossistema {
     const noDeepseek = pluginsDeepseek.find((p) => p.nome === nome);
     return !noClaude || !noDeepseek || noClaude.versao !== noDeepseek.versao || noClaude.commit !== noDeepseek.commit;
   });
-  const faltamClaude = agentesServer.filter((nome) => !agentesClaude.includes(nome));
-  const faltamDeepseek = agentesServer.filter((nome) => !agentesDeepseek.includes(nome));
-  const agentesCompletos = faltamClaude.length === 0 && faltamDeepseek.length === 0;
+  // Só a bibliotecária vai para as contas; os outros agentes da vila rodam pela vila (install-hooks.ts, 24/11/2026).
+  const agentesNaConta: string[] = agentesServer.filter((nome) => nome === 'bibliotecaria');
+  const faltamClaude = agentesNaConta.filter((nome) => !agentesClaude.includes(nome));
+  const faltamDeepseek = agentesNaConta.filter((nome) => !agentesDeepseek.includes(nome));
+  const sobram = agentesServer.filter((nome) => !agentesNaConta.includes(nome) && (agentesClaude.includes(nome) || agentesDeepseek.includes(nome)));
+  const agentesCompletos = faltamClaude.length === 0 && faltamDeepseek.length === 0 && sobram.length === 0;
   const linhaRoteador = roteadorClaudeTexto && roteadorDeepseekTexto ? primeiraLinhaDiferente(roteadorClaudeTexto, roteadorDeepseekTexto) : null;
   const roteadoresAusentes = !roteadorClaudeTexto && !roteadorDeepseekTexto;
   const roteadoresDiferem = roteadoresAusentes || Boolean(roteadorClaudeTexto) !== Boolean(roteadorDeepseekTexto) || linhaRoteador !== null;
@@ -533,7 +538,7 @@ export function coletarEcossistema(opcoes: OpcoesColeta): Ecossistema {
         origem: 'universal',
         quando: 'sempre',
         naVila: 'outdoor',
-        itens: [`${nucleo.guardrails.length} guardrails`, `${nucleo.linhas} linhas`, 'teto declarado: ~20 regras / ~120 linhas'],
+        itens: [`${nucleo.guardrails.length} guardrails`, `${nucleo.linhas} linhas`, `${blocosNucleo} blocos`, `teto declarado: ~${PESO_TETO_BLOCOS} blocos / ~${PESO_TETO_LINHAS} linhas`],
         ...dadosNucleo,
       }),
       peca('cnr', 'Convenções da CNR', 'Como o time trabalha com IA: idioma, divisão de trabalho, forma de explicar e regras de texto para terceiros.', {
@@ -866,8 +871,8 @@ export function coletarEcossistema(opcoes: OpcoesColeta): Ecossistema {
       rotulo: 'Orçamento do núcleo',
       valor: `${nucleo.guardrails.length} regras · ${nucleo.linhas} linhas`,
       detalhe: orcamentoEstourado
-        ? `Teto declarado: ~${PESO_TETO_REGRAS} regras / ~${PESO_TETO_LINHAS} linhas. Acima do teto: consolidar, não acrescentar.`
-        : `Dentro do teto de ~${PESO_TETO_REGRAS} regras / ~${PESO_TETO_LINHAS} linhas.`,
+        ? `Teto declarado: ~${PESO_TETO_BLOCOS} blocos / ~${PESO_TETO_LINHAS} linhas. Acima do teto: consolidar, não acrescentar.`
+        : `Dentro do teto de ~${PESO_TETO_BLOCOS} blocos / ~${PESO_TETO_LINHAS} linhas.`,
       prova: path.join(ia, 'guardrails-ia', 'guardrails-core.md'),
       alerta: orcamentoEstourado,
     },
@@ -902,13 +907,18 @@ export function coletarEcossistema(opcoes: OpcoesColeta): Ecossistema {
     {
       id: 'agentes-instalados',
       rotulo: 'Agentes da vila instalados',
-      valor: `Claude ${agentesServer.length - faltamClaude.length}/${agentesServer.length} · DeepSeek ${agentesServer.length - faltamDeepseek.length}/${agentesServer.length}`,
+      valor: agentesCompletos ? 'só a bibliotecária' : `faltam ${new Set([...faltamClaude, ...faltamDeepseek]).size} · sobram ${sobram.length}`,
       detalhe:
         agentesServer.length === 0
           ? 'Não encontrei agentes em server/agents; o mapa saiu sem a comparação.'
           : agentesCompletos
-            ? 'Os agentes de server/agents estão nas duas contas.'
-            : `Faltam: ${[...new Set([...faltamClaude, ...faltamDeepseek])].join(', ')}. Rodar npm run hooks:install.`,
+            ? 'A bibliotecária está nas duas contas; os outros agentes rodam só pela vila.'
+            : `${[
+                faltamClaude.length + faltamDeepseek.length ? `Faltam: ${[...new Set([...faltamClaude, ...faltamDeepseek])].join(', ')}` : '',
+                sobram.length ? `Sobram cópias antigas: ${sobram.join(', ')}` : '',
+              ]
+                .filter(Boolean)
+                .join('. ')}. Rodar npm run hooks:install.`,
       prova: path.join(claude, 'agents'),
       alerta: agentesServer.length === 0 || !agentesCompletos,
     },
@@ -1005,7 +1015,7 @@ export function coletarEcossistema(opcoes: OpcoesColeta): Ecossistema {
   ];
 
   const avisos: string[] = [
-    'A conta DeepSeek ainda aparece parcialmente: a Fábrica e a biblioteca leem só ~/.claude (PP-5).',
+    'As contas DeepSeek usam o mesmo CLAUDE.md, skills e agentes do ~/.claude, por link; plugins e config são de cada conta.',
     'A memória automática é a menor camada; o que a IA "sabe" de verdade está nas regras versionadas e nos rastros.',
   ];
   if (!nucleo.guardrails.length) avisos.push('Não encontrei o guardrails-core.md em ~/Documents/IA; a tabela de guardrails saiu vazia.');

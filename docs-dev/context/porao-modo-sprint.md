@@ -90,13 +90,12 @@ P3 depende de mexer no `avancar`, que já tem teste por propriedade.
 
 ## Diferenças do plano (implementação de 25/11/2026)
 
-- **Suposição do `session_id`:** conferida na documentação dos hooks do Claude Code (campo comum a todos os eventos,
-  como o mod `dev-valley` já usa), **não** gravada numa rodada de ensaio. Se a entrada vier sem ele, o hook segue como
-  antes: não trava nada.
+- **Suposição do `session_id`:** **conferida** no ensaio de 26/11/2026 (sessão `claude -p` real com `--session-id`: a
+  entrada gravada do PreToolUse traz o id). Se um dia vier sem ele, o hook segue como antes: não trava nada.
 - **De qual tarefa é o `testar.sh <n>`:** o script é um por rodada; a tarefa vem do `DEV_VALLEY_TAREFA`, que a vila
   põe no `env` do `--settings` de cada sessão de trabalho (vale também ao retomar), ou do segundo argumento
   (`testar.sh <n> <tarefa>`, para sessão aberta à mão). A regra `Bash(bash <rodada>/testar.sh:*)` entra nas permissões
-  da tarefa que tem testes. Não conferido numa sessão de verdade: que o `env` do `--settings` chega ao Bash da sessão.
+  da tarefa que tem testes. **Conferido** no ensaio de 26/11/2026: `testar.sh 1`, sem a tarefa, rodou na sessão real.
 - **Suíte crua no hook:** cada trecho do comando (entre `;`, `&&`, `||` e `|`), sem redirecionamento, comparado com os
   `testes`. A da própria tarefa é recusada apontando o número; a de outra tarefa também é recusada (as suítes dela
   cruzariam do mesmo jeito).

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { describe, test } from 'node:test';
-import { markChecked, readProgress, summarizeProgress } from '../src/progress.js';
+import { markChecked, readProgress, readProgressComArquivo, separarParaArquivo, summarizeProgress } from '../src/progress.js';
 import { projeto } from './util.js';
 
 const PROGRESS = `# Progresso
@@ -73,5 +73,38 @@ describe('markChecked (sino marca como conferido)', () => {
     const dir = await projeto({ 'PROGRESS.md': PROGRESS });
     assert.equal(await markChecked(dir, [{ date: '2026-10-01', title: 'Primeira entrega' }]), 0);
     assert.equal(await fs.readFile(path.join(dir, 'PROGRESS.md'), 'utf8'), PROGRESS);
+  });
+});
+
+describe('arquivo do PROGRESS.md (24/11/2026)', () => {
+  test('sai só o conferido de mês fechado; o que espera conferência e o sem data ficam', () => {
+    const { fica, porMes } = separarParaArquivo(PROGRESS, '2026-11');
+    assert.deepEqual([...porMes.keys()], ['2026-10']);
+    assert.deepEqual(porMes.get('2026-10')?.map((b) => b.split('\n')[0]), ['## 2026-10-02 — Segunda entrega', '## 2026-10-01 — Primeira entrega']);
+    assert.match(fica, /^# Progresso\n/);
+    assert.match(fica, /## 2026-10-03 — Terceira entrega/);
+    assert.match(fica, /## Sem data/);
+    assert.doesNotMatch(fica, /Segunda entrega|Primeira entrega/);
+  });
+
+  test('mês corrente fica inteiro', () => {
+    const { fica, porMes } = separarParaArquivo(PROGRESS, '2026-10');
+    assert.equal(porMes.size, 0);
+    assert.equal(fica, PROGRESS);
+  });
+
+  test('diário lê o PROGRESS.md e depois os meses arquivados; o sino não vê o arquivo', async () => {
+    const dir = await projeto({
+      'PROGRESS.md': '# Progresso\n\n## 2026-11-02 — Atual\n\nFalta conferir na vila.\n',
+      'docs-dev/progresso/2026-09.md': '# Arquivo\n\n## 2026-09-01 — Setembro\n\nFeita.\n',
+      'docs-dev/progresso/2026-10.md': '# Arquivo\n\n## 2026-10-01 — Outubro\n\nFeita.\n',
+    });
+    assert.deepEqual((await readProgressComArquivo(dir))?.map((e) => e.title), ['Atual', 'Outubro', 'Setembro']);
+    assert.deepEqual((await summarizeProgress(dir))?.toCheck.map((e) => e.title), ['Atual']);
+    assert.equal((await summarizeProgress(dir))?.entries, 1);
+  });
+
+  test('sem PROGRESS.md nem arquivo: null', async () => {
+    assert.equal(await readProgressComArquivo(await projeto()), null);
   });
 });

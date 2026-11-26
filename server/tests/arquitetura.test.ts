@@ -18,7 +18,7 @@ const PERMITIDOS: Record<string, string[]> = {
   './git.js': ['gitOps'], // diff e status na pasta do projeto
   './moradores.js': ['TITULO_MAX'],
   './pombal.js': ['buscar', 'cartas', 'PombalError', 'voar'], // git na pasta do projeto, clique confirmado (regra 9)
-  './progress.js': ['markChecked', 'readProgress'], // PROGRESS.md do projeto
+  './progress.js': ['markChecked', 'readProgressComArquivo'], // PROGRESS.md do projeto e o arquivo dele (docs-dev/progresso)
   './seguranca.js': ['arquivoPermitido', 'isLocalOrigin'],
   './porao.js': ['MAESTRO'],
   './skills.js': ['skillInput'],

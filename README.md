@@ -61,7 +61,7 @@ Link direto para dentro de uma casa: `http://localhost:4777/?casa=<nome-do-proje
 ### Integração com o Claude Code (mod e agentes)
 
 ```bash
-npm run hooks:install     # instala o mod dev-valley, os hooks de permissão e os agentes em ~/.claude/agents
+npm run hooks:install     # instala o mod dev-valley, os hooks de permissão e a bibliotecária em ~/.claude/agents
 npm run hooks:uninstall   # remove só o que é do Dev Valley
 ```
 

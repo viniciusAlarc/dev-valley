@@ -4,7 +4,8 @@
  * continua o de antes: não gastar a licença do trabalho com coisa pessoal, sem fronteira de dados.
  *
  * A casa escolhe a conta pela raiz (`roots`): a casa pessoal abre na conta pessoal, o resto no Claude. Toda sessão nova
- * pode escolher outra conta do mesmo tipo (pessoal ou trabalho) na tela do painel da casa; a escolha vale só para ela.
+ * pode escolher outra conta do mesmo tipo (pessoal ou trabalho) na tela do painel da casa; a casa pessoal aceita também
+ * as DeepSeek de trabalho (25/11/2026). A escolha vale só para ela.
  * Ao retomar, a pasta da conversa (`.jsonl`) manda, nunca a pasta do projeto.
  */
 import { readFileSync } from 'node:fs';
@@ -32,10 +33,14 @@ export function contaPadraoDe(dir: string, config: Pick<Config, 'contas'>): Cont
   return contasDe(config).find((c) => c.roots.some((r) => dentro(dir, r))) ?? CONTA_CLAUDE;
 }
 
-/** As contas que a casa oferece: as da mesma finalidade da conta padrão (pessoal ou trabalho). */
+/**
+ * As contas que a casa oferece: as da mesma finalidade da conta padrão (pessoal ou trabalho). A casa pessoal oferece
+ * também as DeepSeek de trabalho (decisão do usuário, 25/11/2026); o Claude segue fora dela, que é a licença do trabalho.
+ */
 export function contasDaCasa(dir: string, config: Pick<Config, 'contas'>): Conta[] {
   const padrao = contaPadraoDe(dir, config);
-  return contasDe(config).filter((c) => c.finalidade === padrao.finalidade);
+  const pessoal = padrao.finalidade === 'pessoal';
+  return contasDe(config).filter((c) => c.finalidade === padrao.finalidade || (pessoal && c.provedor === 'deepseek'));
 }
 
 /** Conta pelo nome (o que o front manda ao abrir a sessão); null = não existe mais no config. */

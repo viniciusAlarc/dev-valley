@@ -136,6 +136,23 @@ describe('mapa-ecossistema: parsers puros', () => {
     assert.equal(lido.linhas, contarLinhas(texto));
   });
 
+  test('lerGuardrails: bloco com várias regras vira uma linha por código, e "(mod)" no título conta como mod', () => {
+    const texto = ['## G3 e G20 — Irreversível ou pago', 'Mostrar e esperar. Mod: SQL destrutivo.', '', '## G6, G7 e G12 — Um rastreador', 'Só no PENDENCIAS.md.', '', '## G13 — Segredo (mod)', 'Só a referência.', '', '## G9 e G19 — Pelo arquivo aberto', '- **G9**, autorização: rule.', '- **G19**, peça visual: rule. Mod: filete', '  colorido.'].join('\n');
+    assert.deepEqual(
+      lerGuardrails(texto).guardrails.map((g) => [g.codigo, g.titulo, g.cobranca]),
+      [
+        ['G3', 'Irreversível ou pago', 'mod'],
+        ['G20', 'Irreversível ou pago', 'mod'],
+        ['G6', 'Um rastreador', 'julgamento'],
+        ['G7', 'Um rastreador', 'julgamento'],
+        ['G12', 'Um rastreador', 'julgamento'],
+        ['G13', 'Segredo', 'mod'],
+        ['G9', 'Pelo arquivo aberto', 'julgamento'],
+        ['G19', 'Pelo arquivo aberto', 'mod'],
+      ],
+    );
+  });
+
   test('contarPendencias agrupa por dono e limpa markdown do título', () => {
     const texto = [
       '| ID | Dono | Item | Aberto em |',

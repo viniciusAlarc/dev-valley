@@ -4,7 +4,7 @@
 
 > Os guardrails universais e as convenções de trabalho vêm do `~/.claude/CLAUDE.md`.
 > Aqui ficam **só** as regras que dependem deste projeto. Em conflito, este arquivo vence.
-> O detalhe das regras 5, 7, 8 e 10 mora em `.claude/rules/`, carregado quando a sessão abre os arquivos daquele
+> O detalhe das regras 3, 4, 5, 7, 8, 9 e 10 mora em `.claude/rules/`, carregado quando a sessão abre os arquivos daquele
 > assunto; mexendo no assunto sem ter aberto esses arquivos, ler a regra de lá antes.
 
 ---
@@ -65,17 +65,11 @@ Mapa completo "na vila → por baixo" no `README.md`.
    `scripts/conferir-publico.mts`, ligados pelo `npm install`); `node scripts/conferir-publico.mts --tudo` varre tudo.
 2. **O servidor escuta só em `127.0.0.1` e recusa WebSocket de outra origem:** os terminais rodam comandos de
    verdade. Nunca afrouxar isso.
-3. **O mod (`mod/`) e os hooks de permissão mandam à vila só `session_id`, `cwd`, nome do evento, tipo de
-   notificação, a categoria da ferramenta em uso (`ler`, `editar`, `rodar`, `web`, `agente`) e os ids das sessões
-   citadas com `@Nome`** (e contexto/limites no `/api/statusline`). Nunca conteúdo de
-   arquivo ou prompt, nem o nome digitado: o prompt é lido **só localmente**, para achar `@Nome` no mapa
-   `~/.claude/dev-valley/moradores.json`; os ids citados servem aos NPCs conversando (decisão do usuário, 30/10/2026); a categoria desenha o balão de quem trabalha,
-   nunca leva o nome da ferramenta, o arquivo nem o comando (decisão do usuário, 08/11/2026). O
-   teste `mod/tests/dev-valley.test.ts` confere isso.
-4. **`hooks:install` instala o mod (`claude plugin install`) e mexe em `~/.claude/settings.json` (global, com
-   backup) só nas entradas do Dev Valley (os hooks de shell de `PermissionRequest` e `Notification`; o mod não vê
-   quando o diálogo de permissão abre):** nunca sobrescreve agente do usuário com o mesmo nome, e o
-   uninstall remove só o que é do Dev Valley.
+3. **O mod e os hooks de permissão mandam à vila só ids, evento e categoria da ferramenta; nunca conteúdo de arquivo
+   ou prompt** (o prompt é lido só localmente, para achar `@Nome`). Cobrado por `mod/tests/dev-valley.test.ts`; lista
+   completa em `.claude/rules/mod-so-ids.md`.
+4. **`hooks:install` só mexe no que é do Dev Valley** (no `settings.json` global, com backup, e nos agentes): nunca
+   sobrescreve o que é do usuário. Detalhe em `.claude/rules/instalador.md`.
 5. **Agentes da vila** (consultas por `claude -p --no-session-persistence`, base em `server/src/consulta.ts`): os que
    só leem respondem na conta DeepSeek de `agentes.conta`; o administrador, único que edita, fica no Claude e só edita
    os arquivos de rastro. Conta e ferramentas de cada um em `.claude/rules/agentes-da-vila.md`.
@@ -88,9 +82,8 @@ Mapa completo "na vila → por baixo" no `README.md`.
    Detalhe em `.claude/rules/pixel-art.md`.
 8. **Todo agente (NPC ✦) veste o traje de agente secreto** (`villagerTexture(scene, id, true)`); a única exceção é a
    médica da clínica. Detalhe em `.claude/rules/pixel-art.md`.
-9. **O pombal (`server/src/pombal.ts`) faz push numa branch que outras pessoas podem usar.** Push só por clique
-   confirmado no painel e só de página local, nunca `--force` (o git só aceita fast-forward). Conflito no rebase sempre
-   termina em `rebase --abort` (o repositório fica como estava).
+9. **O pombal faz push numa branch que outras pessoas usam:** só por clique confirmado de página local, nunca
+   `--force`, e conflito no rebase termina em `rebase --abort`. Detalhe em `.claude/rules/pombal.md`.
 10. **Sessão de trabalho do porão só nasce de uma tarefa que o usuário aprovou no cartão** (aprovar exige `Origin`
    local presente; teto de 5 sessões por rodada, até 3 abertas ao mesmo tempo; a vila é a única que escreve o
    `rodada.json`). Detalhe em `.claude/rules/porao.md`.
