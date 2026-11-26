@@ -1820,6 +1820,38 @@ h3 .conta-dot {
   overflow-wrap: anywhere;
 }
 
+/* Etapas da sprint (SP-1, 26/11/2026): contorno neutro inteiro; a etapa da vez ganha o contorno mais escuro e negrito. */
+.sprint-etapas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.sprint-etapas li {
+  border: 1px solid var(--parchment-dark);
+  border-radius: 4px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.sprint-etapas li.feita {
+  opacity: 0.75;
+}
+
+.sprint-etapas li.agora {
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--parchment-dark);
+}
+
+.sprint-etapas .marca {
+  display: inline-block;
+  width: 1.1em;
+  text-align: center;
+}
+
 /* Quadro de avisos da praça (21/11/2026): o zoom do quadro, notas de papel presas na cortiça. Cores da cortiça e dos
    papéis iguais às do sprite `noticeboard` (textures.ts). */
 .quadro-cortica {

@@ -35,6 +35,11 @@ Sessão de trabalho do porão (`server/src/porao.ts`) só nasce de uma tarefa qu
   `validarPermissoes`), sem shell, antes de abrir as sessões (linha de base) e com todas prontas, antes do relatório;
   saída só em arquivo da pasta da rodada, nunca no `rodada.json`. Gate vermelho só avisa (relatório "Reprovada" e ❗ na
   estante): nenhuma sessão é reaberta (decisão do usuário, 11/11/2026).
+- **Rodada de sprint (SP-1, decisão do usuário, 26/11/2026, `docs-dev/context/sprint-no-porao.md`):** pedido com
+  `sprint` grava a sprint e o HEAD do clique (`commitInicial`) no `rodada.json`; no fim, a vila põe o cartão "Fechar a
+  sprint" (no lugar do roteiro), cuja sessão nasce na casa com `/fechar-sprint <relatório> <pasta da sprint>`, como a
+  do roteiro (fora do teto, o gongo não a recusa). O quadro mostra as 7 etapas, e a vila sabe de cada uma pelo arquivo
+  na pasta da sprint (`porao.pastaSprints`): nunca por recado da sessão.
 - A sessão do roteiro de testes (uma por rodada, pedida pela vila quando uma devolutiva diz `mexeu_em_tela: sim`)
   também só nasce do clique, mas na **casa**: não é anotada, não conta no teto e o gongo não a apaga (decisão do
   usuário, 05/11/2026).

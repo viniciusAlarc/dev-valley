@@ -49,6 +49,13 @@ export interface Rodada {
   gate?: GateDaRodada;
   /** Quanto o maestro estimou, antes da rodada, para fazer tudo numa sessão só (minutos). */
   estimativaSessaoUnicaMin?: number;
+  /**
+   * Rodada de sprint (SP-1, 26/11/2026): o id da pasta da sprint (`<porao.pastaSprints>/<sprint>/`). No fim, o cartão
+   * é "Fechar a sprint" em vez do roteiro, e o quadro mostra as 7 etapas.
+   */
+  sprint?: string;
+  /** HEAD do projeto no clique que aprovou a rodada de sprint: a base da revisão do conjunto. */
+  commitInicial?: string;
 }
 
 /**
@@ -87,6 +94,57 @@ export interface RodadaNoMundo {
   tarefas: TarefaNoMundo[];
   /** Gate da rodada (maestro v3); null = sem comandos de teste. `quebrou` = comandos que passavam e falham. */
   gate: { estado: EstadoDoGate; comandos: string[]; quebrou: string[] } | null;
+  /** Rodada de sprint (SP-1): as 7 etapas; null = rodada comum. */
+  sprint: SprintNoMundo | null;
+}
+
+/** Uma etapa do fluxo da sprint; `arquivo` (absoluto) quando ela é um documento já gravado, para o link no quadro. */
+export interface EtapaDaSprint {
+  id: 'plano' | 'codigo' | 'testes' | 'revisao' | 'roteiro' | 'estudo' | 'guia';
+  nome: string;
+  feita: boolean;
+  arquivo: string | null;
+  /** Feita, mas com problema (gate reprovado): o quadro mostra ❗ em vez de ✔. */
+  alerta: boolean;
+}
+
+export interface SprintNoMundo {
+  id: string;
+  /** Pasta da sprint, absoluta. */
+  pasta: string;
+  etapas: EtapaDaSprint[];
+}
+
+/**
+ * As 7 etapas da sprint (SP-1, `docs-dev/context/sprint-no-porao.md`). A vila não recebe recado da sessão que fecha a
+ * sprint: plano, revisão e os três documentos contam como feitos quando o arquivo existe na pasta da sprint; código e
+ * testes saem do `rodada.json`.
+ */
+export async function etapasDaSprint(r: Rodada, pastaSprints: string): Promise<SprintNoMundo | null> {
+  if (!r.sprint) return null;
+  const pasta = path.join(r.pasta, pastaSprints, r.sprint);
+  const doc = async (id: EtapaDaSprint['id'], nome: string, nomeDoArquivo: string): Promise<EtapaDaSprint> => {
+    const arquivo = path.join(pasta, nomeDoArquivo);
+    const feita = await fs.access(arquivo).then(() => true, () => false);
+    return { id, nome, feita, arquivo: feita ? arquivo : null, alerta: false };
+  };
+  const tarefas = Object.values(r.tarefas);
+  const eg = estadoDoGate(r.gate);
+  // Sem comando de teste não há gate: a etapa fecha junto com o relatório, que é quando a vila deixa de esperar.
+  const testes = eg ? eg === 'aprovada' || eg === 'reprovada' : !!r.relatorio;
+  return {
+    id: r.sprint,
+    pasta,
+    etapas: [
+      await doc('plano', 'Plano', 'plano.md'),
+      { id: 'codigo', nome: 'Código', feita: tarefas.length > 0 && tarefas.every((t) => t.estado === 'pronta'), arquivo: null, alerta: false },
+      { id: 'testes', nome: 'Testes', feita: testes, arquivo: null, alerta: eg === 'reprovada' },
+      await doc('revisao', 'Revisão', 'revisao.md'),
+      await doc('roteiro', 'Roteiro', 'roteiro.html'),
+      await doc('estudo', 'Estudo', 'estudo.html'),
+      await doc('guia', 'Guia', 'guia.html'),
+    ],
+  };
 }
 
 /** Arquivos de rastro que todas as tarefas somam: não têm dona (contrato "Sob o maestro"). */

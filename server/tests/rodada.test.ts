@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 import type { ExecutarComando } from '../src/gate.js';
+import { PASTA_SPRINTS_PADRAO, pastaSprintsValida } from '../src/config.js';
 import { Porao, type AbrirSessao, type SessaoAgora } from '../src/porao.js';
 import { gravarScriptDeTestes, HOOK_SCRIPT, lerDevolutiva, lerRodada, montarRelatorio, settingsDaTarefa, testarDaRodada, validarDependencias, type Rodada } from '../src/rodada.js';
 
@@ -322,6 +323,116 @@ describe('Porao v2: o clique aprova a rodada inteira, a vila conduz', () => {
     assert.equal(r?.settings, abertas[0]!.settings);
     assert.ok(r?.permitir.includes(`Edit(/${path.join(dir, 'devolutivas', 't1.md')})`));
     assert.equal(await porao.retomada('outra'), null);
+  });
+});
+
+describe('Sprint no porão (SP-1, 26/11/2026): do plano ao cartão "Fechar a sprint"', () => {
+  /** Rodada de sprint com t1 e t2 livres, aprovada; HEAD de mentira (nenhum git roda). */
+  async function sprintAprovada(nome: string, sprint = '2611-1012') {
+    const m = montar(nome, ['t1', 't2']);
+    const heads: string[] = [];
+    m.porao.lerHead = async (pasta) => (heads.push(pasta), 'abc1234def');
+    await m.porao.registrarMaestro('m1', 'p');
+    const pedido = await m.porao.pedir({ maestro: 'm1', rodada: 'r1', sprint, tarefas: [{ id: 't1', arquivos: ['a.ts'] }, { id: 't2', arquivos: ['b.ts'] }] }, 5, m.pasta);
+    assert.ok(!('erro' in pedido));
+    assert.equal(pedido.sprint, sprint);
+    await m.porao.aprovar(pedido.id, m.abrir);
+    return { ...m, heads };
+  }
+
+  test('"sprint" inválido no pedido é recusado; sem ele, a rodada é comum e o HEAD nem é lido', async () => {
+    const { porao, pasta, abrir, dir } = montar('sprint-recusa', ['t1']);
+    const heads: string[] = [];
+    porao.lerHead = async (p) => (heads.push(p), 'abc1234');
+    await porao.registrarMaestro('m1', 'p');
+    for (const sprint of ['../x', 'a b', '', 7, '..']) {
+      const r = await porao.pedir({ maestro: 'm1', rodada: 'r1', sprint, tarefas: [{ id: 't1', arquivos: ['a.ts'] }] }, 5, pasta);
+      assert.equal((r as { status: number }).status, 400, JSON.stringify(sprint));
+    }
+    const comum = await porao.pedir({ maestro: 'm1', rodada: 'r1', tarefas: [{ id: 't1', arquivos: ['a.ts'] }] }, 5, pasta);
+    assert.ok(!('erro' in comum));
+    await porao.aprovar(comum.id, abrir);
+    const r = await lerRodada(dir);
+    assert.equal(r?.sprint, undefined);
+    assert.equal(r?.commitInicial, undefined);
+    assert.equal(heads.length, 0);
+    await porao.avancar([], () => abrir);
+    assert.equal(porao.rodadasNoMundo()[0]!.sprint, null);
+  });
+
+  test('aprovar grava a sprint e o HEAD do projeto no clique (base da revisão do conjunto)', async () => {
+    const { dir, pasta, heads } = await sprintAprovada('sprint-grava');
+    const r = await lerRodada(dir);
+    assert.deepEqual([r?.sprint, r?.commitInicial, heads], ['2611-1012', 'abc1234def', [pasta]]);
+  });
+
+  test('fim da rodada de sprint: cartão "Fechar a sprint" no lugar do roteiro, um só, fora do teto e o gongo não o recusa', async () => {
+    const { porao, pasta, dir, abertas, abrirNo, devolver } = await sprintAprovada('sprint-fim');
+    // Mexeu em tela: numa rodada comum seria o roteiro; na de sprint o roteiro vem dentro do fechamento.
+    devolver('t1', DEVOLUTIVA().replace('mexeu_em_tela: não', 'mexeu_em_tela: sim'));
+    devolver('t2');
+    const vivas = [parada(idDe(abertas, 't1')), parada(idDe(abertas, 't2'))];
+    await porao.avancar(vivas, abrirNo);
+    const r = await lerRodada(dir);
+    assert.ok(r?.relatorio);
+    const abertos = porao.pedidosAbertos();
+    assert.equal(abertos.filter((p) => p.roteiro).length, 0, 'sem cartão de roteiro');
+    const fechar = abertos.find((p) => p.fecharSprint);
+    assert.deepEqual([fechar?.tarefas, fechar?.fecharSprint], [['fechar-sprint'], { relatorio: r!.relatorio, pasta: 'docs-dev/sprints/2611-1012' }]);
+    await porao.avancar(vivas, abrirNo);
+    assert.equal(porao.pedidosAbertos().filter((p) => p.fecharSprint).length, 1, 'outra volta não pede outro');
+    // Fora do teto: a rodada (2 tarefas) aceita mais 3 com teto 5, como se o cartão não existisse.
+    for (const t of ['t3', 't4', 't5']) fs.writeFileSync(path.join(dir, 'briefings', `${t}.md`), '# briefing');
+    assert.ok(!('erro' in (await porao.pedir({ maestro: 'm1', rodada: 'r1', tarefas: ['t3', 't4', 't5'] }, 5, pasta))));
+    // O gongo recusa o pedido de tarefas, não o de fechar (a sessão é da casa).
+    await porao.esquecer('p', []);
+    assert.deepEqual(porao.pedidosAbertos().map((p) => p.tarefas), [['fechar-sprint']]);
+    // O clique abre /fechar-sprint <relatório> <pasta da sprint>, sem regra e sem anotar no porão.
+    const antes = abertas.length;
+    const ok = await porao.aprovar(fechar!.id, (id, prompt, permitir) => (abertas.push({ id, prompt, permitir }), Promise.resolve(null)));
+    const nova = abertas.slice(antes);
+    assert.deepEqual(nova.map((a) => [a.prompt, a.permitir]), [[`/fechar-sprint ${r!.relatorio} docs-dev/sprints/2611-1012`, []]]);
+    assert.deepEqual(ok?.sessoes['fechar-sprint'], { sessionId: nova[0]!.id });
+    assert.equal((await porao.papeis()).has(nova[0]!.id), false, 'nasce na casa');
+  });
+
+  test('quadro: as 7 etapas, plano e documentos pela existência do arquivo na pasta da sprint (pasta do config)', async () => {
+    const m = montar('sprint-etapas', ['t1']);
+    m.porao.pastaSprints = 'docs/sp';
+    m.porao.lerHead = async () => null;
+    await m.porao.registrarMaestro('m1', 'p');
+    const pedido = await m.porao.pedir({ maestro: 'm1', rodada: 'r1', sprint: 's1', tarefas: [{ id: 't1', arquivos: ['a.ts'], testes: ['npm test'] }] }, 5, m.pasta);
+    assert.ok(!('erro' in pedido));
+    await m.porao.aprovar(pedido.id, m.abrir);
+    assert.equal((await lerRodada(m.dir))?.commitInicial, undefined, 'sem git: sem base, e a rodada segue');
+    await m.porao.gatesEmCurso();
+    await m.porao.avancar([], () => m.abrir);
+    const pastaSprint = path.join(m.pasta, 'docs', 'sp', 's1');
+    const etapas = () => Object.fromEntries(m.porao.rodadasNoMundo()[0]!.sprint!.etapas.map((e) => [e.id, e.feita]));
+    assert.equal(m.porao.rodadasNoMundo()[0]!.sprint!.pasta, pastaSprint);
+    assert.deepEqual(etapas(), { plano: false, codigo: false, testes: false, revisao: false, roteiro: false, estudo: false, guia: false });
+    fs.mkdirSync(pastaSprint, { recursive: true });
+    fs.writeFileSync(path.join(pastaSprint, 'plano.md'), '# Sprint 26/11 → 10/12');
+    // Gate final reprova: a etapa de testes fecha com alerta.
+    m.gate.depois['npm test'] = 1;
+    m.devolver('t1');
+    await m.porao.avancar([parada(m.abertas[0]!.id)], () => m.abrir);
+    await m.porao.gatesEmCurso();
+    await m.porao.avancar([parada(m.abertas[0]!.id)], () => m.abrir);
+    assert.deepEqual(etapas(), { plano: true, codigo: true, testes: true, revisao: false, roteiro: false, estudo: false, guia: false });
+    const testes = m.porao.rodadasNoMundo()[0]!.sprint!.etapas.find((e) => e.id === 'testes')!;
+    assert.equal(testes.alerta, true);
+    for (const f of ['revisao.md', 'roteiro.html', 'estudo.html', 'guia.html']) fs.writeFileSync(path.join(pastaSprint, f), 'x');
+    await m.porao.avancar([parada(m.abertas[0]!.id)], () => m.abrir);
+    const s = m.porao.rodadasNoMundo()[0]!.sprint!;
+    assert.ok(s.etapas.every((e) => e.feita));
+    assert.equal(s.etapas.find((e) => e.id === 'guia')!.arquivo, path.join(pastaSprint, 'guia.html'));
+    assert.equal(s.etapas.find((e) => e.id === 'codigo')!.arquivo, null);
+  });
+
+  test('porao.pastaSprints do config: relativo e dentro do projeto; o resto vira o padrão', () => {
+    assert.equal(pastaSprintsValida('docs/sprints/'), 'docs/sprints');
+    for (const ruim of ['../fora', '/abs', 'a/../b', 'a b', '', 3, undefined, './x']) assert.equal(pastaSprintsValida(ruim), PASTA_SPRINTS_PADRAO, String(ruim));
   });
 });
 

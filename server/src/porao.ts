@@ -1,7 +1,9 @@
+import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { comandosDoGate, executarComando, GATE_LIMITE_MS, resultadoDoGate, saidaDoGate, type ExecutarComando, type MomentoDoGate, type ResultadoDoComando } from './gate.js';
 import type { CriticaDoCartao } from './critico.js';
 import { tokensDaConversa } from './gasto.js';
@@ -9,6 +11,7 @@ import { MORADORES_DIR } from './moradores.js';
 import {
   devolutivaDe,
   estadoDoGate,
+  etapasDaSprint,
   gravarRodada,
   HOOK_SCRIPT,
   lerDevolutiva,
@@ -26,7 +29,7 @@ import {
   type Rodada,
   type RodadaNoMundo,
 } from './rodada.js';
-import { SIMULTANEAS_PADRAO } from './config.js';
+import { PASTA_SPRINTS_PADRAO, SIMULTANEAS_PADRAO } from './config.js';
 export { SIMULTANEAS_PADRAO, TETO_PADRAO } from './config.js';
 
 /**
@@ -75,6 +78,16 @@ export interface PedidoPorao {
    * **casa**, como morador comum: fora do teto, sobrevive ao gongo e não segue o contrato "Sob o maestro".
    */
   roteiro?: string;
+  /**
+   * Rodada de sprint (SP-1, 26/11/2026): o id da pasta da sprint. Vai para o `rodada.json`; no fim da rodada, o cartão
+   * da vila é o "Fechar a sprint" em vez do roteiro.
+   */
+  sprint?: string;
+  /**
+   * Pedido de fechar a sprint (SP-1), feito pela vila no fim da rodada de sprint: relatório e pasta da sprint, relativos
+   * ao projeto. Sessão da **casa**, como a do roteiro: fora do teto, sobrevive ao gongo.
+   */
+  fecharSprint?: { relatorio: string; pasta: string };
   criadoEm: number;
   estado: 'aguardando' | 'aprovado' | 'recusado';
   /** Depois de aprovado: tarefa → sessão aberta, ou o motivo de não ter aberto. */
@@ -182,6 +195,29 @@ export function promptDoRoteiro(relatorio: string): string {
   return `/roteiro-testes ${relatorio}`;
 }
 
+/** Tarefa do pedido de fechar a sprint (SP-1): um só por rodada, com este nome no cartão. */
+export const TAREFA_FECHAR = 'fechar-sprint';
+
+/** A primeira mensagem da sessão que fecha a sprint: a skill do repositório de regras, com o relatório e a pasta. */
+export function promptDoFechamento(f: { relatorio: string; pasta: string }): string {
+  return `/fechar-sprint ${f.relatorio} ${f.pasta}`;
+}
+
+/** Pedido que abre sessão na casa, não no porão (roteiro, fechar a sprint): fora do teto, o gongo não o recusa. */
+const daCasa = (p: PedidoPorao) => !!(p.roteiro || p.fecharSprint);
+
+/** HEAD do projeto (SP-1: base da revisão do conjunto da sprint); null fora de um repositório git. */
+export type LerHead = (pasta: string) => Promise<string | null>;
+const execFileP = promisify(execFile);
+export const lerHeadDoGit: LerHead = async (pasta) => {
+  try {
+    const h = (await execFileP('git', ['-C', pasta, 'rev-parse', 'HEAD'], { timeout: 10_000 })).stdout.trim();
+    return /^[0-9a-f]{7,64}$/.test(h) ? h : null;
+  } catch {
+    return null;
+  }
+};
+
 // "Você trabalha sob o maestro. Leia e siga: ~/.claude/maestro/rodadas/<id>/briefings/<tarefa>.md"
 const BRIEFING_RE = /^Você trabalha sob o maestro\. Leia e siga: \S*?\.claude\/maestro\/rodadas\/([\w.-]+)\/briefings\/([\w.-]+)\.md/;
 
@@ -220,6 +256,10 @@ export class Porao {
    * padrão 3): 4 juntas esgotaram o limite do plano na rodada de 19/11. A tarefa livre que passa disso espera a vaga.
    */
   simultaneas = SIMULTANEAS_PADRAO;
+  /** Onde moram as pastas das sprints, relativo ao projeto (SP-1; `porao.pastaSprints` do config). */
+  pastaSprints = PASTA_SPRINTS_PADRAO;
+  /** Lê o HEAD do projeto no clique da rodada de sprint (trocado nos testes). */
+  lerHead: LerHead = lerHeadDoGit;
 
   constructor(
     private file = PORAO_FILE,
@@ -305,14 +345,18 @@ export class Porao {
    * O maestro pede sessões para tarefas de uma rodada. Só a sessão de maestro anotada aqui pede, e para o projeto dela;
    * cada tarefa precisa do briefing já escrito; o teto conta as sessões que a rodada já tem mais as pedidas.
    */
-  async pedir(entrada: { maestro: unknown; rodada: unknown; tarefas: unknown; estimativaSessaoUnicaMin?: unknown }, teto: number, pasta: string): Promise<PedidoPorao | { erro: string; status: number }> {
-    const { maestro, rodada, estimativaSessaoUnicaMin: est } = entrada;
+  async pedir(entrada: { maestro: unknown; rodada: unknown; tarefas: unknown; estimativaSessaoUnicaMin?: unknown; sprint?: unknown }, teto: number, pasta: string): Promise<PedidoPorao | { erro: string; status: number }> {
+    const { maestro, rodada, estimativaSessaoUnicaMin: est, sprint } = entrada;
     const reg = await this.ler();
     if (typeof maestro !== 'string' || !reg.maestros[maestro]) return { erro: 'Só o maestro aberto no porão pede sessões.', status: 403 };
     if (typeof rodada !== 'string' || !NOME_RE.test(rodada)) return { erro: 'Rodada inválida.', status: 400 };
     // Opcional na rota (o agente sempre manda): minutos, número positivo.
     if (est !== undefined && (typeof est !== 'number' || !Number.isFinite(est) || est <= 0 || est > 100_000)) {
       return { erro: '"estimativaSessaoUnicaMin" é a estimativa em minutos para fazer tudo numa sessão só (número positivo).', status: 400 };
+    }
+    // Rodada de sprint (SP-1): o id da pasta da sprint, no mesmo formato do nome da rodada.
+    if (sprint !== undefined && (typeof sprint !== 'string' || !NOME_RE.test(sprint) || /^\.+$/.test(sprint))) {
+      return { erro: '"sprint" é o id da pasta da sprint (letras, números, ponto, hífen), ex.: 2611-1012.', status: 400 };
     }
     // Cada tarefa: o nome (sessão comum, pede permissão para tudo) ou { id, arquivos, testes } (04/11/2026).
     const lista = Array.isArray(entrada.tarefas) ? (entrada.tarefas as unknown[]) : [];
@@ -342,7 +386,7 @@ export class Porao {
     const repetida = (tarefas as string[]).find((t) => salva?.tarefas[t]);
     if (repetida) return { erro: `${repetida} já está na rodada ${rodada}: uma sessão por tarefa.`, status: 409 };
     const jaTem = salva ? Object.keys(salva.tarefas).length : Object.values(reg.tarefas).filter((t) => t.rodada === rodada).length;
-    const pedidas = this.pedidosAbertos().filter((p) => p.rodada === rodada && !p.roteiro).reduce((n, p) => n + p.tarefas.length, 0);
+    const pedidas = this.pedidosAbertos().filter((p) => p.rodada === rodada && !daCasa(p)).reduce((n, p) => n + p.tarefas.length, 0);
     if (jaTem + pedidas + tarefas.length > teto) {
       return { erro: `Passa do teto de ${teto} sessões por rodada (a rodada já tem ${jaTem} e ${pedidas} pedida(s)).`, status: 409 };
     }
@@ -363,6 +407,7 @@ export class Porao {
       permissoes,
       dependencias,
       ...(typeof est === 'number' ? { estimativaSessaoUnicaMin: est } : {}),
+      ...(typeof sprint === 'string' ? { sprint } : {}),
       criadoEm: Date.now(),
       estado: 'aguardando',
       sessoes: {},
@@ -427,6 +472,13 @@ export class Porao {
   }
 
   private async aprovarComTrava(pedido: PedidoPorao, abrir: AbrirSessao, leitura: string[]): Promise<PedidoPorao> {
+    if (pedido.fecharSprint) {
+      const sessionId = randomUUID();
+      // Como a do roteiro: nasce na casa, sem hooks nem regra da rodada.
+      const erro = await abrir(sessionId, promptDoFechamento(pedido.fecharSprint), [], JSON.stringify({ model: MODELO_DAS_SESSOES }));
+      pedido.sessoes[TAREFA_FECHAR] = erro ? { erro } : { sessionId };
+      return pedido;
+    }
     if (pedido.roteiro) {
       const sessionId = randomUUID();
       // Só o modelo: a sessão do roteiro nasce na casa, sem hooks nem regra da rodada.
@@ -449,6 +501,12 @@ export class Porao {
       rodada.tarefas[t] = { arquivos: perm?.arquivos ?? [], testes: perm?.testes ?? [], dependeDe: pedido.dependencias?.[t] ?? [], estado: 'esperando' };
     }
     if (pedido.estimativaSessaoUnicaMin !== undefined) rodada.estimativaSessaoUnicaMin ??= pedido.estimativaSessaoUnicaMin;
+    if (pedido.sprint && !rodada.sprint) {
+      rodada.sprint = pedido.sprint;
+      // Base da revisão do conjunto (a `/fechar-sprint` revisa desde aqui): o HEAD no clique, antes de qualquer sessão.
+      const head = await this.lerHead(pedido.pasta);
+      if (head) rodada.commitInicial = head;
+    }
     // Gate (maestro v3): os comandos de teste do cartão. Primeiro pedido com comandos = linha de base antes de abrir;
     // pedido seguinte na mesma rodada só soma comandos (esses ficam sem linha de base).
     const comandos = comandosDoGate([rodada.gate?.comandos ?? [], ...novas.map((t) => rodada.tarefas[t]!.testes)]);
@@ -609,7 +667,10 @@ export class Porao {
           await fs.writeFile(path.join(r.pasta, rel), montarRelatorio(r, devolutivas, nomeDe, comTil(dir)));
           r.relatorio = rel;
           await gravarRodada(dir, r);
-          if (Object.keys(r.tarefas).some((t) => mexeuEmTela(devolutivas[t] ?? null))) this.pedirRoteiroDaVila(r, rel);
+          // Rodada de sprint (SP-1): o fechamento (revisão do conjunto e os três documentos, roteiro incluído) no lugar
+          // do roteiro da rodada.
+          if (r.sprint) this.pedirFechamentoDaVila(r, rel);
+          else if (Object.keys(r.tarefas).some((t) => mexeuEmTela(devolutivas[t] ?? null))) this.pedirRoteiroDaVila(r, rel);
           gravar = true;
         }
       }
@@ -635,6 +696,7 @@ export class Porao {
           eg && r.gate
             ? { estado: eg, comandos: r.gate.comandos, quebrou: eg === 'reprovada' ? (resultadoDoGate(r.gate)?.linhas ?? []).filter((l) => l.veredito === 'quebrou').map((l) => l.comando) : [] }
             : null,
+        sprint: await etapasDaSprint(r, this.pastaSprints),
       });
     }
     noMundo.sort((a, b) => b.aprovadaEm - a.aprovadaEm);
@@ -708,6 +770,27 @@ export class Porao {
     this.pedidos.set(pedido.id, pedido);
   }
 
+  /** Rodada de sprint pronta (SP-1): o cartão "Fechar a sprint" na estante, um por rodada (o recusado não volta). */
+  private pedirFechamentoDaVila(r: Rodada, relatorio: string): void {
+    if (!r.sprint || [...this.pedidos.values()].some((p) => p.fecharSprint && p.rodada === r.rodada)) return;
+    const pedido: PedidoPorao = {
+      id: randomUUID(),
+      projectId: r.projectId,
+      pasta: r.pasta,
+      maestro: '',
+      rodada: r.rodada,
+      tarefas: [TAREFA_FECHAR],
+      permissoes: {},
+      dependencias: {},
+      sprint: r.sprint,
+      fecharSprint: { relatorio, pasta: path.posix.join(this.pastaSprints, r.sprint) },
+      criadoEm: Date.now(),
+      estado: 'aguardando',
+      sessoes: {},
+    };
+    this.pedidos.set(pedido.id, pedido);
+  }
+
   /**
    * Sessão de trabalho retomada (`--resume`, depois de a vila reiniciar; MA-3): volta com as mesmas regras e hooks com
    * que nasceu, lidos do `rodada.json`. Null = não é tarefa de rodada v2 (retoma como sessão comum).
@@ -738,7 +821,7 @@ export class Porao {
       this.chamados.delete(id);
     }
     await this.gravar(reg);
-    for (const p of this.pedidosAbertos()) if (p.projectId === projectId && !p.roteiro) p.estado = 'recusado';
+    for (const p of this.pedidosAbertos()) if (p.projectId === projectId && !daCasa(p)) p.estado = 'recusado';
     // A rodada sai do quadro e nada mais abre sozinho (o relatório, se já saiu, fica). Na trava: o gate que termina
     // agora relê o `rodada.json` nela e descarta o resultado da rodada encerrada (maestro v3).
     await this.comTrava(async () => {

@@ -3,6 +3,34 @@
 > Memória oficial do projeto (guardrail G5). Toda mudança de código entra aqui,
 > na mesma resposta que a produziu. Mais recente no topo.
 
+## 2026-11-26 — Sprint no porão: cartão "Fechar a sprint" e as 7 etapas no quadro da estante (SP-1)
+
+**Falta conferir na vila** (reiniciar a vila; o reinício é do usuário, regra 6).
+
+**Por quê:** o usuário passou a fazer a sprint inteira numa rodada do porão (decisão de 26/11/2026, opção "direto na
+vila") e quer ver o fluxo de ponta a ponta: plano → código → testes → revisão → roteiro → estudo → guia. Plano e
+decisões em `docs-dev/context/sprint-no-porao.md`.
+
+**O que mudou:**
+1. **Pedido com `sprint`** (`POST /api/porao/pedidos`, mesmo formato do nome da rodada): vai para o `rodada.json`
+   com o `commitInicial` (HEAD do projeto no clique, `lerHead`), que é a base da revisão do conjunto.
+2. **Fim da rodada de sprint:** a vila põe na estante o cartão **"Fechar a sprint"** no lugar do roteiro
+   (`pedirFechamentoDaVila`). O clique abre um morador na casa com `/fechar-sprint <relatório> <pasta da sprint>`
+   (fora do teto; o gongo não recusa o pedido nem apaga a sessão).
+3. **Quadro da estante:** as 7 etapas (`etapasDaSprint`, `rodada.ts`), ✔ conforme o arquivo aparece na pasta da
+   sprint (`plano.md`, `revisao.md`, `roteiro.html`, `estudo.html`, `guia.html`), código e testes pelo `rodada.json`,
+   ❗ no gate reprovado, link de cada documento pronto. Tooltip da estante diz a etapa da vez; o gongo avisa se a
+   sprint ainda tem etapa por fazer.
+4. **Config:** `porao.pastaSprints` (padrão `docs-dev/sprints`; relativo e sem `..`, senão o padrão).
+
+**Testes:** 5 novos em `server/tests/rodada.test.ts` (sprint inválido recusado e rodada comum sem `git`; sprint e HEAD
+gravados; cartão de fechar no lugar do roteiro, um só, fora do teto, sobrevive ao gongo e abre o comando certo; as 7
+etapas pelos arquivos, com ❗ no gate reprovado; `pastaSprintsValida`). Suíte: 365 → 370, 0 falhas. Typecheck,
+build e auditor ok; `conferir-publico --tudo` limpo.
+
+**Fora deste repositório (mesma entrega, G16):** molde visual comum em `~/Documents/IA/claude/molde/`, skill
+`/fechar-sprint`, modo sprint em `/roteiro-testes` e `/revisar`, seção "Rodada de sprint" no agente `maestro`.
+
 ## 2026-11-25 — Porão no modo início de sprint: posse por sessão, fila de testes e ondas de até 3 (MS-1)
 
 **O que mudou** (plano `docs-dev/context/porao-modo-sprint.md`, decidido pelo usuário em 25/11/2026):

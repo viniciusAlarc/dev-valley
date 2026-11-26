@@ -123,7 +123,9 @@ export class PoraoScene extends Phaser.Scene {
     makeInteractive(
       this.avisoPedido,
       () =>
-        pedido.roteiro
+        pedido.fecharSprint
+          ? `Cartão da vila — a sprint ${pedido.sprint ?? ''} está pronta: revisão, roteiro, estudo e guia — clique para fechar a sprint`
+          : pedido.roteiro
           ? `Cartão do maestro — roteiro de testes da rodada ${pedido.rodada} — clique para abrir a sessão na casa`
           : `Cartão do maestro — quer abrir ${pedido.tarefas.length} sessão(ões) para a rodada ${pedido.rodada} — clique para decidir`,
       () => ui.openPedidoPorao(pedido, this.project(getWorld())!),
@@ -280,6 +282,9 @@ export class PoraoScene extends Phaser.Scene {
         const r = rodadaDoPorao(w, this.projectId);
         if (r) {
           const prontas = r.tarefas.filter((t) => colunaDa(t, w) === 'pronta').length;
+          // Rodada de sprint (SP-1): a etapa da vez do fluxo, que é o que o usuário quer saber de passagem.
+          const etapa = r.sprint?.etapas.find((e) => !e.feita);
+          if (r.sprint) return `Estante de partitura — sprint ${r.sprint.id}: ${etapa ? `etapa ${r.sprint.etapas.indexOf(etapa) + 1} de 7, ${etapa.nome.toLowerCase()}` : 'fechada'} — clique para ver o quadro`;
           return `Estante de partitura — rodada ${r.rodada}: ${prontas} de ${r.tarefas.length} pronta(s) — clique para ver o quadro`;
         }
         const list = this.project(getWorld())?.relatorios ?? [];

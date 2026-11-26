@@ -322,6 +322,10 @@ export interface PedidoPorao {
   dependencias?: Record<string, string[]>;
   /** Pedido da sessão do roteiro de testes (05/11/2026): o relatório da rodada. A sessão nasce na casa. */
   roteiro?: string;
+  /** Rodada de sprint (SP-1, 26/11/2026): o id da pasta da sprint. */
+  sprint?: string;
+  /** Pedido de fechar a sprint (SP-1): relatório e pasta da sprint. A sessão nasce na casa, como a do roteiro. */
+  fecharSprint?: { relatorio: string; pasta: string };
   criadoEm: number;
   estado: 'aguardando' | 'aprovado' | 'recusado';
   sessoes: Record<string, { sessionId: string } | { erro: string }>;
@@ -393,7 +397,27 @@ export interface RodadaPorao {
    * com todas prontas. null = rodada sem comando de teste. `quebrou` = comandos que passavam e falham.
    */
   gate: { estado: 'linha-de-base' | 'trabalhando' | 'conferindo' | 'aprovada' | 'reprovada'; comandos: string[]; quebrou: string[] } | null;
+  /** Rodada de sprint (SP-1): as 7 etapas do fluxo; null (ou ausente, servidor antigo) = rodada comum. */
+  sprint?: SprintPorao | null;
 }
+
+/** Etapa do fluxo da sprint (servidor: `etapasDaSprint` em `rodada.ts`); `arquivo` = documento já gravado. */
+export interface EtapaDaSprint {
+  id: 'plano' | 'codigo' | 'testes' | 'revisao' | 'roteiro' | 'estudo' | 'guia';
+  nome: string;
+  feita: boolean;
+  arquivo: string | null;
+  alerta: boolean;
+}
+
+export interface SprintPorao {
+  id: string;
+  pasta: string;
+  etapas: EtapaDaSprint[];
+}
+
+/** Link para abrir um arquivo do projeto pela vila (o terminal e os painéis rodam no navegador: nunca `file://`). */
+export const linkDoArquivo = (abs: string) => `/api/arquivo?path=${encodeURIComponent(abs)}`;
 
 /** Comandos de teste do pedido, na ordem, sem repetição: o que a vila roda antes e depois (maestro v3). */
 export function comandosDoPedido(pedido: PedidoPorao): string[] {

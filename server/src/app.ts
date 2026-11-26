@@ -224,7 +224,7 @@ export function criarApp(ctx: Contexto): express.Express {
     if (!maestro?.live || maestro.porao?.papel !== 'maestro') return res.status(403).json({ error: 'Só o maestro aberto no porão, com a sessão viva, pede sessões.' });
     const casaDoMaestro = findProject(maestro.projectId);
     if (!casaDoMaestro) return res.status(404).json({ error: 'Projeto do maestro não encontrado.' });
-    const r = await porao.pedir({ maestro: maestro.id, rodada: req.body?.rodada, tarefas: req.body?.tarefas, estimativaSessaoUnicaMin: req.body?.estimativaSessaoUnicaMin }, ctx.tetoSessoes, casaDoMaestro.path);
+    const r = await porao.pedir({ maestro: maestro.id, rodada: req.body?.rodada, tarefas: req.body?.tarefas, estimativaSessaoUnicaMin: req.body?.estimativaSessaoUnicaMin, sprint: req.body?.sprint }, ctx.tetoSessoes, casaDoMaestro.path);
     if ('erro' in r) return res.status(r.status).json({ error: r.erro });
     ctx.criticaDoCartao.iniciar(r);
     await refreshWorld();

@@ -188,7 +188,7 @@ export function perguntarDeVerdade(contaDoCritico: Conta, contaDoVerificador: Co
 export function criticaDoPorao(perguntar: Perguntar, rodadasDir: string, aoMudar: () => void) {
   return {
     iniciar(pedido: PedidoPorao): void {
-      if (pedido.roteiro || pedido.critica) return;
+      if (pedido.roteiro || pedido.fecharSprint || pedido.critica) return;
       pedido.critica = { estado: 'conferindo', apontamentos: [], levantados: 0, refutados: 0, incertos: 0, foraDoTeto: 0, inicio: new Date().toISOString() };
       void criticar(pedido, perguntar, rodadasDir).then(async (c) => {
         pedido.critica = c;

@@ -1,4 +1,4 @@
-import { api, colunaDa, comandosDoPedido, getWorld, onWorld, rodadaDoPorao, type ColunaDoQuadro, type CriticaDoCartao, type PedidoPorao, type Project, type RodadaPorao, type World } from '../api';
+import { api, colunaDa, comandosDoPedido, getWorld, linkDoArquivo, onWorld, rodadaDoPorao, type ColunaDoQuadro, type CriticaDoCartao, type PedidoPorao, type Project, type RodadaPorao, type SprintPorao, type World } from '../api';
 import { villagerName } from '../game/names';
 import { ui } from './actions';
 import { button, closePanel, escapeHtml, openPanel } from './panel';
@@ -24,6 +24,7 @@ export function openEncerrarRodada(project: Project) {
       })
       .join('')}</ul>
     <p class="muted">O que foi feito continua no relatório (estante de partitura, ao lado do maestro), no PROGRESS.md e nos commits.</p>
+    ${avisoDaSprintNoGongo(rodadaDoPorao(getWorld(), project.id)?.sprint)}
     <p class="porao-acoes">
       <button class="btn btn-danger" data-acao="encerrar">Apagar e encerrar</button>
       <button class="btn" data-acao="cancelar">Cancelar</button>
@@ -49,6 +50,7 @@ export function openEncerrarRodada(project: Project) {
  * rodada e elas só abrem com este clique, como o push do pombal. A rota de aprovar só aceita vinda da página.
  */
 export function openPedidoPorao(pedido: PedidoPorao, project: Project) {
+  if (pedido.fecharSprint) return openPedidoFecharSprint(pedido, project);
   if (pedido.roteiro) return openPedidoRoteiro(pedido, project);
   const n = pedido.tarefas.length;
   const depois = pedido.tarefas.filter((t) => pedido.dependencias?.[t]?.length).length;
@@ -76,6 +78,11 @@ export function openPedidoPorao(pedido: PedidoPorao, project: Project) {
       })
       .join('')}</ul>
     <p class="muted">Fora disso elas pedem permissão como qualquer sessão: o ❗ aparece no morador do porão e no topo da tela.</p>
+    ${
+      pedido.sprint
+        ? `<p>Rodada da sprint <code>${escapeHtml(pedido.sprint)}</code>. Quando todas ficarem prontas, aparece aqui o cartão <b>Fechar a sprint</b>: revisão do conjunto, roteiro de testes, estudo e guia da reunião. O quadro na estante mostra as 7 etapas.</p>`
+        : ''
+    }
     ${
       comandos.length
         ? `<p>A vila roda ${lista(comandos)} antes de abrir as sessões (linha de base) e de novo quando todas ficarem prontas: o relatório separa o que já estava vermelho do que a rodada quebrou.</p>`
@@ -186,6 +193,75 @@ function openPedidoRoteiro(pedido: PedidoPorao, project: Project) {
   }
 }
 
+/**
+ * Cartão "Fechar a sprint" (SP-1, 26/11/2026): a rodada de sprint ficou pronta e a vila pede a sessão que revisa o
+ * código da sprint inteira e gera os três documentos. Nasce na casa, como a do roteiro: o gongo não a apaga.
+ */
+function openPedidoFecharSprint(pedido: PedidoPorao, project: Project) {
+  const f = pedido.fecharSprint!;
+  const comando = `/fechar-sprint ${f.relatorio} ${f.pasta}`;
+  const panel = openPanel({ title: 'Fechar a sprint', subtitle: `${project.name} · sprint ${pedido.sprint ?? ''}` });
+  panel.body.innerHTML = `
+    <p>O código da sprint está pronto. Abrir cria um morador na casa que começa com <code>${escapeHtml(comando)}</code> e faz,
+    nesta ordem:</p>
+    <ol>
+      <li><b>Revisão</b> do código da sprint inteira (conjunto, tenant e segurança, tela) e correção do que for confirmado.</li>
+      <li><b>Roteiro de testes</b>: só navegação e visual, uma página para a sprint toda.</li>
+      <li><b>Estudo da sprint</b> e <b>guia da reunião</b>, com a mesma cara do roteiro.</li>
+    </ol>
+    <p class="muted">Cada etapa ganha ✔ no quadro da estante quando o arquivo dela aparece em <code>${escapeHtml(f.pasta)}</code>.
+    É uma sessão comum: pede permissão como qualquer outra, e o gongo do porão não a apaga.</p>
+    <p class="porao-acoes">
+      <button class="btn btn-primary" data-acao="aprovar">Fechar a sprint</button>
+      <button class="btn btn-danger" data-acao="recusar">Agora não</button>
+    </p>
+    <div class="porao-resultado"></div>`;
+  const botoes = [...panel.body.querySelectorAll<HTMLButtonElement>('[data-acao]')];
+  const resultado = panel.body.querySelector<HTMLElement>('.porao-resultado')!;
+  for (const b of botoes) {
+    b.addEventListener('click', async () => {
+      for (const x of botoes) x.disabled = true;
+      try {
+        if (b.dataset.acao === 'recusar') {
+          await api.recusarPedido(pedido.id);
+          resultado.innerHTML = `<p>Sem a sessão agora. Para fechar depois, numa sessão da casa: <code>${escapeHtml(comando)}</code></p>`;
+          return;
+        }
+        const r = await api.aprovarPedido(pedido.id);
+        const s = r.sessoes['fechar-sprint'];
+        resultado.innerHTML = s && 'sessionId' in s
+          ? '<p>Aberta: o morador novo está na casa, começando pela revisão. Acompanhe as etapas no quadro da estante.</p>'
+          : `<p>Não abriu: ${escapeHtml(s && 'erro' in s ? s.erro : 'sem resposta')}</p>`;
+      } catch (e) {
+        resultado.innerHTML = `<p>${escapeHtml(e instanceof Error ? e.message : String(e))}</p>`;
+      }
+    });
+  }
+}
+
+/** As 7 etapas da sprint no topo do quadro (SP-1): ✔ feita, ❗ feita com problema, a primeira por fazer em destaque. */
+function htmlDaSprint(s: SprintPorao | null | undefined): string {
+  if (!s) return '';
+  const agora = s.etapas.findIndex((e) => !e.feita);
+  const itens = s.etapas
+    .map((e, i) => {
+      const marca = e.feita ? (e.alerta ? '❗' : '✔') : i === agora ? '▶' : '·';
+      const nome = e.arquivo ? `<a href="${escapeHtml(linkDoArquivo(e.arquivo))}" target="_blank" rel="noopener">${escapeHtml(e.nome)}</a>` : escapeHtml(e.nome);
+      const classe = e.feita ? 'feita' : i === agora ? 'agora' : '';
+      return `<li class="${classe}"><span class="marca">${marca}</span> ${i + 1} ${nome}</li>`;
+    })
+    .join('');
+  const falta = agora < 0 ? 'Sprint fechada: os três documentos estão na pasta.' : `Agora: ${escapeHtml(s.etapas[agora]!.nome.toLowerCase())}.`;
+  return `<p>Sprint <code>${escapeHtml(s.id)}</code> · ${falta}</p><ol class="sprint-etapas">${itens}</ol>`;
+}
+
+/** Gongo numa rodada de sprint com etapa por fazer: o quadro sai da estante, os documentos ficam na pasta. */
+function avisoDaSprintNoGongo(s: SprintPorao | null | undefined): string {
+  if (!s || s.etapas.every((e) => e.feita)) return '';
+  const faltam = s.etapas.filter((e) => !e.feita).map((e) => e.nome.toLowerCase()).join(', ');
+  return `<p>⚠️ A sprint <code>${escapeHtml(s.id)}</code> ainda tem etapa por fazer (${escapeHtml(faltam)}): o gongo tira o quadro dela da estante. A sessão de fechar a sprint, se já abriu, continua na casa, e os documentos continuam em <code>${escapeHtml(s.pasta)}</code>.</p>`;
+}
+
 const COLUNAS: { id: ColunaDoQuadro; titulo: string; dot: string }[] = [
   { id: 'esperando', titulo: 'Esperando', dot: '' },
   { id: 'trabalhando', titulo: 'Trabalhando', dot: 'working' },
@@ -264,11 +340,12 @@ export function openQuadroRodada(project: Project) {
     panel.body.innerHTML = `
       <p>Rodada <code>${escapeHtml(r.rodada)}</code> · ${prontas} de ${r.tarefas.length} pronta(s). A vila marca a tarefa
       pronta quando a sessão grava a devolutiva, e abre sozinha a que esperava por ela.</p>
+      ${htmlDaSprint(r.sprint)}
       ${textoDoGate(r.gate)}
       <div class="quadro-rodada">${colunas}</div>
       ${
         r.relatorio
-          ? `<p>Relatório montado: <code>${escapeHtml(r.relatorio)}</code>. Commite pelo pombal; o gongo encerra a rodada.</p>`
+          ? `<p>Relatório montado: <code>${escapeHtml(r.relatorio)}</code>. Commite pelo pombal; o gongo encerra a rodada${r.sprint ? ' e tira este quadro da estante (os documentos ficam na pasta da sprint)' : ''}.</p>`
           : '<p class="muted">Quando todas ficarem prontas, o relatório aparece aqui e na estante.</p>'
       }
       <p class="porao-acoes"></p>`;
